@@ -1,0 +1,578 @@
+[
+  {
+    "company_name_en": "Shenzhen Huntkey Electric Co., Ltd.",
+    "company_name_zh": "深圳航嘉驰源电气股份有限公司",
+    "location": "Shenzhen, Guangdong",
+    "established_year": 1995,
+    "product_categories": [
+      "Power Adapters",
+      "PD Chargers",
+      "Power Strips"
+    ],
+    "paid_in_capital_rmb": 150000000,
+    "employee_count": 850,
+    "patents": {
+      "invention": 45,
+      "utility": 120,
+      "design": 30
+    },
+    "has_lawsuits": false,
+    "is_dishonest": false,
+    "monthly_export_consistency": 0.98,
+    "hs_codes": [
+      "8504.40",
+      "8504.90"
+    ],
+    "certifications": [
+      "CE",
+      "UL",
+      "RoHS",
+      "ISO 9001"
+    ],
+    "tier": "Top 10",
+    "totalScore": 100,
+    "categories": [
+      {
+        "name": "Identity",
+        "score": 35,
+        "max": 35,
+        "color": "bg-blue-600"
+      },
+      {
+        "name": "Compliance",
+        "score": 20,
+        "max": 20,
+        "color": "bg-purple-500"
+      },
+      {
+        "name": "Trade",
+        "score": 45,
+        "max": 45,
+        "color": "bg-amber-500"
+      },
+      {
+        "name": "Reputation",
+        "score": 10,
+        "max": 15,
+        "color": "bg-emerald-500"
+      }
+    ]
+  },
+  {
+    "company_name_en": "Anker Innovations Co., Ltd.",
+    "company_name_zh": "安克创新科技股份有限公司",
+    "location": "Changsha, Hunan / Shenzhen",
+    "established_year": 2011,
+    "product_categories": [
+      "GaN Chargers",
+      "Power Banks",
+      "USB-C Adapters"
+    ],
+    "paid_in_capital_rmb": 406000000,
+    "employee_count": 3500,
+    "patents": {
+      "invention": 200,
+      "utility": 450,
+      "design": 100
+    },
+    "has_lawsuits": false,
+    "is_dishonest": false,
+    "monthly_export_consistency": 0.95,
+    "hs_codes": [
+      "8504.40",
+      "8507.60"
+    ],
+    "certifications": [
+      "CE",
+      "UL",
+      "FCC",
+      "ISO 9001"
+    ],
+    "tier": "Global Leader",
+    "totalScore": 99,
+    "categories": [
+      {
+        "name": "Identity",
+        "score": 35,
+        "max": 35,
+        "color": "bg-blue-600"
+      },
+      {
+        "name": "Compliance",
+        "score": 20,
+        "max": 20,
+        "color": "bg-purple-500"
+      },
+      {
+        "name": "Trade",
+        "score": 44,
+        "max": 45,
+        "color": "bg-amber-500"
+      },
+      {
+        "name": "Reputation",
+        "score": 10,
+        "max": 15,
+        "color": "bg-emerald-500"
+      }
+    ]
+  },
+  {
+    "company_name_en": "Ugreen Group Ltd",
+    "company_name_zh": "深圳市绿联科技股份有限公司",
+    "location": "Shenzhen, Guangdong",
+    "established_year": 2012,
+    "product_categories": [
+      "Nexode GaN Chargers",
+      "Laptop Adapters"
+    ],
+    "paid_in_capital_rmb": 350000000,
+    "employee_count": 1200,
+    "patents": {
+      "invention": 50,
+      "utility": 150,
+      "design": 80
+    },
+    "has_lawsuits": false,
+    "is_dishonest": false,
+    "monthly_export_consistency": 0.92,
+    "hs_codes": [
+      "8504.40",
+      "8517.70"
+    ],
+    "certifications": [
+      "CE",
+      "UL",
+      "RoHS",
+      "ISO 9001"
+    ],
+    "tier": "Top 5",
+    "totalScore": 98,
+    "categories": [
+      {
+        "name": "Identity",
+        "score": 35,
+        "max": 35,
+        "color": "bg-blue-600"
+      },
+      {
+        "name": "Compliance",
+        "score": 20,
+        "max": 20,
+        "color": "bg-purple-500"
+      },
+      {
+        "name": "Trade",
+        "score": 43,
+        "max": 45,
+        "color": "bg-amber-500"
+      },
+      {
+        "name": "Reputation",
+        "score": 10,
+        "max": 15,
+        "color": "bg-emerald-500"
+      }
+    ]
+  },
+  {
+    "company_name_en": "Baseus Technology",
+    "company_name_zh": "深圳市倍思科技有限公司",
+    "location": "Shenzhen, Guangdong",
+    "established_year": 2011,
+    "product_categories": [
+      "GaN Chargers",
+      "Car Chargers",
+      "Multi-port Adapters"
+    ],
+    "paid_in_capital_rmb": 100000000,
+    "employee_count": 900,
+    "patents": {
+      "invention": 30,
+      "utility": 100,
+      "design": 60
+    },
+    "has_lawsuits": false,
+    "is_dishonest": false,
+    "monthly_export_consistency": 0.9,
+    "hs_codes": [
+      "8504.40"
+    ],
+    "certifications": [
+      "CE",
+      "FCC",
+      "RoHS",
+      "ISO 9001"
+    ],
+    "tier": "Global Brand",
+    "totalScore": 98,
+    "categories": [
+      {
+        "name": "Identity",
+        "score": 35,
+        "max": 35,
+        "color": "bg-blue-600"
+      },
+      {
+        "name": "Compliance",
+        "score": 20,
+        "max": 20,
+        "color": "bg-purple-500"
+      },
+      {
+        "name": "Trade",
+        "score": 43,
+        "max": 45,
+        "color": "bg-amber-500"
+      },
+      {
+        "name": "Reputation",
+        "score": 10,
+        "max": 15,
+        "color": "bg-emerald-500"
+      }
+    ]
+  },
+  {
+    "company_name_en": "Delta Electronics (China) Co., Ltd.",
+    "company_name_zh": "台达电子工业股份有限公司",
+    "location": "Shanghai / Dongguan",
+    "established_year": 1992,
+    "product_categories": [
+      "Laptop Adapters",
+      "Industrial Power Supplies"
+    ],
+    "paid_in_capital_rmb": 500000000,
+    "employee_count": 15000,
+    "patents": {
+      "invention": 1000,
+      "utility": 3000,
+      "design": 500
+    },
+    "has_lawsuits": false,
+    "is_dishonest": false,
+    "monthly_export_consistency": 1,
+    "hs_codes": [
+      "8504.40",
+      "8504.50"
+    ],
+    "certifications": [
+      "CE",
+      "UL",
+      "ISO 14001",
+      "ISO 9001"
+    ],
+    "tier": "World Largest",
+    "totalScore": 100,
+    "categories": [
+      {
+        "name": "Identity",
+        "score": 35,
+        "max": 35,
+        "color": "bg-blue-600"
+      },
+      {
+        "name": "Compliance",
+        "score": 20,
+        "max": 20,
+        "color": "bg-purple-500"
+      },
+      {
+        "name": "Trade",
+        "score": 45,
+        "max": 45,
+        "color": "bg-amber-500"
+      },
+      {
+        "name": "Reputation",
+        "score": 10,
+        "max": 15,
+        "color": "bg-emerald-500"
+      }
+    ]
+  },
+  {
+    "company_name_en": "Mean Well (Guangzhou) Electronics Co., Ltd.",
+    "company_name_zh": "明纬（广州）电子有限公司",
+    "location": "Guangzhou, Guangdong",
+    "established_year": 1993,
+    "product_categories": [
+      "Standard Switching Power Supplies"
+    ],
+    "paid_in_capital_rmb": 200000000,
+    "employee_count": 2500,
+    "patents": {
+      "invention": 20,
+      "utility": 80,
+      "design": 10
+    },
+    "has_lawsuits": false,
+    "is_dishonest": false,
+    "monthly_export_consistency": 0.99,
+    "hs_codes": [
+      "8504.40"
+    ],
+    "certifications": [
+      "CE",
+      "UL",
+      "RoHS",
+      "ISO 9001"
+    ],
+    "tier": "Global Top 5",
+    "totalScore": 100,
+    "categories": [
+      {
+        "name": "Identity",
+        "score": 35,
+        "max": 35,
+        "color": "bg-blue-600"
+      },
+      {
+        "name": "Compliance",
+        "score": 20,
+        "max": 20,
+        "color": "bg-purple-500"
+      },
+      {
+        "name": "Trade",
+        "score": 45,
+        "max": 45,
+        "color": "bg-amber-500"
+      },
+      {
+        "name": "Reputation",
+        "score": 10,
+        "max": 15,
+        "color": "bg-emerald-500"
+      }
+    ]
+  },
+  {
+    "company_name_en": "Shenzhen SOY Technology Co., Ltd.",
+    "company_name_zh": "深圳市索源科技有限公司",
+    "location": "Shenzhen, Guangdong",
+    "established_year": 2010,
+    "product_categories": [
+      "Medical & ITE Power Adapters"
+    ],
+    "paid_in_capital_rmb": 20000000,
+    "employee_count": 450,
+    "patents": {
+      "invention": 5,
+      "utility": 25,
+      "design": 10
+    },
+    "has_lawsuits": false,
+    "is_dishonest": false,
+    "monthly_export_consistency": 0.94,
+    "hs_codes": [
+      "8504.40"
+    ],
+    "certifications": [
+      "CE",
+      "UL",
+      "ISO 13485",
+      "ISO 9001"
+    ],
+    "tier": "Medical Leader",
+    "totalScore": 99,
+    "categories": [
+      {
+        "name": "Identity",
+        "score": 35,
+        "max": 35,
+        "color": "bg-blue-600"
+      },
+      {
+        "name": "Compliance",
+        "score": 20,
+        "max": 20,
+        "color": "bg-purple-500"
+      },
+      {
+        "name": "Trade",
+        "score": 44,
+        "max": 45,
+        "color": "bg-amber-500"
+      },
+      {
+        "name": "Reputation",
+        "score": 10,
+        "max": 15,
+        "color": "bg-emerald-500"
+      }
+    ]
+  },
+  {
+    "company_name_en": "Shenzhen Honor Electronic Co., Ltd.",
+    "company_name_zh": "深圳欧陆通电子股份有限公司",
+    "location": "Shenzhen, Guangdong",
+    "established_year": 2006,
+    "product_categories": [
+      "Server Power Supplies",
+      "High-power Adapters"
+    ],
+    "paid_in_capital_rmb": 150000000,
+    "employee_count": 1800,
+    "patents": {
+      "invention": 15,
+      "utility": 60,
+      "design": 20
+    },
+    "has_lawsuits": false,
+    "is_dishonest": false,
+    "monthly_export_consistency": 0.95,
+    "hs_codes": [
+      "8504.40"
+    ],
+    "certifications": [
+      "CE",
+      "UL",
+      "RoHS",
+      "ISO 9001"
+    ],
+    "tier": "Top 5",
+    "totalScore": 99,
+    "categories": [
+      {
+        "name": "Identity",
+        "score": 35,
+        "max": 35,
+        "color": "bg-blue-600"
+      },
+      {
+        "name": "Compliance",
+        "score": 20,
+        "max": 20,
+        "color": "bg-purple-500"
+      },
+      {
+        "name": "Trade",
+        "score": 44,
+        "max": 45,
+        "color": "bg-amber-500"
+      },
+      {
+        "name": "Reputation",
+        "score": 10,
+        "max": 15,
+        "color": "bg-emerald-500"
+      }
+    ]
+  },
+  {
+    "company_name_en": "Shenzhen MOSO Power Supply Technology Co., Ltd.",
+    "company_name_zh": "茂硕电源科技股份有限公司",
+    "location": "Shenzhen, Guangdong",
+    "established_year": 2006,
+    "product_categories": [
+      "LED Drivers",
+      "Consumer Electronics Adapters"
+    ],
+    "paid_in_capital_rmb": 320000000,
+    "employee_count": 2200,
+    "patents": {
+      "invention": 25,
+      "utility": 110,
+      "design": 40
+    },
+    "has_lawsuits": false,
+    "is_dishonest": false,
+    "monthly_export_consistency": 0.93,
+    "hs_codes": [
+      "8504.40",
+      "8504.10"
+    ],
+    "certifications": [
+      "CE",
+      "UL",
+      "ISO 9001"
+    ],
+    "tier": "Listed Company",
+    "totalScore": 96,
+    "categories": [
+      {
+        "name": "Identity",
+        "score": 35,
+        "max": 35,
+        "color": "bg-blue-600"
+      },
+      {
+        "name": "Compliance",
+        "score": 18,
+        "max": 20,
+        "color": "bg-purple-500"
+      },
+      {
+        "name": "Trade",
+        "score": 44,
+        "max": 45,
+        "color": "bg-amber-500"
+      },
+      {
+        "name": "Reputation",
+        "score": 10,
+        "max": 15,
+        "color": "bg-emerald-500"
+      }
+    ]
+  },
+  {
+    "company_name_en": "Phihong (Dongguan) Electronics Co., Ltd.",
+    "company_name_zh": "飞宏科技",
+    "location": "Dongguan, Guangdong",
+    "established_year": 1972,
+    "product_categories": [
+      "PoE Adapters",
+      "EV Charging Piles"
+    ],
+    "paid_in_capital_rmb": 300000000,
+    "employee_count": 3500,
+    "patents": {
+      "invention": 40,
+      "utility": 150,
+      "design": 30
+    },
+    "has_lawsuits": false,
+    "is_dishonest": false,
+    "monthly_export_consistency": 0.97,
+    "hs_codes": [
+      "8504.40",
+      "8517.62"
+    ],
+    "certifications": [
+      "CE",
+      "UL",
+      "PoE",
+      "ISO 9001"
+    ],
+    "tier": "Top Global",
+    "totalScore": 99,
+    "categories": [
+      {
+        "name": "Identity",
+        "score": 35,
+        "max": 35,
+        "color": "bg-blue-600"
+      },
+      {
+        "name": "Compliance",
+        "score": 20,
+        "max": 20,
+        "color": "bg-purple-500"
+      },
+      {
+        "name": "Trade",
+        "score": 44,
+        "max": 45,
+        "color": "bg-amber-500"
+      },
+      {
+        "name": "Reputation",
+        "score": 10,
+        "max": 15,
+        "color": "bg-emerald-500"
+      }
+    ]
+  }
+]
