@@ -1,0 +1,12 @@
+import urllib.request
+import urllib.error
+import json
+import time
+
+TOKEN = 'YOUR_SHOPIFY_TOKEN'
+SHOP = 'YOUR_SHOPIFY_STORE_DOMAIN'
+BASE = f'https://{SHOP}/admin/api/2024-01'
+HEADERS = {
+    'X-Shopify-Access-Token': TOKEN,
+    'Content-Type': 'application/json'
+}

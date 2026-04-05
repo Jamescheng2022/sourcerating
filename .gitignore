@@ -1,0 +1,22 @@
+# pip cache/temp
+pip-*/
+
+# temp data files
+temp_*.json
+github_body.json
+closes_data.json
+data_*.json
+
+# raw market data (regenerated daily)
+raw_data/
+
+# python temp
+__pycache__/
+*.pyc
+
+# jointech subfolder (unrelated)
+jointech-precast/
+
+# misc temp
+-p/
+
