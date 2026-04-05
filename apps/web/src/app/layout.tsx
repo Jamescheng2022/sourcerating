@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "sourcerating â€?Verify Chinese Suppliers Before You Pay",
+  title: "sourcerating | Verify Chinese Suppliers Before You Pay",
   description: "AI-powered credit scoring for Chinese manufacturers. Powered by sourcerating.com.",
 };
 
@@ -31,4 +31,3 @@ export default function RootLayout({
     </html>
   );
 }
-
