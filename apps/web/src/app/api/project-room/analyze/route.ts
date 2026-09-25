@@ -45,6 +45,23 @@ const deepSchema = z.object({
   confidence: z.number().min(0).max(1),
 });
 
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  if (process.env.VERCEL_ENV !== 'preview' || url.searchParams.get('smoke') !== '1') {
+    return Response.json({ ok: false, error: 'Not found' }, { status: 404 });
+  }
+
+  return POST(new Request(request.url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      roomId: 'smoke-eastframe',
+      latestMessage: 'Quotation v3 updates total price from RMB 295,000 to RMB 320,000, delivery from 60 to 45 days, and wall panel thickness from 75mm to 100mm PU fireproof core.',
+      recentContext: ['Buyer requires R-value >= 3.5 and 1.8 kPa wind-load connection verification.'],
+    }),
+  }));
+}
+
 export async function POST(request: Request) {
   try {
     const body = requestSchema.parse(await request.json());
