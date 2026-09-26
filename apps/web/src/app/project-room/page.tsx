@@ -16,6 +16,11 @@ import {
   STORAGE_KEY_ORG_ID,
 } from "@/lib/demo-session";
 import { analyzeRoomEvent } from "@/lib/staging";
+import {
+  createRoomFileSignedUrl,
+  formatFileSize,
+  uploadRoomAttachment,
+} from "@/lib/room-files";
 
 export default function ProjectRoomPage() {
   // Session & Auth state
@@ -42,6 +47,8 @@ export default function ProjectRoomPage() {
   const [pendingDraft, setPendingDraft] = useState<PendingDraft | null>(null);
   const [aiStatus, setAiStatus] = useState<string | null>(null);
   const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
+  const [fileUploading, setFileUploading] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
 
   // Track max seq for gap filling
   const lastSeqRef = useRef<number>(0);
@@ -54,6 +61,7 @@ export default function ProjectRoomPage() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isNearBottomRef = useRef<boolean>(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Android keyboard & visualViewport safety
   useEffect(() => {
@@ -517,6 +525,50 @@ export default function ProjectRoomPage() {
     }
   };
 
+  const handleFileSelected = async (file: File | null) => {
+    if (!file || !activeRoomId || !actingOrgId) return;
+
+    setFileUploading(true);
+    setFileError(null);
+    isNearBottomRef.current = true;
+    scrollToBottom("smooth");
+
+    try {
+      const result = await uploadRoomAttachment({
+        roomId: activeRoomId,
+        actingOrganizationId: actingOrgId,
+        file,
+      });
+
+      setEvents((prev) => {
+        const merged = dedupeAndSortEvents(prev, [result.event]);
+        lastSeqRef.current = getMaxSeq(merged);
+        return merged;
+      });
+
+      await runGapFill(activeRoomId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Attachment upload failed.";
+      setFileError(message);
+    } finally {
+      setFileUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const handleOpenFile = async (objectPath: string) => {
+    try {
+      setFileError(null);
+      const signedUrl = await createRoomFileSignedUrl(objectPath, 120);
+      window.open(signedUrl, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to open file.";
+      setFileError(message);
+    }
+  };
+
   // Format message sender and organization
   const getEventAuthorInfo = (ev: RoomEvent) => {
     if (ev.payload?.who) {
@@ -911,6 +963,9 @@ export default function ProjectRoomPage() {
               {events.map((ev, idx) => {
                 const author = getEventAuthorInfo(ev);
                 const text = extractEventText(ev.payload);
+                const isFileEvent =
+                  ev.event_type === "file.attached" &&
+                  typeof ev.payload?.object_path === "string";
                 const isMyMessage = currentUserId && ev.actor_user_id === currentUserId;
                 const timeStr = ev.created_at
                   ? new Date(ev.created_at).toLocaleTimeString([], {
@@ -958,9 +1013,58 @@ export default function ProjectRoomPage() {
                           : "rounded-bl-xs bg-white text-slate-900 border border-slate-200"
                       }`}
                     >
-                      <div className="whitespace-pre-wrap break-words">{text}</div>
+                      {!isFileEvent && (
+                        <div className="whitespace-pre-wrap break-words">{text}</div>
+                      )}
 
-                      {ev.payload?.file && (
+                      {isFileEvent && (
+                        <button
+                          type="button"
+                          onClick={() => void handleOpenFile(ev.payload.object_path)}
+                          className={`block w-full rounded-xl p-3 text-left text-xs transition ${
+                            isMyMessage
+                              ? "bg-sky-700/60 border border-sky-400 text-white hover:bg-sky-700"
+                              : "bg-slate-50 border border-slate-200 text-slate-800 hover:bg-slate-100"
+                          }`}
+                        >
+                          <div className="flex items-start gap-2">
+                            <span className="text-base">PDF</span>
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate font-semibold">
+                                {ev.payload.file_name || "Project document"}
+                              </div>
+                              <div
+                                className={`mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] ${
+                                  isMyMessage ? "text-sky-100" : "text-slate-500"
+                                }`}
+                              >
+                                <span>v{ev.payload.version_no || 1}</span>
+                                <span>{formatFileSize(ev.payload.size_bytes)}</span>
+                                <span>{ev.payload.mime_type || "file"}</span>
+                                {ev.payload.supersedes_version_id && (
+                                  <span>supersedes prior version</span>
+                                )}
+                              </div>
+                              <div
+                                className={`mt-1 truncate font-mono text-[9px] ${
+                                  isMyMessage ? "text-sky-200" : "text-slate-400"
+                                }`}
+                              >
+                                SHA256 {String(ev.payload.sha256 || "").slice(0, 16)}...
+                              </div>
+                              <div
+                                className={`mt-1 text-[10px] font-semibold ${
+                                  isMyMessage ? "text-white" : "text-sky-700"
+                                }`}
+                              >
+                                Open / Download · 打开文件
+                              </div>
+                            </div>
+                          </div>
+                        </button>
+                      )}
+
+                      {!isFileEvent && ev.payload?.file && (
                         <div
                           className={`mt-2 rounded-lg p-2.5 text-xs ${
                             isMyMessage
@@ -1140,15 +1244,46 @@ export default function ProjectRoomPage() {
                 className="w-full resize-none px-3 py-2 text-[13px] sm:text-sm outline-none text-slate-900 bg-transparent min-h-[38px] max-h-[100px] leading-relaxed"
               />
 
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.xlsx,.xls,.png,.jpg,.jpeg,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,image/png,image/jpeg"
+                className="hidden"
+                onChange={(event) => {
+                  const file = event.target.files?.[0] || null;
+                  void handleFileSelected(file);
+                }}
+              />
+
+              {fileError && (
+                <div className="mx-3 mb-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-1.5 text-[10px] text-rose-700">
+                  {fileError}
+                </div>
+              )}
+
               {/* Footer Bar */}
               <div className="flex items-center justify-between px-3 pb-2 pt-1 border-t border-slate-100">
-                <div className="text-[10px] text-slate-400 truncate">
-                  Enter to send · 回车发送
+                <div className="flex min-w-0 items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={fileUploading}
+                    className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+                  >
+                    {fileUploading ? "Uploading..." : "Attach · 附件"}
+                  </button>
+                  <div className="truncate text-[10px] text-slate-400">
+                    PDF / Excel / image · max 50 MB
+                  </div>
                 </div>
 
                 <button
                   onClick={handleSend}
-                  disabled={!inputText.trim() || pendingDraft?.status === "sending"}
+                  disabled={
+                    !inputText.trim() ||
+                    pendingDraft?.status === "sending" ||
+                    fileUploading
+                  }
                   className="rounded-lg bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-40 transition flex items-center gap-1.5"
                 >
                   {pendingDraft?.status === "sending" ? (
