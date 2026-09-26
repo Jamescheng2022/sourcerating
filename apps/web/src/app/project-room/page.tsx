@@ -21,6 +21,12 @@ import {
   formatFileSize,
   uploadRoomAttachment,
 } from "@/lib/room-files";
+import { ProjectStatePanel } from "./project-state-panel";
+import {
+  executeReviewStagingProposal,
+  loadProjectRoomState,
+  type ProjectRoomState,
+} from "@/lib/project-state";
 
 export default function ProjectRoomPage() {
   // Session & Auth state
@@ -58,14 +64,33 @@ export default function ProjectRoomPage() {
   const [inviteCreating, setInviteCreating] = useState(false);
   const [projectName, setProjectName] = useState("Project");
   const [projectCode, setProjectCode] = useState("");
+  const [projectState, setProjectState] = useState<ProjectRoomState>({
+    stagingProposals: [],
+    needsYou: [],
+    canonicalObjects: [],
+  });
+  const [projectStateStatus, setProjectStateStatus] = useState<
+    "idle" | "active" | "unavailable"
+  >("idle");
+  const [reviewingProposalId, setReviewingProposalId] = useState<string | null>(
+    null,
+  );
+  const [projectStateError, setProjectStateError] = useState<string | null>(
+    null,
+  );
   const [fileVerification, setFileVerification] = useState<
     Record<
       string,
       {
-        status: "pending" | "verified" | "rejected";
+        status:
+          | "pending"
+          | "verified"
+          | "quarantined"
+          | "hash_mismatch"
+          | "verification_failed";
         serverSha256?: string | null;
         detectedMimeType?: string | null;
-        rejectionReason?: string | null;
+        verificationError?: string | null;
       }
     >
   >({});
@@ -361,7 +386,7 @@ export default function ProjectRoomPage() {
     const { data, error } = await supabase
       .from("room_file_versions")
       .select(
-        "id,verification_status,server_sha256,detected_mime_type,rejection_reason",
+        "id,verification_status,server_sha256,detected_mime_type,verification_error",
       )
       .in("id", fileVersionIds);
 
@@ -373,10 +398,15 @@ export default function ProjectRoomPage() {
     const next: Record<
       string,
       {
-        status: "pending" | "verified" | "rejected";
+        status:
+          | "pending"
+          | "verified"
+          | "quarantined"
+          | "hash_mismatch"
+          | "verification_failed";
         serverSha256?: string | null;
         detectedMimeType?: string | null;
-        rejectionReason?: string | null;
+        verificationError?: string | null;
       }
     > = {};
 
@@ -384,12 +414,14 @@ export default function ProjectRoomPage() {
       next[row.id] = {
         status:
           row.verification_status === "verified" ||
-          row.verification_status === "rejected"
+          row.verification_status === "quarantined" ||
+          row.verification_status === "hash_mismatch" ||
+          row.verification_status === "verification_failed"
             ? row.verification_status
             : "pending",
         serverSha256: row.server_sha256,
         detectedMimeType: row.detected_mime_type,
-        rejectionReason: row.rejection_reason,
+        verificationError: row.verification_error,
       };
     }
 
@@ -399,6 +431,36 @@ export default function ProjectRoomPage() {
   useEffect(() => {
     void refreshFileVerification(events);
   }, [events, refreshFileVerification]);
+
+  const refreshProjectState = useCallback(async (roomId: string) => {
+    if (!roomId) {
+      setProjectState({
+        stagingProposals: [],
+        needsYou: [],
+        canonicalObjects: [],
+      });
+      setProjectStateStatus("idle");
+      return;
+    }
+
+    const result = await loadProjectRoomState(roomId);
+    if (!result.ok || !result.data) {
+      setProjectStateStatus("unavailable");
+      return;
+    }
+
+    setProjectState(result.data);
+    setProjectStateStatus("active");
+  }, []);
+
+  useEffect(() => {
+    if (!activeRoomId) return;
+    void refreshProjectState(activeRoomId);
+    const timer = window.setInterval(() => {
+      void refreshProjectState(activeRoomId);
+    }, 3000);
+    return () => window.clearInterval(timer);
+  }, [activeRoomId, refreshProjectState]);
 
   useEffect(() => {
     const hasPending = Object.values(fileVerification).some(
@@ -700,10 +762,10 @@ export default function ProjectRoomPage() {
     }
   };
 
-  const handleOpenFile = async (objectPath: string, fileName?: string) => {
+  const handleOpenFile = async (fileVersionId: string) => {
     try {
       setFileError(null);
-      const signedUrl = await createRoomFileSignedUrl(objectPath, fileName, 120);
+      const signedUrl = await createRoomFileSignedUrl(fileVersionId);
       window.open(signedUrl, "_blank", "noopener,noreferrer");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to open file.";
@@ -713,6 +775,40 @@ export default function ProjectRoomPage() {
 
   const handleCancelFileUpload = () => {
     fileUploadAbortRef.current?.abort();
+  };
+
+  const handleReviewProjectState = async (
+    proposalId: string | null,
+    action: "accept" | "dismiss",
+    needsYouId?: string,
+  ) => {
+    if (!proposalId || !actingOrgId || !activeRoomId) return;
+    setReviewingProposalId(proposalId);
+    setProjectStateError(null);
+    try {
+      const result = await executeReviewStagingProposal({
+        proposalId,
+        action,
+        actorOrganizationId: actingOrgId,
+      });
+      if (!result.ok) {
+        throw new Error(result.error || "Unable to review proposal.");
+      }
+      await refreshProjectState(activeRoomId);
+    } catch (error) {
+      setProjectStateError(
+        error instanceof Error ? error.message : "Unable to review proposal.",
+      );
+    } finally {
+      setReviewingProposalId(null);
+    }
+  };
+
+  const handleViewSourceEvent = (sourceEventId: string | null | undefined) => {
+    if (!sourceEventId) return;
+    document
+      .getElementById(`event-${sourceEventId}`)
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
   const handleCreateSupplierInvite = async () => {
@@ -1242,8 +1338,7 @@ export default function ProjectRoomPage() {
                           disabled={verificationStatus !== "verified"}
                           onClick={() =>
                             void handleOpenFile(
-                              ev.payload.object_path,
-                              ev.payload.file_name,
+                              String(ev.payload.file_version_id || ""),
                             )
                           }
                           className={`block w-full rounded-xl p-3 text-left text-xs transition ${
@@ -1297,17 +1392,19 @@ export default function ProjectRoomPage() {
                                     Verifying
                                   </span>
                                 )}
-                                {verificationStatus === "rejected" && (
-                                  <span
-                                    className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${
-                                      isMyMessage
-                                        ? "bg-rose-300/20 text-rose-50"
-                                        : "bg-rose-100 text-rose-700"
-                                    }`}
-                                  >
-                                    Rejected
-                                  </span>
-                                )}
+                                {verificationStatus &&
+                                  verificationStatus !== "pending" &&
+                                  verificationStatus !== "verified" && (
+                                    <span
+                                      className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${
+                                        isMyMessage
+                                          ? "bg-rose-300/20 text-rose-50"
+                                          : "bg-rose-100 text-rose-700"
+                                      }`}
+                                    >
+                                      Blocked
+                                    </span>
+                                  )}
                                 {isSuperseded && (
                                   <span
                                     className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${
@@ -1352,8 +1449,9 @@ export default function ProjectRoomPage() {
                               >
                                 {verificationStatus === "verified"
                                   ? "Open / Download · 打开文件"
-                                  : verificationStatus === "rejected"
-                                    ? verification?.rejectionReason ||
+                                  : verificationStatus &&
+                                      verificationStatus !== "pending"
+                                    ? verification?.verificationError ||
                                       "File verification failed"
                                     : "Server verification in progress"}
                               </div>
@@ -1710,65 +1808,15 @@ export default function ProjectRoomPage() {
             )}
           </div>
 
-          <div className="p-4 space-y-4 overflow-y-auto flex-1">
-            {/* AI Assistant Status Notice */}
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs">
-              <div className="flex items-center gap-2 font-semibold text-slate-700">
-                <span className="h-2 w-2 rounded-full bg-slate-400"></span>
-                <span>System Status</span>
-              </div>
-              <p className="mt-1.5 text-[11px] leading-relaxed text-slate-500">
-                AI assistant is temporarily unavailable; live project messaging continues normally.
-              </p>
-            </div>
-
-            {/* Room Boundary Cognition Panel */}
-            <div
-              className={`rounded-xl border p-3.5 text-xs space-y-2.5 ${
-                isInternal
-                  ? "bg-indigo-50/70 border-indigo-200 text-indigo-950"
-                  : "bg-amber-50/70 border-amber-200 text-amber-950"
-              }`}
-            >
-              <div className="flex items-center gap-1.5 font-bold">
-                <span>{isInternal ? "🔒" : "🌐"}</span>
-                <span>
-                  {isInternal
-                    ? "Confidential Boundary · 内部私密边界"
-                    : "Shared Room Boundary · 外部共享边界"}
-                </span>
-              </div>
-              <p className="text-[11px] leading-relaxed">
-                {isInternal
-                  ? `Strictly internal to Buyer Organization. External partner (${externalPartnerName}) has no RLS visibility into this room.`
-                  : `Transparent shared room between Buyer Organization and ${externalPartnerName}. Both organizations see all messages.`}
-              </p>
-            </div>
-
-            {/* Session Details */}
-            <div className="rounded-xl border border-slate-200 p-3.5 bg-white text-xs space-y-2">
-              <div className="font-semibold text-slate-800">Active Connection</div>
-              <div className="flex justify-between text-[11px] text-slate-600">
-                <span>Role:</span>
-                <span className="font-medium capitalize">{role === "buyer" ? "Buyer · 买方" : "Supplier · 供应商"}</span>
-              </div>
-              <div className="flex justify-between text-[11px] text-slate-600">
-                <span>Room:</span>
-                <span className="font-medium truncate max-w-[140px]">{activeRoom.name}</span>
-              </div>
-              <div className="flex justify-between text-[11px] text-slate-600">
-                <span>Boundary:</span>
-                <span className="font-medium font-mono text-[10px]">{isInternal ? "INTERNAL (Private)" : "SHARED (External)"}</span>
-              </div>
-              <div className="flex justify-between text-[11px] text-slate-600">
-                <span>Latest Seq:</span>
-                <span className="font-mono font-medium">#{lastSeqRef.current}</span>
-              </div>
-              <div className="flex justify-between text-[11px] text-slate-600">
-                <span>Sync Engine:</span>
-                <span className="text-emerald-600 font-medium">Realtime + Gap-Fill</span>
-              </div>
-            </div>
+          <div className="p-3 overflow-y-auto flex-1">
+            <ProjectStatePanel
+              state={projectState}
+              stateStatus={projectStateStatus}
+              reviewingProposalId={reviewingProposalId}
+              actionError={projectStateError}
+              onReview={handleReviewProjectState}
+              onViewSource={handleViewSourceEvent}
+            />
           </div>
         </aside>
       </div>
