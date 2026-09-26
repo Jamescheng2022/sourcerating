@@ -50,6 +50,12 @@ export default function ProjectRoomPage() {
   const [fileUploading, setFileUploading] = useState(false);
   const [fileUploadProgress, setFileUploadProgress] = useState(0);
   const [fileError, setFileError] = useState<string | null>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteCompany, setInviteCompany] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteUrl, setInviteUrl] = useState("");
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteCreating, setInviteCreating] = useState(false);
   const [fileVerification, setFileVerification] = useState<
     Record<
       string,
@@ -674,6 +680,49 @@ export default function ProjectRoomPage() {
 
   const handleCancelFileUpload = () => {
     fileUploadAbortRef.current?.abort();
+  };
+
+  const handleCreateSupplierInvite = async () => {
+    if (
+      role !== "buyer" ||
+      !activeRoom?.project_id ||
+      !inviteCompany.trim()
+    ) {
+      return;
+    }
+
+    setInviteCreating(true);
+    setInviteError(null);
+    setInviteUrl("");
+
+    try {
+      const { data, error } = await supabase.rpc(
+        "create_supplier_room_invite",
+        {
+          p_project_id: activeRoom.project_id,
+          p_supplier_organization_name: inviteCompany.trim(),
+          p_invited_email: inviteEmail.trim() || null,
+          p_expires_in_hours: 168,
+        },
+      );
+
+      if (error || !data?.token) {
+        throw new Error(error?.message || "Unable to create invitation.");
+      }
+
+      const url =
+        window.location.origin +
+        "/join?token=" +
+        encodeURIComponent(String(data.token));
+      setInviteUrl(url);
+      await loadRooms("buyer", actingOrgId);
+    } catch (error) {
+      setInviteError(
+        error instanceof Error ? error.message : "Unable to create invitation.",
+      );
+    } finally {
+      setInviteCreating(false);
+    }
   };
 
   // Format message sender and organization
@@ -1546,6 +1595,79 @@ export default function ProjectRoomPage() {
                 <div className="text-sm font-bold text-slate-800 mt-0.5">{visibleRooms.length}</div>
               </div>
             </div>
+
+            {role === "buyer" && (
+              <div className="mt-3 rounded-lg border border-sky-100 bg-sky-50/60 p-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <div className="text-[11px] font-semibold text-slate-800">
+                      Invite Supplier
+                    </div>
+                    <div className="text-[10px] text-slate-500">
+                      Creates a separate supplier room with isolated access.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setInviteOpen((value) => !value)}
+                    className="rounded-md bg-sky-600 px-2 py-1 text-[10px] font-semibold text-white hover:bg-sky-700"
+                  >
+                    {inviteOpen ? "Close" : "Create"}
+                  </button>
+                </div>
+
+                {inviteOpen && (
+                  <div className="mt-2 space-y-2">
+                    <input
+                      value={inviteCompany}
+                      onChange={(event) => setInviteCompany(event.target.value)}
+                      placeholder="Supplier company name"
+                      className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[11px] outline-none focus:border-sky-400"
+                    />
+                    <input
+                      type="email"
+                      value={inviteEmail}
+                      onChange={(event) => setInviteEmail(event.target.value)}
+                      placeholder="Invitee email (optional)"
+                      className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[11px] outline-none focus:border-sky-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void handleCreateSupplierInvite()}
+                      disabled={inviteCreating || inviteCompany.trim().length < 2}
+                      className="w-full rounded-md bg-slate-900 px-2 py-1.5 text-[11px] font-semibold text-white disabled:opacity-50"
+                    >
+                      {inviteCreating
+                        ? "Creating..."
+                        : "Generate 7-day Invite Link"}
+                    </button>
+
+                    {inviteError && (
+                      <div className="text-[10px] text-rose-700">
+                        {inviteError}
+                      </div>
+                    )}
+
+                    {inviteUrl && (
+                      <div className="rounded-md border border-emerald-200 bg-emerald-50 p-2">
+                        <div className="break-all font-mono text-[9px] text-emerald-900">
+                          {inviteUrl}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void navigator.clipboard.writeText(inviteUrl)
+                          }
+                          className="mt-1.5 rounded bg-emerald-700 px-2 py-1 text-[10px] font-semibold text-white"
+                        >
+                          Copy Invite Link
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="p-4 space-y-4 overflow-y-auto flex-1">
