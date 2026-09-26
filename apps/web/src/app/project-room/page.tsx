@@ -48,6 +48,7 @@ export default function ProjectRoomPage() {
   const [aiStatus, setAiStatus] = useState<string | null>(null);
   const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
   const [fileUploading, setFileUploading] = useState(false);
+  const [fileUploadProgress, setFileUploadProgress] = useState(0);
   const [fileError, setFileError] = useState<string | null>(null);
 
   // Track max seq for gap filling
@@ -62,6 +63,7 @@ export default function ProjectRoomPage() {
   const isNearBottomRef = useRef<boolean>(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileUploadAbortRef = useRef<AbortController | null>(null);
 
   // Android keyboard & visualViewport safety
   useEffect(() => {
@@ -528,7 +530,11 @@ export default function ProjectRoomPage() {
   const handleFileSelected = async (file: File | null) => {
     if (!file || !activeRoomId || !actingOrgId) return;
 
+    const caption = inputText.trim();
+    const controller = new AbortController();
+    fileUploadAbortRef.current = controller;
     setFileUploading(true);
+    setFileUploadProgress(0);
     setFileError(null);
     isNearBottomRef.current = true;
     scrollToBottom("smooth");
@@ -538,6 +544,9 @@ export default function ProjectRoomPage() {
         roomId: activeRoomId,
         actingOrganizationId: actingOrgId,
         file,
+        caption,
+        signal: controller.signal,
+        onProgress: setFileUploadProgress,
       });
 
       setEvents((prev) => {
@@ -546,27 +555,41 @@ export default function ProjectRoomPage() {
         return merged;
       });
 
+      if (caption && inputText.trim() === caption) {
+        setInputText("");
+      }
       await runGapFill(activeRoomId);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Attachment upload failed.";
-      setFileError(message);
+      if (error instanceof DOMException && error.name === "AbortError") {
+        setFileError("Upload cancelled.");
+      } else {
+        const message =
+          error instanceof Error ? error.message : "Attachment upload failed.";
+        setFileError(message);
+      }
     } finally {
       setFileUploading(false);
+      setFileUploadProgress(0);
+      fileUploadAbortRef.current = null;
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
     }
   };
 
-  const handleOpenFile = async (objectPath: string) => {
+  const handleOpenFile = async (objectPath: string, fileName?: string) => {
     try {
       setFileError(null);
-      const signedUrl = await createRoomFileSignedUrl(objectPath, 120);
+      const signedUrl = await createRoomFileSignedUrl(objectPath, fileName, 120);
       window.open(signedUrl, "_blank", "noopener,noreferrer");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to open file.";
       setFileError(message);
     }
+  };
+
+  const handleCancelFileUpload = () => {
+    fileUploadAbortRef.current?.abort();
   };
 
   // Format message sender and organization
@@ -966,6 +989,24 @@ export default function ProjectRoomPage() {
                 const isFileEvent =
                   ev.event_type === "file.attached" &&
                   typeof ev.payload?.object_path === "string";
+                const latestFileVersion = isFileEvent
+                  ? events.reduce((latest, candidate) => {
+                      if (
+                        candidate.event_type === "file.attached" &&
+                        candidate.actor_organization_id === ev.actor_organization_id &&
+                        candidate.payload?.logical_name === ev.payload?.logical_name
+                      ) {
+                        return Math.max(
+                          latest,
+                          Number(candidate.payload?.version_no || 0),
+                        );
+                      }
+                      return latest;
+                    }, 0)
+                  : 0;
+                const isSuperseded =
+                  isFileEvent &&
+                  Number(ev.payload?.version_no || 0) < latestFileVersion;
                 const isMyMessage = currentUserId && ev.actor_user_id === currentUserId;
                 const timeStr = ev.created_at
                   ? new Date(ev.created_at).toLocaleTimeString([], {
@@ -1020,18 +1061,48 @@ export default function ProjectRoomPage() {
                       {isFileEvent && (
                         <button
                           type="button"
-                          onClick={() => void handleOpenFile(ev.payload.object_path)}
+                          onClick={() =>
+                            void handleOpenFile(
+                              ev.payload.object_path,
+                              ev.payload.file_name,
+                            )
+                          }
                           className={`block w-full rounded-xl p-3 text-left text-xs transition ${
                             isMyMessage
                               ? "bg-sky-700/60 border border-sky-400 text-white hover:bg-sky-700"
                               : "bg-slate-50 border border-slate-200 text-slate-800 hover:bg-slate-100"
-                          }`}
+                          } ${isSuperseded ? "opacity-55" : ""}`}
                         >
+                          {ev.payload.caption && (
+                            <div className="mb-2 whitespace-pre-wrap break-words text-[12px]">
+                              {ev.payload.caption}
+                            </div>
+                          )}
                           <div className="flex items-start gap-2">
-                            <span className="text-base">PDF</span>
+                            <span className="text-[10px] font-bold uppercase">
+                              {String(ev.payload.mime_type || "").includes("pdf")
+                                ? "PDF"
+                                : String(ev.payload.mime_type || "").includes("sheet") ||
+                                    String(ev.payload.mime_type || "").includes("excel")
+                                  ? "XLS"
+                                  : "FILE"}
+                            </span>
                             <div className="min-w-0 flex-1">
-                              <div className="truncate font-semibold">
-                                {ev.payload.file_name || "Project document"}
+                              <div className="flex items-center gap-2">
+                                <div className="min-w-0 flex-1 truncate font-semibold">
+                                  {ev.payload.file_name || "Project document"}
+                                </div>
+                                {isSuperseded && (
+                                  <span
+                                    className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${
+                                      isMyMessage
+                                        ? "bg-white/15 text-white"
+                                        : "bg-slate-200 text-slate-600"
+                                    }`}
+                                  >
+                                    Superseded
+                                  </span>
+                                )}
                               </div>
                               <div
                                 className={`mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] ${
@@ -1270,10 +1341,23 @@ export default function ProjectRoomPage() {
                     disabled={fileUploading}
                     className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
                   >
-                    {fileUploading ? "Uploading..." : "Attach · 附件"}
+                    {fileUploading
+                      ? `Uploading ${fileUploadProgress}%`
+                      : "Attach · 附件"}
                   </button>
+                  {fileUploading && (
+                    <button
+                      type="button"
+                      onClick={handleCancelFileUpload}
+                      className="rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[10px] font-semibold text-rose-700 hover:bg-rose-100"
+                    >
+                      Cancel
+                    </button>
+                  )}
                   <div className="truncate text-[10px] text-slate-400">
-                    PDF / Excel / image · max 50 MB
+                    {inputText.trim()
+                      ? "Current text will be sent as the file caption"
+                      : "PDF / Excel / image · max 50 MB"}
                   </div>
                 </div>
 
