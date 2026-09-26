@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { supabase, SUPABASE_ANON_KEY, SUPABASE_URL } from "./supabase";
 import type { RoomEvent } from "./demo-session";
 
 export const ROOM_FILES_BUCKET = "room-files";
@@ -36,8 +36,14 @@ export type RegisterFileResponse = {
 };
 
 function safeFileName(name: string): string {
-  const normalized = name.normalize("NFKC").trim();
-  const stripped = normalized.replace(/[\\/:*?"<>|\u0000-\u001f]/g, "_");
+  const normalized = name
+    .normalize("NFKC")
+    .replace(/[\u200b-\u200f\u202a-\u202e\u2066-\u2069]/g, "")
+    .trim();
+  const stripped = normalized
+    .replace(/[\\/:*?"<>|\u0000-\u001f\u007f]/g, "_")
+    .replace(/\.\.+/g, "_")
+    .replace(/^\.+|\.+$/g, "");
   return stripped.slice(0, 180) || "attachment";
 }
 
@@ -54,6 +60,9 @@ export async function uploadRoomAttachment(input: {
   actingOrganizationId: string;
   file: File;
   clientMessageId?: string;
+  caption?: string;
+  signal?: AbortSignal;
+  onProgress?: (percent: number) => void;
 }): Promise<RegisterFileResponse> {
   const { roomId, actingOrganizationId, file } = input;
 
@@ -68,19 +77,67 @@ export async function uploadRoomAttachment(input: {
   const uploadId = crypto.randomUUID();
   const objectPath = `${roomId}/${uploadId}/${fileName}`;
   const clientMessageId = input.clientMessageId ?? crypto.randomUUID();
-  const sha256 = await sha256Hex(file);
+  const shaPromise = sha256Hex(file);
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+  if (!accessToken) throw new Error("Authentication required for file upload.");
 
-  const { error: uploadError } = await supabase.storage
-    .from(ROOM_FILES_BUCKET)
-    .upload(objectPath, file, {
-      contentType: file.type,
-      cacheControl: "3600",
-      upsert: false,
-    });
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const encodedPath = objectPath
+      .split("/")
+      .map((part) => encodeURIComponent(part))
+      .join("/");
 
-  if (uploadError) {
-    throw new Error(uploadError.message || "File upload failed.");
-  }
+    xhr.open(
+      "POST",
+      `${SUPABASE_URL}/storage/v1/object/${ROOM_FILES_BUCKET}/${encodedPath}`,
+    );
+    xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
+    xhr.setRequestHeader("apikey", SUPABASE_ANON_KEY);
+    xhr.setRequestHeader("Content-Type", file.type);
+    xhr.setRequestHeader("x-upsert", "false");
+    xhr.setRequestHeader("Cache-Control", "3600");
+
+    xhr.upload.onprogress = (event) => {
+      if (!event.lengthComputable) return;
+      const percent = Math.max(
+        0,
+        Math.min(100, Math.round((event.loaded / event.total) * 100)),
+      );
+      input.onProgress?.(percent);
+    };
+
+    xhr.onerror = () => reject(new Error("File upload failed."));
+    xhr.onabort = () => reject(new DOMException("Upload cancelled", "AbortError"));
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        input.onProgress?.(100);
+        resolve();
+        return;
+      }
+      let message = `File upload failed (${xhr.status}).`;
+      try {
+        const parsed = JSON.parse(xhr.responseText);
+        message = parsed?.message || parsed?.error || message;
+      } catch {
+        // Keep the generic message.
+      }
+      reject(new Error(message));
+    };
+
+    if (input.signal) {
+      if (input.signal.aborted) {
+        xhr.abort();
+        return;
+      }
+      input.signal.addEventListener("abort", () => xhr.abort(), { once: true });
+    }
+
+    xhr.send(file);
+  });
+
+  const sha256 = await shaPromise;
 
   const { data, error } = await supabase.rpc("register_room_file_version", {
     p_room_id: roomId,
@@ -91,6 +148,7 @@ export async function uploadRoomAttachment(input: {
     p_sha256: sha256,
     p_actor_organization_id: actingOrganizationId,
     p_client_msg_id: clientMessageId,
+    p_caption: input.caption?.trim() || null,
   });
 
   if (error) {
@@ -107,11 +165,14 @@ export async function uploadRoomAttachment(input: {
 
 export async function createRoomFileSignedUrl(
   objectPath: string,
+  fileName?: string,
   expiresInSeconds = 120,
 ): Promise<string> {
   const { data, error } = await supabase.storage
     .from(ROOM_FILES_BUCKET)
-    .createSignedUrl(objectPath, expiresInSeconds);
+    .createSignedUrl(objectPath, expiresInSeconds, {
+      download: fileName || true,
+    });
 
   if (error || !data?.signedUrl) {
     throw new Error(error?.message || "Unable to open file.");
