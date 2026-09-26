@@ -35,12 +35,29 @@ export type RegisterFileResponse = {
   idempotent: boolean;
   verification?: {
     ok: boolean;
-    status: "pending" | "verified" | "rejected";
+    status:
+      | "pending"
+      | "verified"
+      | "quarantined"
+      | "hash_mismatch"
+      | "verification_failed";
     serverSha256?: string;
     detectedMimeType?: string;
     error?: string;
   };
 };
+
+async function invokeRoomFileGateway(
+  body: Record<string, unknown>,
+): Promise<Record<string, any>> {
+  const { data, error } = await supabase.functions.invoke("room-file-gateway", {
+    body,
+  });
+  if (error) {
+    throw new Error(error.message || "Room file gateway failed.");
+  }
+  return (data || {}) as Record<string, any>;
+}
 
 function safeFileName(name: string): string {
   const normalized = name
@@ -159,39 +176,44 @@ export async function uploadRoomAttachment(input: {
   });
 
   if (error) {
+    await invokeRoomFileGateway({
+      action: "cleanup_orphan",
+      objectPath,
+      roomId,
+    }).catch(() => null);
     throw new Error(error.message || "File registration failed.");
   }
 
   const result = data as RegisterFileResponse | null;
   if (!result?.file || !result?.event) {
+    await invokeRoomFileGateway({
+      action: "cleanup_orphan",
+      objectPath,
+      roomId,
+    }).catch(() => null);
     throw new Error("File registration returned an invalid response.");
   }
 
   try {
-    const { data: verificationData, error: verificationError } =
-      await supabase.functions.invoke("verify-room-file", {
-        body: { fileVersionId: result.file.id },
-      });
-
-    if (verificationError) {
-      result.verification = {
-        ok: false,
-        status: "pending",
-        error: verificationError.message,
-      };
-    } else if (verificationData && typeof verificationData === "object") {
-      result.verification = {
-        ok: Boolean(verificationData.ok),
-        status:
-          verificationData.status === "verified" ||
-          verificationData.status === "rejected"
-            ? verificationData.status
-            : "pending",
-        serverSha256: verificationData.serverSha256,
-        detectedMimeType: verificationData.detectedMimeType,
-        error: verificationData.error,
-      };
-    }
+    const verificationData = await invokeRoomFileGateway({
+      action: "verify",
+      fileVersionId: result.file.id,
+    });
+    const status = [
+      "verified",
+      "quarantined",
+      "hash_mismatch",
+      "verification_failed",
+    ].includes(verificationData.verificationStatus)
+      ? verificationData.verificationStatus
+      : "pending";
+    result.verification = {
+      ok: Boolean(verificationData.ok),
+      status,
+      serverSha256: verificationData.serverSha256,
+      detectedMimeType: verificationData.detectedMimeType,
+      error: verificationData.error,
+    };
   } catch (error) {
     result.verification = {
       ok: false,
@@ -204,21 +226,19 @@ export async function uploadRoomAttachment(input: {
 }
 
 export async function createRoomFileSignedUrl(
-  objectPath: string,
-  fileName?: string,
-  expiresInSeconds = 120,
+  fileVersionId: string,
 ): Promise<string> {
-  const { data, error } = await supabase.storage
-    .from(ROOM_FILES_BUCKET)
-    .createSignedUrl(objectPath, expiresInSeconds, {
-      download: fileName || true,
-    });
-
-  if (error || !data?.signedUrl) {
-    throw new Error(error?.message || "Unable to open file.");
+  const result = await invokeRoomFileGateway({
+    action: "sign",
+    fileVersionId,
+  });
+  if (!result.ok || !result.signedUrl) {
+    throw new Error(
+      result.error ||
+        `Unable to open file: ${result.verificationStatus || "not verified"}`,
+    );
   }
-
-  return data.signedUrl;
+  return result.signedUrl as string;
 }
 
 export function formatFileSize(bytes: number | undefined): string {
