@@ -177,41 +177,36 @@ export async function classifyWithJevDirect(state: string): Promise<DecisionResu
   }
 }
 
-export async function generateWithDeepSeekDirect(state: string): Promise<StagingAnalysis | null> {
-  const apiKey = process.env.SOURCERATING_DEEPSEEK_API_KEY;
-  if (!apiKey) return null;
 
-  const endpoint = process.env.SOURCERATING_DEEPSEEK_ENDPOINT || "https://api.deepseek.com/chat/completions";
-  const model = process.env.SOURCERATING_DEEPSEEK_MODEL || "deepseek-flash";
+type GeneratorProviderName = "opencode-go" | "deepseek-direct";
+
+async function callOpenAICompatibleJson(input: {
+  endpoint: string;
+  apiKey: string;
+  model: string;
+  prompt: string;
+  timeoutMs: number;
+}): Promise<StagingAnalysis | null> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
-
-  const prompt = [
-    "Return valid JSON only.",
-    "This is SourceRating staging analysis, never canonical state.",
-    "Do not invent missing facts.",
-    "Preserve exact money, quantities, dates, scope, and technical values.",
-    "Use short evidenceQuote text from the supplied message when possible.",
-    "Empty arrays are preferred over guessing.",
-    "Any money, scope, delivery, payment, compliance, quality or acceptance change requires human review.",
-    "Required JSON keys: classification, summary, actionable, requirementChanges, quoteChanges, openQuestions, pendingActions, risks, confidence.",
-    "Project context:",
-    state,
-  ].join("\n");
+  const timeout = setTimeout(() => controller.abort(), input.timeoutMs);
 
   try {
-    const response = await fetch(endpoint, {
+    const response = await fetch(input.endpoint, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: `Bearer ${input.apiKey}`,
         "Content-Type": "application/json",
         Accept: "application/json",
       },
       body: JSON.stringify({
-        model,
+        model: input.model,
         messages: [
-          { role: "system", content: "You are the SourceRating Project Room staging engine. Output JSON only." },
-          { role: "user", content: prompt }
+          {
+            role: "system",
+            content:
+              "You are the SourceRating Project Room staging engine. Output valid JSON only.",
+          },
+          { role: "user", content: input.prompt },
         ],
         response_format: { type: "json_object" },
         temperature: 0.1,
@@ -233,6 +228,75 @@ export async function generateWithDeepSeekDirect(state: string): Promise<Staging
   }
 }
 
+function buildStagingPrompt(state: string): string {
+  return [
+    "Return valid JSON only.",
+    "This is SourceRating staging analysis, never canonical state.",
+    "Do not invent missing facts.",
+    "Preserve exact money, quantities, dates, scope, and technical values.",
+    "Use short evidenceQuote text from the supplied message when possible.",
+    "Empty arrays are preferred over guessing.",
+    "Any money, scope, delivery, payment, compliance, quality or acceptance change requires human review.",
+    "Required JSON keys: classification, summary, actionable, requirementChanges, quoteChanges, openQuestions, pendingActions, risks, confidence.",
+    "Project context:",
+    state,
+  ].join("\n");
+}
+
+export async function generateWithOpenCodeGo(
+  state: string,
+): Promise<StagingAnalysis | null> {
+  const apiKey = process.env.SOURCERATING_OPENCODE_GO_API_KEY;
+  if (!apiKey) return null;
+
+  return callOpenAICompatibleJson({
+    endpoint:
+      process.env.SOURCERATING_OPENCODE_GO_ENDPOINT ||
+      "https://opencode.ai/zen/go/v1/chat/completions",
+    apiKey,
+    model:
+      process.env.SOURCERATING_OPENCODE_GO_MODEL ||
+      "deepseek-v4.1-flash",
+    prompt: buildStagingPrompt(state),
+    timeoutMs: 15000,
+  });
+}
+
+export async function generateWithDeepSeekDirect(
+  state: string,
+): Promise<StagingAnalysis | null> {
+  const apiKey = process.env.SOURCERATING_DEEPSEEK_API_KEY;
+  if (!apiKey) return null;
+
+  return callOpenAICompatibleJson({
+    endpoint:
+      process.env.SOURCERATING_DEEPSEEK_ENDPOINT ||
+      "https://api.deepseek.com/chat/completions",
+    apiKey,
+    model: process.env.SOURCERATING_DEEPSEEK_MODEL || "deepseek-flash",
+    prompt: buildStagingPrompt(state),
+    timeoutMs: 15000,
+  });
+}
+
+async function generateStaging(
+  state: string,
+): Promise<{ analysis: StagingAnalysis | null; provider: GeneratorProviderName | null }> {
+  const preference = process.env.SOURCERATING_LLM_PROVIDER || "auto";
+
+  if (preference === "opencode-go" || preference === "auto") {
+    const analysis = await generateWithOpenCodeGo(state);
+    if (analysis) return { analysis, provider: "opencode-go" };
+  }
+
+  if (preference === "deepseek-direct" || preference === "auto" || preference === "opencode-go") {
+    const analysis = await generateWithDeepSeekDirect(state);
+    if (analysis) return { analysis, provider: "deepseek-direct" };
+  }
+
+  return { analysis: null, provider: null };
+}
+
 export async function analyzeProjectMessage(state: string) {
   const rules = classifyWithRules(state);
   const jev = await classifyWithJevDirect(state);
@@ -243,16 +307,22 @@ export async function analyzeProjectMessage(state: string) {
     decision.highRiskProbability >= 0.35 ||
     ["requirement","quote_change","decision","file_update","risk"].includes(decision.intent);
 
-  const deepAnalysis = shouldEscalate ? await generateWithDeepSeekDirect(state) : null;
+  const generated = shouldEscalate
+    ? await generateStaging(state)
+    : { analysis: null, provider: null };
 
   return {
     decision,
-    deepAnalysis,
+    deepAnalysis: generated.analysis,
+    deepProvider: generated.provider,
     aiStatus: {
       jevConfigured: Boolean(process.env.SOURCERATING_JEV_API_KEY),
+      openCodeGoConfigured: Boolean(process.env.SOURCERATING_OPENCODE_GO_API_KEY),
       deepSeekConfigured: Boolean(process.env.SOURCERATING_DEEPSEEK_API_KEY),
+      generatorPreference: process.env.SOURCERATING_LLM_PROVIDER || "auto",
       deepAnalysisRequested: shouldEscalate,
-      deepAnalysisAvailable: Boolean(deepAnalysis),
-    }
+      deepAnalysisAvailable: Boolean(generated.analysis),
+      deepProvider: generated.provider,
+    },
   };
 }
