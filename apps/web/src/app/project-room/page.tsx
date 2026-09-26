@@ -50,6 +50,17 @@ export default function ProjectRoomPage() {
   const [fileUploading, setFileUploading] = useState(false);
   const [fileUploadProgress, setFileUploadProgress] = useState(0);
   const [fileError, setFileError] = useState<string | null>(null);
+  const [fileVerification, setFileVerification] = useState<
+    Record<
+      string,
+      {
+        status: "pending" | "verified" | "rejected";
+        serverSha256?: string | null;
+        detectedMimeType?: string | null;
+        rejectionReason?: string | null;
+      }
+    >
+  >({});
 
   // Track max seq for gap filling
   const lastSeqRef = useRef<number>(0);
@@ -289,6 +300,79 @@ export default function ProjectRoomPage() {
       console.error("Gap fill exception:", err);
     }
   }, []);
+
+  const refreshFileVerification = useCallback(async (sourceEvents: RoomEvent[]) => {
+    const fileVersionIds = Array.from(
+      new Set(
+        sourceEvents
+          .filter(
+            (event) =>
+              event.event_type === "file.attached" &&
+              typeof event.payload?.file_version_id === "string",
+          )
+          .map((event) => event.payload.file_version_id as string),
+      ),
+    );
+
+    if (fileVersionIds.length === 0) {
+      setFileVerification({});
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("room_file_versions")
+      .select(
+        "id,verification_status,server_sha256,detected_mime_type,rejection_reason",
+      )
+      .in("id", fileVersionIds);
+
+    if (error) {
+      console.error("File verification status query failed:", error);
+      return;
+    }
+
+    const next: Record<
+      string,
+      {
+        status: "pending" | "verified" | "rejected";
+        serverSha256?: string | null;
+        detectedMimeType?: string | null;
+        rejectionReason?: string | null;
+      }
+    > = {};
+
+    for (const row of data || []) {
+      next[row.id] = {
+        status:
+          row.verification_status === "verified" ||
+          row.verification_status === "rejected"
+            ? row.verification_status
+            : "pending",
+        serverSha256: row.server_sha256,
+        detectedMimeType: row.detected_mime_type,
+        rejectionReason: row.rejection_reason,
+      };
+    }
+
+    setFileVerification(next);
+  }, []);
+
+  useEffect(() => {
+    void refreshFileVerification(events);
+  }, [events, refreshFileVerification]);
+
+  useEffect(() => {
+    const hasPending = Object.values(fileVerification).some(
+      (item) => item.status === "pending",
+    );
+    if (!hasPending || events.length === 0) return;
+
+    const timer = window.setTimeout(() => {
+      void refreshFileVerification(events);
+    }, 1500);
+
+    return () => window.clearTimeout(timer);
+  }, [events, fileVerification, refreshFileVerification]);
 
   const maybeAnalyzeEvent = useCallback(
     async (event: RoomEvent) => {
@@ -1007,6 +1091,11 @@ export default function ProjectRoomPage() {
                 const isSuperseded =
                   isFileEvent &&
                   Number(ev.payload?.version_no || 0) < latestFileVersion;
+                const verification = isFileEvent
+                  ? fileVerification[String(ev.payload?.file_version_id || "")]
+                  : undefined;
+                const verificationStatus =
+                  verification?.status || (isFileEvent ? "pending" : undefined);
                 const isMyMessage = currentUserId && ev.actor_user_id === currentUserId;
                 const timeStr = ev.created_at
                   ? new Date(ev.created_at).toLocaleTimeString([], {
@@ -1061,6 +1150,7 @@ export default function ProjectRoomPage() {
                       {isFileEvent && (
                         <button
                           type="button"
+                          disabled={verificationStatus !== "verified"}
                           onClick={() =>
                             void handleOpenFile(
                               ev.payload.object_path,
@@ -1071,7 +1161,11 @@ export default function ProjectRoomPage() {
                             isMyMessage
                               ? "bg-sky-700/60 border border-sky-400 text-white hover:bg-sky-700"
                               : "bg-slate-50 border border-slate-200 text-slate-800 hover:bg-slate-100"
-                          } ${isSuperseded ? "opacity-55" : ""}`}
+                          } ${isSuperseded ? "opacity-55" : ""} ${
+                            verificationStatus !== "verified"
+                              ? "cursor-not-allowed"
+                              : ""
+                          }`}
                         >
                           {ev.payload.caption && (
                             <div className="mb-2 whitespace-pre-wrap break-words text-[12px]">
@@ -1092,6 +1186,39 @@ export default function ProjectRoomPage() {
                                 <div className="min-w-0 flex-1 truncate font-semibold">
                                   {ev.payload.file_name || "Project document"}
                                 </div>
+                                {verificationStatus === "verified" && (
+                                  <span
+                                    className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${
+                                      isMyMessage
+                                        ? "bg-emerald-300/20 text-emerald-50"
+                                        : "bg-emerald-100 text-emerald-700"
+                                    }`}
+                                  >
+                                    Verified
+                                  </span>
+                                )}
+                                {verificationStatus === "pending" && (
+                                  <span
+                                    className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${
+                                      isMyMessage
+                                        ? "bg-white/15 text-white"
+                                        : "bg-amber-100 text-amber-700"
+                                    }`}
+                                  >
+                                    Verifying
+                                  </span>
+                                )}
+                                {verificationStatus === "rejected" && (
+                                  <span
+                                    className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${
+                                      isMyMessage
+                                        ? "bg-rose-300/20 text-rose-50"
+                                        : "bg-rose-100 text-rose-700"
+                                    }`}
+                                  >
+                                    Rejected
+                                  </span>
+                                )}
                                 {isSuperseded && (
                                   <span
                                     className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${
@@ -1121,14 +1248,25 @@ export default function ProjectRoomPage() {
                                   isMyMessage ? "text-sky-200" : "text-slate-400"
                                 }`}
                               >
-                                SHA256 {String(ev.payload.sha256 || "").slice(0, 16)}...
+                                SHA256{" "}
+                                {String(
+                                  verification?.serverSha256 ||
+                                    ev.payload.sha256 ||
+                                    "",
+                                ).slice(0, 16)}
+                                ...
                               </div>
                               <div
                                 className={`mt-1 text-[10px] font-semibold ${
                                   isMyMessage ? "text-white" : "text-sky-700"
                                 }`}
                               >
-                                Open / Download · 打开文件
+                                {verificationStatus === "verified"
+                                  ? "Open / Download · 打开文件"
+                                  : verificationStatus === "rejected"
+                                    ? verification?.rejectionReason ||
+                                      "File verification failed"
+                                    : "Server verification in progress"}
                               </div>
                             </div>
                           </div>
