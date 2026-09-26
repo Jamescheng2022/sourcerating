@@ -33,6 +33,13 @@ export type RegisterFileResponse = {
   file: RegisteredRoomFile;
   event: RoomEvent;
   idempotent: boolean;
+  verification?: {
+    ok: boolean;
+    status: "pending" | "verified" | "rejected";
+    serverSha256?: string;
+    detectedMimeType?: string;
+    error?: string;
+  };
 };
 
 function safeFileName(name: string): string {
@@ -158,6 +165,39 @@ export async function uploadRoomAttachment(input: {
   const result = data as RegisterFileResponse | null;
   if (!result?.file || !result?.event) {
     throw new Error("File registration returned an invalid response.");
+  }
+
+  try {
+    const { data: verificationData, error: verificationError } =
+      await supabase.functions.invoke("verify-room-file", {
+        body: { fileVersionId: result.file.id },
+      });
+
+    if (verificationError) {
+      result.verification = {
+        ok: false,
+        status: "pending",
+        error: verificationError.message,
+      };
+    } else if (verificationData && typeof verificationData === "object") {
+      result.verification = {
+        ok: Boolean(verificationData.ok),
+        status:
+          verificationData.status === "verified" ||
+          verificationData.status === "rejected"
+            ? verificationData.status
+            : "pending",
+        serverSha256: verificationData.serverSha256,
+        detectedMimeType: verificationData.detectedMimeType,
+        error: verificationData.error,
+      };
+    }
+  } catch (error) {
+    result.verification = {
+      ok: false,
+      status: "pending",
+      error: error instanceof Error ? error.message : "Verification pending.",
+    };
   }
 
   return result;
