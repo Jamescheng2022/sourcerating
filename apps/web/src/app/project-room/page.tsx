@@ -56,6 +56,8 @@ export default function ProjectRoomPage() {
   const [inviteUrl, setInviteUrl] = useState("");
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteCreating, setInviteCreating] = useState(false);
+  const [projectName, setProjectName] = useState("Project");
+  const [projectCode, setProjectCode] = useState("");
   const [fileVerification, setFileVerification] = useState<
     Record<
       string,
@@ -256,7 +258,7 @@ export default function ProjectRoomPage() {
       visibleRooms.find((r) => r.id === activeRoomId) ||
       visibleRooms[0] || {
         id: activeRoomId,
-        name: role === "supplier" ? "EastFrame Supplier Room" : "Project Room",
+        name: role === "supplier" ? "Supplier Shared Room" : "Project Room",
         boundary: role === "supplier" ? "SHARED" : "PRIVATE",
         note: role === "supplier" ? "Shared Room" : "Internal Room",
       }
@@ -277,6 +279,37 @@ export default function ProjectRoomPage() {
     const n = (activeRoom.name || "").toLowerCase();
     return b === "PRIVATE" || b === "INTERNAL" || n.includes("internal");
   }, [activeRoom, role]);
+
+  const externalPartnerName = useMemo(() => {
+    if (isInternal) return "External Supplier";
+    const raw = String(activeRoom?.name || "External Partner");
+    return raw
+      .replace(/\s+[-—]\s+Shared$/i, "")
+      .replace(/Buyer\s*↔\s*Supplier/i, "Supplier")
+      .trim();
+  }, [activeRoom, isInternal]);
+
+  useEffect(() => {
+    const projectId = activeRoom?.project_id;
+    if (!projectId) {
+      setProjectName("Project");
+      setProjectCode("");
+      return;
+    }
+
+    void (async () => {
+      const { data, error } = await supabase
+        .from("projects")
+        .select("name,code")
+        .eq("id", projectId)
+        .maybeSingle();
+
+      if (!error && data?.name) {
+        setProjectName(data.name);
+        setProjectCode(data.code || "");
+      }
+    })();
+  }, [activeRoom?.project_id]);
 
   // Gap-fill function to load sequence events gt lastSeq
   const runGapFill = useCallback(async (roomId: string) => {
@@ -735,17 +768,17 @@ export default function ProjectRoomPage() {
     if (isMe) {
       return {
         who: "You",
-        org: role === "buyer" ? "Apex Living Modular" : "EastFrame Steel",
+        org: role === "buyer" ? "Buyer Organization" : externalPartnerName,
       };
     }
 
     if (role === "buyer") {
       if (isInternal) {
-        return { who: "Korn Kittisak", org: "Commercial · Apex Living Modular" };
+        return { who: "Buyer teammate", org: "Buyer Organization" };
       }
-      return { who: "Wang Lin 王林", org: "EastFrame Steel Co., Ltd." };
+      return { who: "Supplier teammate", org: externalPartnerName };
     } else {
-      return { who: "Tanawat Chen", org: "Apex Living Modular" };
+      return { who: "Buyer teammate", org: "Buyer Organization" };
     }
   };
 
@@ -861,7 +894,7 @@ export default function ProjectRoomPage() {
           <div className="p-4 border-b border-slate-800">
             <div className="flex items-center justify-between">
               <div className="text-sm font-semibold truncate">
-                {role === "buyer" ? "Apex Living Modular" : "EastFrame Steel"}
+                {role === "buyer" ? "Buyer Organization" : externalPartnerName}
               </div>
               <span
                 className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${
@@ -874,7 +907,7 @@ export default function ProjectRoomPage() {
               </span>
             </div>
             <div className="text-[11px] text-slate-400 mt-1">
-              {role === "buyer" ? "Bangkok, Thailand" : "Zhejiang, China"}
+              {role === "buyer" ? "Project owner workspace" : "External partner workspace"}
             </div>
           </div>
 
@@ -883,8 +916,10 @@ export default function ProjectRoomPage() {
               Active Project
             </div>
             <div className="rounded-lg border border-slate-800 bg-slate-900 p-3">
-              <div className="text-xs font-semibold text-white">Bangkok Prefab Office</div>
-              <div className="text-[10px] text-sky-400 mt-0.5 font-mono">BKK-MOD-2026-08</div>
+              <div className="text-xs font-semibold text-white">{projectName}</div>
+              <div className="text-[10px] text-sky-400 mt-0.5 font-mono">
+                {projectCode || "SourceRating Project"}
+              </div>
             </div>
           </div>
 
@@ -1042,7 +1077,7 @@ export default function ProjectRoomPage() {
                       🔒 CONFIDENTIAL
                     </span>
                     <span className="truncate text-[10px] sm:text-[11px]">
-                      Buyer Internal · 仅买方可见 · เฉพาะทีมภายใน (EastFrame cannot see)
+                      Buyer Internal · 仅买方可见 · เฉพาะทีมภายใน ({externalPartnerName} cannot see)
                     </span>
                   </>
                 ) : (
@@ -1051,7 +1086,7 @@ export default function ProjectRoomPage() {
                       ⚠️ SHARED ROOM
                     </span>
                     <span className="truncate text-[10px] sm:text-[11px]">
-                      Visible to EastFrame Steel (Supplier) · 供应商可见 · ซัพพลายเออร์มองเห็นได้
+                      Visible to {externalPartnerName} · 供应商可见 · ซัพพลายเออร์มองเห็นได้
                     </span>
                   </>
                 )}
@@ -1110,7 +1145,7 @@ export default function ProjectRoomPage() {
                   <div className="text-[11px] text-slate-400">
                     {isInternal
                       ? "Send a confidential internal note to begin."
-                      : "Send an alignment message to EastFrame Steel."}
+                      : `Send an alignment message to ${externalPartnerName}.`}
                   </div>
                 </div>
               )}
@@ -1171,8 +1206,8 @@ export default function ProjectRoomPage() {
                       <span className="text-slate-400">
                         {isMyMessage
                           ? role === "buyer"
-                            ? "Apex Living"
-                            : "EastFrame"
+                            ? "Buyer Organization"
+                            : externalPartnerName
                           : author.org}
                       </span>
                       {typeof ev.seq === "number" && (
@@ -1369,7 +1404,7 @@ export default function ProjectRoomPage() {
                   <div className="flex items-baseline gap-1.5 text-[10px] flex-row-reverse">
                     <span className="font-bold text-slate-800">You · 你</span>
                     <span className="text-slate-400">
-                      {role === "buyer" ? "Apex Living" : "EastFrame"}
+                      {role === "buyer" ? "Buyer Organization" : externalPartnerName}
                     </span>
                   </div>
 
@@ -1456,14 +1491,14 @@ export default function ProjectRoomPage() {
                     <>
                       <span>🔒</span>
                       <span className="font-semibold text-indigo-900 truncate">
-                        Internal Note: Only Apex Living Modular can see this · 仅买方内部可见
+                        Internal Note: Only Buyer Organization can see this · 仅买方内部可见
                       </span>
                     </>
                   ) : (
                     <>
                       <span>🌐</span>
                       <span className="truncate">
-                        Sending to: <b className="text-slate-800">EastFrame Steel & Apex Living Modular</b> · 供需双方可见
+                        Sending to: <b className="text-slate-800">{externalPartnerName} & Buyer Organization</b> · 供需双方可见
                       </span>
                     </>
                   )}
@@ -1496,8 +1531,8 @@ export default function ProjectRoomPage() {
                 }}
                 placeholder={
                   isInternal
-                    ? "Write an internal confidential message (EastFrame cannot see this) · 内部私密备忘..."
-                    : "Write a message visible to EastFrame Steel & Apex team · 发送给供应商与买方团队..."
+                    ? `Write an internal confidential message (${externalPartnerName} cannot see this) · 内部私密备忘...`
+                    : `Write a message visible to ${externalPartnerName} & Buyer team · 发送给供应商与买方团队...`
                 }
                 className="w-full resize-none px-3 py-2 text-[13px] sm:text-sm outline-none text-slate-900 bg-transparent min-h-[38px] max-h-[100px] leading-relaxed"
               />
@@ -1700,8 +1735,8 @@ export default function ProjectRoomPage() {
               </div>
               <p className="text-[11px] leading-relaxed">
                 {isInternal
-                  ? "Strictly internal to Apex Living Modular. External supplier (EastFrame Steel) has no RLS visibility into this room."
-                  : "Transparent shared room between Apex Living Modular and EastFrame Steel Co., Ltd. Both organizations see all messages."}
+                  ? `Strictly internal to Buyer Organization. External partner (${externalPartnerName}) has no RLS visibility into this room.`
+                  : `Transparent shared room between Buyer Organization and ${externalPartnerName}. Both organizations see all messages.`}
               </p>
             </div>
 
