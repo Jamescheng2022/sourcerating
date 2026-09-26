@@ -15,6 +15,7 @@ import {
   extractEventText,
   STORAGE_KEY_ORG_ID,
 } from "@/lib/demo-session";
+import { analyzeRoomEvent } from "@/lib/staging";
 
 export default function ProjectRoomPage() {
   // Session & Auth state
@@ -24,6 +25,9 @@ export default function ProjectRoomPage() {
   const [isInitializing, setIsInitializing] = useState(true);
   const [authLoading, setAuthLoading] = useState<DemoRole | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
+
+  // Viewport height tracking for mobile/Android virtual keyboard
+  const [viewportHeight, setViewportHeight] = useState<string>("100dvh");
 
   // Rooms state (loaded strictly through RLS)
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -36,15 +40,44 @@ export default function ProjectRoomPage() {
   const [inputText, setInputText] = useState("");
   const [isComposing, setIsComposing] = useState(false);
   const [pendingDraft, setPendingDraft] = useState<PendingDraft | null>(null);
-  const [tab, setTab] = useState("Requirements");
+  const [aiStatus, setAiStatus] = useState<string | null>(null);
+  const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
 
   // Track max seq for gap filling
   const lastSeqRef = useRef<number>(0);
   const activeRoomIdRef = useRef<string>("");
+  const analyzedEventIdsRef = useRef<Set<string>>(new Set());
   activeRoomIdRef.current = activeRoomId;
 
-  // Auto-scroll anchor
+  // Auto-scroll and container anchors
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const isNearBottomRef = useRef<boolean>(true);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Android keyboard & visualViewport safety
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const updateHeight = () => {
+      if (window.visualViewport) {
+        setViewportHeight(`${window.visualViewport.height}px`);
+      } else {
+        setViewportHeight("100dvh");
+      }
+    };
+
+    updateHeight();
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", updateHeight);
+      window.visualViewport.addEventListener("scroll", updateHeight);
+      return () => {
+        window.visualViewport?.removeEventListener("resize", updateHeight);
+        window.visualViewport?.removeEventListener("scroll", updateHeight);
+      };
+    }
+  }, []);
 
   // Check initial session
   useEffect(() => {
@@ -62,7 +95,6 @@ export default function ProjectRoomPage() {
             setCurrentUserId(sessionData.session.user.id);
           }
         } else {
-          // If no valid session or saved role, reset to entry screen
           if (isMounted) {
             setRole(null);
             setActingOrgId(null);
@@ -96,19 +128,27 @@ export default function ProjectRoomPage() {
       }
 
       if (rlsRooms && rlsRooms.length > 0) {
-        setRooms(rlsRooms);
+        // Enforce supplier restriction: Supplier MUST NEVER discover or see Buyer Internal room
+        const filteredRooms =
+          currentRole === "supplier"
+            ? rlsRooms.filter((r) => {
+                const b = (r.boundary || "").toUpperCase();
+                const name = (r.name || "").toLowerCase();
+                return b !== "PRIVATE" && b !== "INTERNAL" && !name.includes("internal");
+              })
+            : rlsRooms;
 
-        // Auto-select first room or keep current if still valid
+        setRooms(filteredRooms);
+
         setActiveRoomId((prev) => {
-          if (prev && rlsRooms.some((r) => r.id === prev)) {
+          if (prev && filteredRooms.some((r) => r.id === prev)) {
             return prev;
           }
-          return rlsRooms[0].id;
+          return filteredRooms[0]?.id || "";
         });
 
-        // If actingOrgId was not set earlier, attempt discovery from rooms
-        if (!currentOrgId) {
-          const firstRoom = rlsRooms[0];
+        if (!currentOrgId && filteredRooms.length > 0) {
+          const firstRoom = filteredRooms[0];
           const discoveredOrg =
             currentRole === "buyer"
               ? firstRoom.buyer_organization_id || firstRoom.organization_id
@@ -166,8 +206,50 @@ export default function ProjectRoomPage() {
     setActiveRoomId("");
     setEvents([]);
     setPendingDraft(null);
+    setAiStatus(null);
+    analyzedEventIdsRef.current.clear();
     setInputText("");
   };
+
+  // Strictly constrain visible rooms: Supplier NEVER sees Buyer Internal
+  const visibleRooms = useMemo(() => {
+    if (role === "supplier") {
+      return rooms.filter((r) => {
+        const b = (r.boundary || "").toUpperCase();
+        const n = (r.name || "").toLowerCase();
+        return b !== "PRIVATE" && b !== "INTERNAL" && !n.includes("internal");
+      });
+    }
+    return rooms;
+  }, [rooms, role]);
+
+  // Active room fallback
+  const activeRoom = useMemo(() => {
+    return (
+      visibleRooms.find((r) => r.id === activeRoomId) ||
+      visibleRooms[0] || {
+        id: activeRoomId,
+        name: role === "supplier" ? "EastFrame Supplier Room" : "Project Room",
+        boundary: role === "supplier" ? "SHARED" : "PRIVATE",
+        note: role === "supplier" ? "Shared Room" : "Internal Room",
+      }
+    );
+  }, [visibleRooms, activeRoomId, role]);
+
+  // Auto-switch away if supplier somehow lands on an internal room
+  useEffect(() => {
+    if (visibleRooms.length > 0 && !visibleRooms.some((r) => r.id === activeRoomId)) {
+      setActiveRoomId(visibleRooms[0].id);
+    }
+  }, [visibleRooms, activeRoomId]);
+
+  // Boundary recognition helper: Internal (Confidential) vs Shared (Supplier)
+  const isInternal = useMemo(() => {
+    if (role === "supplier") return false;
+    const b = (activeRoom.boundary || "").toUpperCase();
+    const n = (activeRoom.name || "").toLowerCase();
+    return b === "PRIVATE" || b === "INTERNAL" || n.includes("internal");
+  }, [activeRoom, role]);
 
   // Gap-fill function to load sequence events gt lastSeq
   const runGapFill = useCallback(async (roomId: string) => {
@@ -198,6 +280,39 @@ export default function ProjectRoomPage() {
     }
   }, []);
 
+  const maybeAnalyzeEvent = useCallback(
+    async (event: RoomEvent) => {
+      if (
+        !actingOrgId ||
+        !event.id ||
+        !event.room_id ||
+        event.event_type !== "message.posted"
+      ) {
+        return;
+      }
+
+      const analysisKey = actingOrgId + ":" + event.id;
+      if (analyzedEventIdsRef.current.has(analysisKey)) return;
+      analyzedEventIdsRef.current.add(analysisKey);
+
+      try {
+        const result = await analyzeRoomEvent(event.room_id, event.id, actingOrgId);
+        if (!result?.ok) {
+          setAiStatus("AI assistant is temporarily unavailable; live project messaging continues normally.");
+          return;
+        }
+        setAiStatus(
+          result.deepProvider
+            ? `AI assistant active via ${result.deepProvider}; live project messaging continues normally.`
+            : "AI assistant is temporarily unavailable; live project messaging continues normally."
+        );
+      } catch (error) {
+        setAiStatus("AI assistant is temporarily unavailable; live project messaging continues normally.");
+      }
+    },
+    [actingOrgId]
+  );
+
   // Load room events & subscribe to Realtime publication
   useEffect(() => {
     if (!activeRoomId || !role) {
@@ -209,7 +324,6 @@ export default function ProjectRoomPage() {
     setEventsLoading(true);
     lastSeqRef.current = 0;
 
-    // 1. Initial history fetch through RLS
     async function fetchHistory() {
       try {
         const { data: initialEvents, error } = await supabase
@@ -236,8 +350,6 @@ export default function ProjectRoomPage() {
 
     fetchHistory();
 
-    // 2. Realtime channel subscription with gap-filling
-    // Cancel old subscription on room switch
     const channel = supabase
       .channel(`room_events_realtime:${activeRoomId}`)
       .on(
@@ -249,9 +361,7 @@ export default function ProjectRoomPage() {
           filter: `room_id=eq.${activeRoomId}`,
         },
         async (payload) => {
-          // INSERT received as notification, then gap-fill by seq
           if (isSubscribed && activeRoomIdRef.current === activeRoomId) {
-            // Also merge the immediate payload if available
             if (payload.new && typeof payload.new === "object") {
               const newRow = payload.new as RoomEvent;
               setEvents((prev) => {
@@ -259,8 +369,8 @@ export default function ProjectRoomPage() {
                 lastSeqRef.current = Math.max(lastSeqRef.current, getMaxSeq(merged));
                 return merged;
               });
+              void maybeAnalyzeEvent(newRow);
             }
-            // Run gap-fill to ensure no missed sequences
             await runGapFill(activeRoomId);
           }
         }
@@ -271,37 +381,30 @@ export default function ProjectRoomPage() {
       isSubscribed = false;
       supabase.removeChannel(channel);
     };
-  }, [activeRoomId, role, runGapFill]);
+  }, [activeRoomId, role, runGapFill, maybeAnalyzeEvent]);
 
-  // Scroll to bottom when new events arrive
+  // Scroll tracking: Only scroll if user is near the bottom
+  const handleScroll = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const nearBottom = distance <= 80;
+    isNearBottomRef.current = nearBottom;
+    setShowScrollBottomBtn(!nearBottom && distance > 180);
+  }, []);
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+    messagesEndRef.current?.scrollIntoView({ behavior });
+    isNearBottomRef.current = true;
+    setShowScrollBottomBtn(false);
+  }, []);
+
+  // Auto-scroll when new events arrive ONLY if user was already near bottom
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [events, pendingDraft]);
-
-  // Active room object
-  const activeRoom = useMemo(() => {
-    return (
-      rooms.find((r) => r.id === activeRoomId) || {
-        id: activeRoomId,
-        name: "Loading room...",
-        boundary: "SHARED",
-        note: "Project Room",
-      }
-    );
-  }, [rooms, activeRoomId]);
-
-  // Boundary metadata helper
-  const roomBoundary = useMemo(() => {
-    if (activeRoom.boundary) return activeRoom.boundary.toUpperCase();
-    if (activeRoom.name.toLowerCase().includes("internal")) return "PRIVATE";
-    return "EXTERNAL";
-  }, [activeRoom]);
-
-  const roomNote = useMemo(() => {
-    if (activeRoom.note) return activeRoom.note;
-    if (roomBoundary === "PRIVATE") return "Only Apex Living Modular";
-    return "Visible to EastFrame Steel Co., Ltd.";
-  }, [activeRoom, roomBoundary]);
+    if (isNearBottomRef.current) {
+      scrollToBottom("smooth");
+    }
+  }, [events, pendingDraft, scrollToBottom]);
 
   // Send message flow
   const handleSend = async () => {
@@ -309,7 +412,6 @@ export default function ProjectRoomPage() {
     if (!textToSend || !activeRoomId || !role) return;
     if (pendingDraft && pendingDraft.status === "sending") return;
 
-    // Single client_msg_id
     const clientMsgId = crypto.randomUUID();
     const newDraft: PendingDraft = {
       client_msg_id: clientMsgId,
@@ -321,6 +423,10 @@ export default function ProjectRoomPage() {
 
     setInputText("");
     setPendingDraft(newDraft);
+
+    // When the user explicitly sends, force scroll to bottom
+    isNearBottomRef.current = true;
+    scrollToBottom("smooth");
 
     try {
       const { data: rpcData, error: rpcError } = await supabase.rpc("append_room_event", {
@@ -339,18 +445,18 @@ export default function ProjectRoomPage() {
           error: rpcError.message || "Failed to persist message",
         });
       } else {
-        // Success: append canonical event and clear draft
         setPendingDraft(null);
 
         if (rpcData && typeof rpcData === "object") {
+          const canonicalEvent = rpcData as RoomEvent;
           setEvents((prev) => {
-            const merged = dedupeAndSortEvents(prev, [rpcData as RoomEvent]);
+            const merged = dedupeAndSortEvents(prev, [canonicalEvent]);
             lastSeqRef.current = getMaxSeq(merged);
             return merged;
           });
+          void maybeAnalyzeEvent(canonicalEvent);
         }
 
-        // Trigger gap-fill to fetch canonical seq from database
         await runGapFill(activeRoomId);
       }
     } catch (err: any) {
@@ -377,7 +483,7 @@ export default function ProjectRoomPage() {
     try {
       const { data: rpcData, error: rpcError } = await supabase.rpc("append_room_event", {
         p_room_id: retryDraft.room_id,
-        p_client_msg_id: retryDraft.client_msg_id, // Same client_msg_id!
+        p_client_msg_id: retryDraft.client_msg_id,
         p_actor_organization_id: actingOrgId || null,
         p_event_type: "message.posted",
         p_payload: { text: retryDraft.text },
@@ -392,11 +498,13 @@ export default function ProjectRoomPage() {
       } else {
         setPendingDraft(null);
         if (rpcData && typeof rpcData === "object") {
+          const canonicalEvent = rpcData as RoomEvent;
           setEvents((prev) => {
-            const merged = dedupeAndSortEvents(prev, [rpcData as RoomEvent]);
+            const merged = dedupeAndSortEvents(prev, [canonicalEvent]);
             lastSeqRef.current = getMaxSeq(merged);
             return merged;
           });
+          void maybeAnalyzeEvent(canonicalEvent);
         }
         await runGapFill(retryDraft.room_id);
       }
@@ -419,12 +527,12 @@ export default function ProjectRoomPage() {
     if (isMe) {
       return {
         who: "You",
-        org: role === "buyer" ? "Apex Living Modular (Buyer)" : "EastFrame Steel (Supplier)",
+        org: role === "buyer" ? "Apex Living Modular" : "EastFrame Steel",
       };
     }
 
     if (role === "buyer") {
-      if (roomBoundary === "PRIVATE") {
+      if (isInternal) {
         return { who: "Korn Kittisak", org: "Commercial · Apex Living Modular" };
       }
       return { who: "Wang Lin 王林", org: "EastFrame Steel Co., Ltd." };
@@ -445,7 +553,7 @@ export default function ProjectRoomPage() {
     );
   }
 
-  // 2. No session screen: Enter as Buyer / Enter as Supplier
+  // 2. Demo role selection screen
   if (!role) {
     return (
       <main className="h-[100dvh] min-h-[100dvh] max-h-[100dvh] overflow-y-auto bg-slate-950 text-slate-100 flex items-center justify-center p-4">
@@ -456,18 +564,18 @@ export default function ProjectRoomPage() {
             </div>
             <div>
               <h1 className="text-lg font-bold text-white">Live P1 Project Room Demo</h1>
-              <p className="text-xs text-slate-400">Two-session live alignment with Supabase RLS</p>
+              <p className="text-xs text-slate-400">Two-session live alignment · Supabase RLS</p>
             </div>
           </div>
 
-          <div className="mt-6 rounded-xl border border-slate-800 bg-slate-950/60 p-4 text-xs text-slate-300 space-y-2">
-            <div className="font-semibold text-slate-200">Demonstration Overview:</div>
-            <ul className="list-disc list-inside space-y-1 text-slate-400 text-[11px]">
+          <div className="mt-5 rounded-xl border border-slate-800 bg-slate-950/60 p-4 text-xs text-slate-300 space-y-2">
+            <div className="font-semibold text-slate-200">Demonstration Scope:</div>
+            <ul className="list-disc list-inside space-y-1.5 text-slate-400 text-[11px]">
               <li>
-                <strong className="text-sky-300">Buyer Session:</strong> Has access to Internal Room (private) and shared EastFrame room.
+                <strong className="text-sky-300">Buyer · 买方 · ผู้ซื้อ:</strong> Apex Living Modular. Has access to confidential Internal Room & shared EastFrame room.
               </li>
               <li>
-                <strong className="text-amber-300">Supplier Session:</strong> Access strictly constrained by RLS to shared EastFrame room. Internal room is undiscoverable.
+                <strong className="text-amber-300">Supplier · 供应商 · ซัพพลายเออร์:</strong> EastFrame Steel. Access strictly constrained by RLS to shared room only. Internal room is never visible.
               </li>
               <li>Real-time event synchronization with sequence gap filling and IME-safe messaging.</li>
             </ul>
@@ -486,13 +594,16 @@ export default function ProjectRoomPage() {
               className="group flex flex-col items-start rounded-xl border border-sky-500/40 bg-sky-950/30 p-4 text-left transition hover:border-sky-400 hover:bg-sky-900/40 disabled:opacity-50"
             >
               <div className="flex w-full items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-sky-400">Role 1</span>
+                <span className="text-xs font-bold uppercase tracking-wider text-sky-400">Buyer · 买方</span>
                 {authLoading === "buyer" && (
                   <span className="h-3 w-3 animate-spin rounded-full border-2 border-sky-400 border-t-transparent" />
                 )}
               </div>
               <div className="mt-2 text-sm font-bold text-white group-hover:text-sky-300">
                 Enter as Buyer
+              </div>
+              <div className="mt-0.5 text-[11px] text-sky-300/80">
+                สำหรับผู้ซื้อ
               </div>
               <div className="mt-1 text-[11px] text-slate-400">
                 Apex Living Modular · 2 rooms (Internal + Shared)
@@ -505,13 +616,16 @@ export default function ProjectRoomPage() {
               className="group flex flex-col items-start rounded-xl border border-amber-500/40 bg-amber-950/30 p-4 text-left transition hover:border-amber-400 hover:bg-amber-900/40 disabled:opacity-50"
             >
               <div className="flex w-full items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-amber-400">Role 2</span>
+                <span className="text-xs font-bold uppercase tracking-wider text-amber-400">Supplier · 供应商</span>
                 {authLoading === "supplier" && (
                   <span className="h-3 w-3 animate-spin rounded-full border-2 border-amber-400 border-t-transparent" />
                 )}
               </div>
               <div className="mt-2 text-sm font-bold text-white group-hover:text-amber-300">
                 Enter as Supplier
+              </div>
+              <div className="mt-0.5 text-[11px] text-amber-300/80">
+                สำหรับซัพพลายเออร์
               </div>
               <div className="mt-1 text-[11px] text-slate-400">
                 EastFrame Steel · 1 room (Shared only)
@@ -529,8 +643,11 @@ export default function ProjectRoomPage() {
 
   // 3. Active session view
   return (
-    <main className="h-[100dvh] max-h-[100dvh] min-h-[100dvh] overflow-hidden bg-slate-100 text-slate-900 flex flex-col">
-      <div className="grid h-full min-h-0 grid-cols-1 md:grid-cols-[230px_minmax(0,1fr)_360px]">
+    <main
+      style={{ height: viewportHeight, minHeight: viewportHeight, maxHeight: viewportHeight }}
+      className="overflow-hidden bg-slate-100 text-slate-900 flex flex-col w-full"
+    >
+      <div className="grid h-full min-h-0 grid-cols-1 md:grid-cols-[230px_minmax(0,1fr)_340px]">
         {/* LEFT SIDEBAR (Desktop) */}
         <aside className="hidden md:flex flex-col bg-slate-950 text-slate-200 border-r border-slate-800 min-h-0">
           <div className="p-4 border-b border-slate-800">
@@ -545,59 +662,68 @@ export default function ProjectRoomPage() {
                     : "bg-amber-400/20 text-amber-300 border border-amber-400/30"
                 }`}
               >
-                {role}
+                {role === "buyer" ? "Buyer · 买方" : "Supplier · 供应商"}
               </span>
             </div>
             <div className="text-[11px] text-slate-400 mt-1">
-              {role === "buyer" ? "Buyer Organization" : "Supplier Organization"}
+              {role === "buyer" ? "Bangkok, Thailand" : "Zhejiang, China"}
             </div>
           </div>
 
           <div className="p-3">
-            <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-2">
+            <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-2 font-semibold">
               Active Project
             </div>
             <div className="rounded-lg border border-slate-800 bg-slate-900 p-3">
-              <div className="text-xs font-semibold">Bangkok Prefab Office</div>
-              <div className="text-[10px] text-sky-400 mt-1">BKK-MOD-2026-08</div>
+              <div className="text-xs font-semibold text-white">Bangkok Prefab Office</div>
+              <div className="text-[10px] text-sky-400 mt-0.5 font-mono">BKK-MOD-2026-08</div>
             </div>
           </div>
 
           <div className="px-2 flex-1 overflow-y-auto">
-            <div className="px-2 pb-2 text-[10px] uppercase tracking-wider text-slate-500 flex items-center justify-between">
-              <span>Project Rooms (RLS)</span>
-              <span className="text-slate-400 font-mono text-[9px]">{rooms.length}</span>
+            <div className="px-2 pb-2 text-[10px] uppercase tracking-wider text-slate-500 flex items-center justify-between font-semibold">
+              <span>Project Rooms</span>
+              <span className="text-slate-400 font-mono text-[9px]">{visibleRooms.length}</span>
             </div>
 
             {roomsLoading ? (
               <div className="p-3 text-[11px] text-slate-500">Loading rooms...</div>
-            ) : rooms.length === 0 ? (
-              <div className="p-3 text-[11px] text-slate-500">No rooms returned by RLS.</div>
+            ) : visibleRooms.length === 0 ? (
+              <div className="p-3 text-[11px] text-slate-500">No rooms authorized.</div>
             ) : (
-              rooms.map((r) => {
-                const isSelected = r.id === activeRoomId;
-                const isPrivate =
-                  r.boundary === "PRIVATE" || r.name.toLowerCase().includes("internal");
+              visibleRooms.map((r) => {
+                const isSelected = r.id === activeRoom.id;
+                const rIsInternal =
+                  (r.boundary || "").toUpperCase() === "PRIVATE" ||
+                  (r.boundary || "").toUpperCase() === "INTERNAL" ||
+                  (r.name || "").toLowerCase().includes("internal");
 
                 return (
                   <button
                     key={r.id}
                     onClick={() => setActiveRoomId(r.id)}
                     className={
-                      "w-full text-left rounded-md px-3 py-2.5 text-xs mb-1 border-l-2 transition " +
+                      "w-full text-left rounded-lg px-3 py-2.5 text-xs mb-1.5 border transition " +
                       (isSelected
-                        ? "bg-slate-800 border-sky-400 text-white font-medium"
-                        : "border-transparent text-slate-300 hover:bg-slate-900")
+                        ? rIsInternal
+                          ? "bg-indigo-950/80 border-indigo-500 text-white font-medium shadow-sm"
+                          : "bg-slate-800 border-sky-400 text-white font-medium shadow-sm"
+                        : "border-transparent text-slate-300 hover:bg-slate-900 hover:text-white")
                     }
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="truncate">{r.name}</span>
+                      <div className="flex items-center gap-1.5 truncate">
+                        <span>{rIsInternal ? "🔒" : "🌐"}</span>
+                        <span className="truncate">{r.name}</span>
+                      </div>
                       <span
-                        className={`text-[8px] font-bold px-1 rounded uppercase shrink-0 ${
-                          isPrivate ? "bg-indigo-900/60 text-indigo-300" : "bg-slate-800 text-slate-400"
+                        className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase shrink-0 ${
+                          rIsInternal
+                            ? "bg-indigo-900/80 text-indigo-300 border border-indigo-700/50"
+                            : "bg-slate-800 text-slate-400 border border-slate-700"
                         }`}
                       >
-                        {isPrivate ? "Pvt" : "Ext"}
+                        {rIsInternal ? "Confidential" : "Shared"}
                       </span>
                     </div>
                   </button>
@@ -610,7 +736,7 @@ export default function ProjectRoomPage() {
             <div className="rounded-lg border border-slate-800 bg-slate-900/80 p-2.5">
               <div className="text-[10px] text-slate-400 flex items-center justify-between">
                 <span>Identity:</span>
-                <span className="font-mono text-slate-300">{role}</span>
+                <span className="font-mono text-slate-300 capitalize">{role}</span>
               </div>
               <div className="text-[9px] text-slate-500 mt-1 truncate">
                 {actingOrgId ? `Org: ${actingOrgId.slice(0, 14)}...` : "RLS Active"}
@@ -621,74 +747,124 @@ export default function ProjectRoomPage() {
               onClick={handleResetIdentity}
               className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800 hover:text-white transition"
             >
-              Reset Demo Identity
+              Switch Role · 切换身份
             </button>
           </div>
         </aside>
 
-        {/* MIDDLE SECTION: CHAT CONVERSATION */}
-        <section className="flex min-w-0 flex-col bg-white h-full min-h-0">
-          {/* Header */}
+        {/* MIDDLE SECTION: CHAT CONVERSATION (Mobile First IM Feel) */}
+        <section className="flex min-w-0 flex-col bg-white h-full min-h-0 relative">
+          {/* Header Chrome: Reduced vertical height */}
           <header className="shrink-0 border-b border-slate-200 bg-white">
-            <div className="px-4 py-3 flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-xs text-slate-500 truncate">
-                  Bangkok Prefab Office /{" "}
-                  <span className="font-semibold text-slate-900">{activeRoom.name}</span>
-                </div>
-                <div className="mt-0.5 text-[11px] text-slate-400">
-                  Phase 2 · Technical & Commercial Alignment
-                </div>
+            <div className="px-3 py-2 sm:px-4 sm:py-2.5 flex items-center justify-between gap-2">
+              {/* Room selector / title */}
+              <div className="flex items-center gap-2 min-w-0">
+                {role === "buyer" && visibleRooms.length > 1 ? (
+                  <div className="flex rounded-lg bg-slate-100 p-0.5 text-xs">
+                    {visibleRooms.map((r) => {
+                      const rIsInternal =
+                        (r.boundary || "").toUpperCase() === "PRIVATE" ||
+                        (r.boundary || "").toUpperCase() === "INTERNAL" ||
+                        (r.name || "").toLowerCase().includes("internal");
+                      const isSelected = r.id === activeRoom.id;
+                      return (
+                        <button
+                          key={r.id}
+                          onClick={() => setActiveRoomId(r.id)}
+                          className={`flex items-center gap-1 rounded-md px-2 py-1 font-medium transition ${
+                            isSelected
+                              ? rIsInternal
+                                ? "bg-indigo-900 text-white shadow-sm"
+                                : "bg-slate-900 text-white shadow-sm"
+                              : "text-slate-600 hover:text-slate-900"
+                          }`}
+                        >
+                          <span>{rIsInternal ? "🔒" : "🌐"}</span>
+                          <span className="truncate max-w-[110px] sm:max-w-none">
+                            {rIsInternal ? "Internal · 内部" : "Shared · 外部"}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 truncate">
+                    <span className="text-sm">{isInternal ? "🔒" : "🌐"}</span>
+                    <span className="font-bold text-slate-900 text-xs sm:text-sm truncate">
+                      {activeRoom.name}
+                    </span>
+                  </div>
+                )}
               </div>
 
-              {/* Mobile room selector: STRICTLY RLS-returned rooms */}
-              <div className="flex items-center gap-2 md:hidden">
-                <select
-                  className="rounded border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 outline-none max-w-[150px]"
-                  value={activeRoomId}
-                  onChange={(e) => setActiveRoomId(e.target.value)}
+              {/* Right controls: Role Badge & Reset Identity */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span
+                  className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${
+                    role === "buyer"
+                      ? "bg-sky-100 text-sky-800 border border-sky-200"
+                      : "bg-amber-100 text-amber-800 border border-amber-200"
+                  }`}
                 >
-                  {rooms.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name}
-                    </option>
-                  ))}
-                </select>
+                  {role === "buyer" ? "Buyer · 买方" : "Supplier · 供应商"}
+                </span>
 
                 <button
                   onClick={handleResetIdentity}
-                  title="Reset Demo Identity"
-                  className="rounded border border-slate-200 px-2 py-1.5 text-[10px] text-slate-600 hover:bg-slate-50"
+                  title="Switch Role / Reset Session"
+                  className="rounded border border-slate-200 px-2 py-0.5 text-[10px] font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition"
                 >
-                  Reset
+                  Switch · 切换
                 </button>
               </div>
             </div>
 
-            {/* Room Boundary Pill */}
+            {/* Persistent Room Boundary Notice Bar */}
             <div
-              className={
-                "px-4 py-2 text-[11px] border-t flex items-center justify-between " +
-                (roomBoundary === "PRIVATE"
-                  ? "bg-indigo-50 border-indigo-100 text-indigo-900"
-                  : "bg-amber-50 border-amber-100 text-amber-900")
-              }
+              className={`px-3 py-1.5 text-[11px] border-t flex items-center justify-between gap-2 transition-colors ${
+                isInternal
+                  ? "bg-indigo-950 text-indigo-100 border-indigo-900 shadow-inner"
+                  : "bg-amber-50 text-amber-950 border-amber-200"
+              }`}
             >
-              <div>
-                <span className="font-bold">{roomBoundary}</span> · {roomNote}
+              <div className="flex items-center gap-1.5 min-w-0 font-medium truncate">
+                {isInternal ? (
+                  <>
+                    <span className="shrink-0 font-bold bg-indigo-800 text-indigo-200 px-1 py-0.5 rounded text-[9px]">
+                      🔒 CONFIDENTIAL
+                    </span>
+                    <span className="truncate text-[10px] sm:text-[11px]">
+                      Buyer Internal · 仅买方可见 · เฉพาะทีมภายใน (EastFrame cannot see)
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="shrink-0 font-bold bg-amber-200 text-amber-900 px-1 py-0.5 rounded text-[9px]">
+                      ⚠️ SHARED ROOM
+                    </span>
+                    <span className="truncate text-[10px] sm:text-[11px]">
+                      Visible to EastFrame Steel (Supplier) · 供应商可见 · ซัพพลายเออร์มองเห็นได้
+                    </span>
+                  </>
+                )}
               </div>
-              <div className="text-[10px] opacity-75 font-mono">
-                {events.length} event{events.length === 1 ? "" : "s"}
+              <div className="text-[10px] opacity-80 font-mono shrink-0">
+                {events.length} msgs
               </div>
             </div>
           </header>
 
           {/* Messages Stream */}
-          <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50 px-3 py-4 sm:px-5">
-            <div className="mx-auto max-w-3xl space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-                <span className="text-[10px] uppercase tracking-[0.15em] text-slate-400 font-semibold">
-                  Project Conversation · Live Sync
+          <div
+            ref={scrollContainerRef}
+            onScroll={handleScroll}
+            className="min-h-0 flex-1 overflow-y-auto bg-slate-50 px-3 py-3 sm:px-5"
+          >
+            <div className="mx-auto max-w-3xl space-y-3">
+              {/* Header Status & Sync Status */}
+              <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
+                <span className="text-[10px] uppercase tracking-[0.12em] text-slate-400 font-semibold">
+                  Live Sync · {isInternal ? "Internal Alignment" : "Cross-Border Messaging"}
                 </span>
                 <span className="text-[10px] text-emerald-600 flex items-center gap-1 font-medium">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -696,15 +872,17 @@ export default function ProjectRoomPage() {
                 </span>
               </div>
 
-              {/* AI Gateway Failure Disclosure (Truthful UI: No fake active controls) */}
-              <div className="rounded-xl border border-slate-200 bg-white/80 p-3 text-xs text-slate-600 shadow-sm">
-                <div className="flex items-center gap-2 font-semibold text-slate-800">
-                  <span className="inline-block h-2 w-2 rounded-full bg-amber-500"></span>
-                  AI Gateway Status: Offline (Vercel Billing Inactive)
+              {/* Honest Neutral Degraded State Notice (No Vercel mention, calm & reassuring) */}
+              <div className="rounded-xl border border-slate-200 bg-white/90 p-2.5 sm:p-3 text-xs text-slate-600 shadow-xs flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="inline-block h-2 w-2 rounded-full bg-slate-400 shrink-0"></span>
+                  <span className="text-[11px] text-slate-600 truncate">
+                    {aiStatus || "AI assistant is temporarily unavailable; live project messaging continues normally."}
+                  </span>
                 </div>
-                <div className="mt-1 text-[11px] text-slate-500 leading-relaxed">
-                  Automated commercial extraction is currently paused because Vercel AI Gateway billing is not enabled. Live team messaging and RLS boundary enforcement are fully operational.
-                </div>
+                <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                  Live Chat Active
+                </span>
               </div>
 
               {/* Loading State */}
@@ -719,8 +897,13 @@ export default function ProjectRoomPage() {
 
               {/* Empty State */}
               {!eventsLoading && events.length === 0 && !pendingDraft && (
-                <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-xs text-slate-500">
-                  No messages yet in this room. Send the first message below.
+                <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-xs text-slate-500 space-y-1">
+                  <div className="font-semibold text-slate-700">No messages yet in this room</div>
+                  <div className="text-[11px] text-slate-400">
+                    {isInternal
+                      ? "Send a confidential internal note to begin."
+                      : "Send an alignment message to EastFrame Steel."}
+                  </div>
                 </div>
               )}
 
@@ -729,112 +912,152 @@ export default function ProjectRoomPage() {
                 const author = getEventAuthorInfo(ev);
                 const text = extractEventText(ev.payload);
                 const isMyMessage = currentUserId && ev.actor_user_id === currentUserId;
+                const timeStr = ev.created_at
+                  ? new Date(ev.created_at).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  : "";
 
                 return (
-                  <div key={ev.id || ev.client_msg_id || idx} className="space-y-1">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-[11px] font-bold text-slate-800">{author.who}</span>
-                        <span className="text-[10px] text-slate-400">{author.org}</span>
-                      </div>
-                      <div className="text-[9px] text-slate-400 font-mono flex items-center gap-1.5">
-                        {typeof ev.seq === "number" && (
-                          <span className="rounded bg-slate-200/70 px-1 text-slate-600">
-                            #{ev.seq}
-                          </span>
-                        )}
-                        {ev.created_at && (
-                          <span>
-                            {new Date(ev.created_at).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </span>
-                        )}
-                      </div>
+                  <div
+                    key={ev.id || ev.client_msg_id || idx}
+                    id={ev.id ? `event-${ev.id}` : undefined}
+                    className={`flex flex-col ${isMyMessage ? "items-end" : "items-start"} space-y-1`}
+                  >
+                    {/* Sender Info Header */}
+                    <div
+                      className={`flex items-baseline gap-1.5 text-[10px] ${
+                        isMyMessage ? "flex-row-reverse" : "flex-row"
+                      }`}
+                    >
+                      <span className="font-bold text-slate-800">
+                        {isMyMessage ? "You · 你" : author.who}
+                      </span>
+                      <span className="text-slate-400">
+                        {isMyMessage
+                          ? role === "buyer"
+                            ? "Apex Living"
+                            : "EastFrame"
+                          : author.org}
+                      </span>
+                      {typeof ev.seq === "number" && (
+                        <span className="rounded bg-slate-200/60 px-1 py-0.2 font-mono text-[9px] text-slate-500">
+                          #{ev.seq}
+                        </span>
+                      )}
                     </div>
 
+                    {/* Chat Bubble */}
                     <div
-                      className={
-                        "rounded-xl rounded-tl-sm border p-3 text-[13px] leading-6 shadow-sm " +
-                        (isMyMessage
-                          ? "bg-white border-sky-200"
-                          : "bg-white border-slate-200")
-                      }
+                      className={`max-w-[88%] sm:max-w-[80%] rounded-2xl p-3 text-[13px] leading-relaxed shadow-xs ${
+                        isMyMessage
+                          ? "rounded-br-xs bg-sky-600 text-white border border-sky-600"
+                          : isInternal
+                          ? "rounded-bl-xs bg-white text-slate-900 border border-indigo-100 shadow-slate-100"
+                          : "rounded-bl-xs bg-white text-slate-900 border border-slate-200"
+                      }`}
                     >
                       <div className="whitespace-pre-wrap break-words">{text}</div>
 
                       {ev.payload?.file && (
-                        <div className="mt-3 rounded-lg border border-sky-100 bg-sky-50 p-3">
-                          <div className="text-xs font-semibold text-sky-900">{ev.payload.file}</div>
-                          <div className="mt-1 text-[10px] text-sky-700">
-                            Attached specification / commercial document
+                        <div
+                          className={`mt-2 rounded-lg p-2.5 text-xs ${
+                            isMyMessage
+                              ? "bg-sky-700/60 border border-sky-500 text-white"
+                              : "bg-slate-50 border border-slate-200 text-slate-800"
+                          }`}
+                        >
+                          <div className="font-semibold flex items-center gap-1">
+                            <span>📎</span>
+                            <span>{ev.payload.file}</span>
+                          </div>
+                          <div
+                            className={`mt-0.5 text-[10px] ${
+                              isMyMessage ? "text-sky-200" : "text-slate-500"
+                            }`}
+                          >
+                            Project document
                           </div>
                         </div>
+                      )}
+                    </div>
+
+                    {/* Status & Timestamp */}
+                    <div
+                      className={`flex items-center gap-1.5 text-[10px] text-slate-400 font-mono ${
+                        isMyMessage ? "flex-row-reverse" : "flex-row"
+                      }`}
+                    >
+                      {timeStr && <span>{timeStr}</span>}
+                      {isMyMessage && (
+                        <span className="text-emerald-600 font-medium flex items-center gap-0.5">
+                          <span>✓</span>
+                          <span>Sent · 已发送</span>
+                        </span>
                       )}
                     </div>
                   </div>
                 );
               })}
 
-              {/* Pending Draft: Sending State */}
+              {/* Pending Draft: Sending State (Subtle IM Feel) */}
               {pendingDraft && pendingDraft.status === "sending" && (
-                <div className="space-y-1 opacity-75 animate-pulse">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-[11px] font-bold text-slate-800">You</span>
-                      <span className="text-[10px] text-sky-600">Sending...</span>
-                    </div>
+                <div className="flex flex-col items-end space-y-1">
+                  <div className="flex items-baseline gap-1.5 text-[10px] flex-row-reverse">
+                    <span className="font-bold text-slate-800">You · 你</span>
+                    <span className="text-slate-400">
+                      {role === "buyer" ? "Apex Living" : "EastFrame"}
+                    </span>
                   </div>
-                  <div className="rounded-xl rounded-tl-sm border border-sky-300 bg-sky-50/60 p-3 text-[13px] leading-6 shadow-sm">
-                    <div className="whitespace-pre-wrap break-words text-slate-800">
-                      {pendingDraft.text}
-                    </div>
+
+                  <div className="max-w-[88%] sm:max-w-[80%] rounded-2xl rounded-br-xs p-3 text-[13px] leading-relaxed shadow-xs bg-sky-500/80 text-white border border-sky-400 opacity-90 animate-pulse">
+                    <div className="whitespace-pre-wrap break-words">{pendingDraft.text}</div>
+                  </div>
+
+                  <div className="flex items-center gap-1 text-[10px] text-sky-600 font-medium">
+                    <span className="h-1.5 w-1.5 rounded-full bg-sky-500 animate-ping"></span>
+                    <span>Sending... · 发送中</span>
                   </div>
                 </div>
               )}
 
-              {/* Pending Draft: Failed State with Retry (using same client_msg_id) */}
+              {/* Pending Draft: Failed State with Subtle Retry (using identical client_msg_id) */}
               {pendingDraft && pendingDraft.status === "failed" && (
-                <div className="rounded-xl border border-red-200 bg-red-50/90 p-3 text-xs text-red-900 shadow-sm space-y-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-semibold text-red-800 flex items-center gap-1.5">
-                      <span>⚠️</span> Message Delivery Failed
-                    </span>
-                    <span className="text-[10px] font-mono text-red-700">
-                      id: {pendingDraft.client_msg_id.slice(0, 8)}...
-                    </span>
+                <div className="flex flex-col items-end space-y-1.5">
+                  <div className="flex items-baseline gap-1.5 text-[10px] flex-row-reverse">
+                    <span className="font-bold text-slate-800">You · 你</span>
+                    <span className="text-rose-600 font-medium">⚠️ Delivery failed · 发送失败</span>
                   </div>
 
-                  <div className="rounded bg-white/80 p-2 text-slate-800 whitespace-pre-wrap break-words border border-red-200">
-                    {pendingDraft.text}
+                  <div className="max-w-[88%] sm:max-w-[80%] rounded-2xl rounded-br-xs p-3 text-[13px] leading-relaxed shadow-xs bg-rose-50 border border-rose-200 text-slate-900">
+                    <div className="whitespace-pre-wrap break-words">{pendingDraft.text}</div>
+                    {pendingDraft.error && (
+                      <div className="mt-1 text-[10px] text-rose-600">{pendingDraft.error}</div>
+                    )}
                   </div>
 
-                  {pendingDraft.error && (
-                    <div className="text-[10px] text-red-700">{pendingDraft.error}</div>
-                  )}
-
-                  <div className="flex items-center gap-2 pt-1">
+                  <div className="flex items-center gap-1.5">
                     <button
                       onClick={handleRetry}
-                      className="rounded bg-red-600 px-3 py-1 font-semibold text-white hover:bg-red-700 text-xs transition"
+                      className="rounded bg-rose-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-rose-700 transition"
                     >
-                      Retry (same client_msg_id)
+                      Retry · 重试
                     </button>
                     <button
                       onClick={() => {
                         setInputText(pendingDraft.text);
                         setPendingDraft(null);
                       }}
-                      className="rounded border border-red-300 bg-white px-3 py-1 text-xs text-slate-700 hover:bg-slate-50 transition"
+                      className="rounded border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700 hover:bg-slate-50 transition"
                     >
-                      Edit Draft
+                      Edit · 编辑
                     </button>
                     <button
                       onClick={() => setPendingDraft(null)}
-                      className="text-xs text-slate-500 hover:text-slate-800 px-1 ml-auto"
+                      className="rounded px-2 py-1 text-[11px] text-slate-500 hover:text-slate-800 transition"
                     >
-                      Dismiss
+                      Discard · 放弃
                     </button>
                   </div>
                 </div>
@@ -844,128 +1067,187 @@ export default function ProjectRoomPage() {
             </div>
           </div>
 
-          {/* INPUT BAR (IME Composition Safe) */}
-          <div className="shrink-0 border-t border-slate-200 bg-white p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-            <div className="mx-auto max-w-3xl rounded-xl border border-slate-200 focus-within:border-sky-500 focus-within:ring-1 focus-within:ring-sky-500 transition">
-              <div className="px-3 py-1.5 border-b border-slate-100 text-[10px] text-slate-500 flex items-center justify-between">
-                <span>
-                  Sending to: <b>{roomNote}</b>
-                </span>
-                <span className="text-[9px] text-slate-400 font-mono">
-                  {role === "buyer" ? "Apex Living Modular" : "EastFrame Steel"}
+          {/* Floating Jump to Latest Button (shown when user scrolled up) */}
+          {showScrollBottomBtn && (
+            <button
+              onClick={() => scrollToBottom("smooth")}
+              className="absolute bottom-24 right-4 z-10 rounded-full bg-slate-900/90 text-white px-3 py-1.5 text-xs shadow-lg backdrop-blur flex items-center gap-1.5 hover:bg-slate-900 transition"
+            >
+              <span>↓</span>
+              <span>Latest messages · 最新消息</span>
+            </button>
+          )}
+
+          {/* INPUT BAR (IME Composition Safe & Mobile First) */}
+          <div className="shrink-0 border-t border-slate-200 bg-white p-2.5 sm:p-3 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
+            <div className="mx-auto max-w-3xl rounded-xl border border-slate-300 focus-within:border-sky-500 focus-within:ring-1 focus-within:ring-sky-500 bg-white transition">
+              {/* Recipient explicit reminder */}
+              <div
+                className={`px-3 py-1 border-b text-[10px] font-medium flex items-center justify-between rounded-t-xl ${
+                  isInternal
+                    ? "bg-indigo-50 border-indigo-100 text-indigo-950"
+                    : "bg-slate-50 border-slate-100 text-slate-600"
+                }`}
+              >
+                <div className="flex items-center gap-1.5 truncate">
+                  {isInternal ? (
+                    <>
+                      <span>🔒</span>
+                      <span className="font-semibold text-indigo-900 truncate">
+                        Internal Note: Only Apex Living Modular can see this · 仅买方内部可见
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span>🌐</span>
+                      <span className="truncate">
+                        Sending to: <b className="text-slate-800">EastFrame Steel & Apex Living Modular</b> · 供需双方可见
+                      </span>
+                    </>
+                  )}
+                </div>
+                <span className="text-[9px] font-mono text-slate-400 shrink-0">
+                  {role === "buyer" ? "Buyer Session" : "Supplier Session"}
                 </span>
               </div>
 
+              {/* Textarea with Chinese IME preservation */}
               <textarea
-                rows={2}
+                ref={textareaRef}
+                rows={1}
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 onCompositionStart={() => setIsComposing(true)}
                 onCompositionEnd={() => setIsComposing(false)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
-                    if (isComposing || (e.nativeEvent as any).isComposing) {
-                      return; // In the middle of Chinese/IME character selection
+                    if (
+                      isComposing ||
+                      (e.nativeEvent as any).isComposing ||
+                      e.keyCode === 229
+                    ) {
+                      return; // In Chinese IME character selection
                     }
                     e.preventDefault();
                     handleSend();
                   }
                 }}
-                placeholder="Write a project message (Chinese / English supported)..."
-                className="w-full resize-none px-3 py-2.5 text-sm outline-none text-slate-900 bg-transparent"
+                placeholder={
+                  isInternal
+                    ? "Write an internal confidential message (EastFrame cannot see this) · 内部私密备忘..."
+                    : "Write a message visible to EastFrame Steel & Apex team · 发送给供应商与买方团队..."
+                }
+                className="w-full resize-none px-3 py-2 text-[13px] sm:text-sm outline-none text-slate-900 bg-transparent min-h-[38px] max-h-[100px] leading-relaxed"
               />
 
-              <div className="flex items-center justify-between px-3 pb-2 pt-1 border-t border-slate-50">
-                <div className="text-[11px] text-slate-400">
-                  IME Safe · Enter to send, Shift+Enter for new line
+              {/* Footer Bar */}
+              <div className="flex items-center justify-between px-3 pb-2 pt-1 border-t border-slate-100">
+                <div className="text-[10px] text-slate-400 truncate">
+                  Enter to send · 回车发送
                 </div>
 
                 <button
                   onClick={handleSend}
                   disabled={!inputText.trim() || pendingDraft?.status === "sending"}
-                  className="rounded-md bg-slate-900 px-4 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-40 transition"
+                  className="rounded-lg bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-40 transition flex items-center gap-1.5"
                 >
-                  {pendingDraft?.status === "sending" ? "Sending..." : "Send"}
+                  {pendingDraft?.status === "sending" ? (
+                    <>
+                      <span className="h-2.5 w-2.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      <span>Sending...</span>
+                    </>
+                  ) : (
+                    <span>Send · 发送</span>
+                  )}
                 </button>
               </div>
             </div>
           </div>
         </section>
 
-        {/* RIGHT SIDEBAR: PROJECT STATE (Honest Live Counters, No Fake Facts) */}
+        {/* RIGHT SIDEBAR: PROJECT STATE (Honest Live Information, No Fake Tabs or Affordances) */}
         <aside className="hidden md:flex flex-col bg-white border-l border-slate-200 min-h-0">
           <div className="p-4 border-b border-slate-200">
             <div className="flex items-center justify-between">
-              <div className="text-sm font-bold text-slate-900">Project State</div>
-              <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-mono font-medium text-slate-600">
-                Live
+              <div className="text-sm font-bold text-slate-900">Project Context</div>
+              <span className="rounded bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 text-[9px] font-mono font-semibold">
+                Live Sync
               </span>
             </div>
-            <div className="mt-1 text-[10px] text-slate-500">
-              Derived from conversation and evidence
+            <div className="mt-1 text-[11px] text-slate-500">
+              Real-time alignment between Bangkok buyer & Chinese factory
             </div>
 
-            {/* Honest Live Counters */}
+            {/* Live Counters */}
             <div className="mt-3 grid grid-cols-2 gap-2 text-[10px]">
-              <div className="rounded-lg border border-slate-100 bg-slate-50 p-2">
-                <div className="text-slate-400">Room Events</div>
+              <div className="rounded-lg border border-slate-100 bg-slate-50 p-2.5">
+                <div className="text-slate-400 font-medium">Room Messages</div>
                 <div className="text-sm font-bold text-slate-800 mt-0.5">{events.length}</div>
               </div>
-              <div className="rounded-lg border border-slate-100 bg-slate-50 p-2">
-                <div className="text-slate-400">RLS Rooms</div>
-                <div className="text-sm font-bold text-slate-800 mt-0.5">{rooms.length}</div>
+              <div className="rounded-lg border border-slate-100 bg-slate-50 p-2.5">
+                <div className="text-slate-400 font-medium">Authorized Rooms</div>
+                <div className="text-sm font-bold text-slate-800 mt-0.5">{visibleRooms.length}</div>
               </div>
             </div>
           </div>
 
-          <div className="flex gap-1 overflow-x-auto border-b border-slate-200 p-2">
-            {["Requirements", "Quotes", "Files", "Decisions", "Needs You"].map((t) => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={
-                  "whitespace-nowrap rounded px-2 py-1.5 text-[10px] font-semibold transition " +
-                  (tab === t
-                    ? "bg-slate-900 text-white"
-                    : "text-slate-600 hover:bg-slate-100")
-                }
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-
-          <div className="p-4 space-y-3 overflow-y-auto flex-1">
-            <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 p-4 text-center">
-              <div className="text-xs font-semibold text-slate-700">
-                Canonical state not yet generated
+          <div className="p-4 space-y-4 overflow-y-auto flex-1">
+            {/* AI Assistant Status Notice */}
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs">
+              <div className="flex items-center gap-2 font-semibold text-slate-700">
+                <span className="h-2 w-2 rounded-full bg-slate-400"></span>
+                <span>System Status</span>
               </div>
-              <div className="mt-1 text-[11px] text-slate-500 leading-relaxed">
-                Live events in <span className="font-semibold">{activeRoom.name}</span> are being
-                streamed. Automated extraction for {tab.toLowerCase()} is paused while AI Gateway is
-                inactive.
-              </div>
+              <p className="mt-1.5 text-[11px] leading-relaxed text-slate-500">
+                AI assistant is temporarily unavailable; live project messaging continues normally.
+              </p>
             </div>
 
-            <div className="rounded-lg border border-slate-200 p-3 bg-white text-xs space-y-2">
-              <div className="font-semibold text-slate-800">Live Session Status</div>
-              <div className="flex justify-between text-[11px] text-slate-600">
-                <span>Active Role:</span>
-                <span className="font-mono font-medium capitalize">{role}</span>
-              </div>
-              <div className="flex justify-between text-[11px] text-slate-600">
-                <span>Active Room:</span>
-                <span className="font-mono font-medium truncate max-w-[140px]">
-                  {activeRoom.name}
+            {/* Room Boundary Cognition Panel */}
+            <div
+              className={`rounded-xl border p-3.5 text-xs space-y-2.5 ${
+                isInternal
+                  ? "bg-indigo-50/70 border-indigo-200 text-indigo-950"
+                  : "bg-amber-50/70 border-amber-200 text-amber-950"
+              }`}
+            >
+              <div className="flex items-center gap-1.5 font-bold">
+                <span>{isInternal ? "🔒" : "🌐"}</span>
+                <span>
+                  {isInternal
+                    ? "Confidential Boundary · 内部私密边界"
+                    : "Shared Room Boundary · 外部共享边界"}
                 </span>
+              </div>
+              <p className="text-[11px] leading-relaxed">
+                {isInternal
+                  ? "Strictly internal to Apex Living Modular. External supplier (EastFrame Steel) has no RLS visibility into this room."
+                  : "Transparent shared room between Apex Living Modular and EastFrame Steel Co., Ltd. Both organizations see all messages."}
+              </p>
+            </div>
+
+            {/* Session Details */}
+            <div className="rounded-xl border border-slate-200 p-3.5 bg-white text-xs space-y-2">
+              <div className="font-semibold text-slate-800">Active Connection</div>
+              <div className="flex justify-between text-[11px] text-slate-600">
+                <span>Role:</span>
+                <span className="font-medium capitalize">{role === "buyer" ? "Buyer · 买方" : "Supplier · 供应商"}</span>
+              </div>
+              <div className="flex justify-between text-[11px] text-slate-600">
+                <span>Room:</span>
+                <span className="font-medium truncate max-w-[140px]">{activeRoom.name}</span>
               </div>
               <div className="flex justify-between text-[11px] text-slate-600">
                 <span>Boundary:</span>
-                <span className="font-mono font-medium">{roomBoundary}</span>
+                <span className="font-medium font-mono text-[10px]">{isInternal ? "INTERNAL (Private)" : "SHARED (External)"}</span>
               </div>
               <div className="flex justify-between text-[11px] text-slate-600">
                 <span>Latest Seq:</span>
                 <span className="font-mono font-medium">#{lastSeqRef.current}</span>
+              </div>
+              <div className="flex justify-between text-[11px] text-slate-600">
+                <span>Sync Engine:</span>
+                <span className="text-emerald-600 font-medium">Realtime + Gap-Fill</span>
               </div>
             </div>
           </div>
