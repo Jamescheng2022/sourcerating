@@ -743,10 +743,15 @@ export default function ProjectRoomPage() {
         throw new Error(error?.message || "Unable to create invitation.");
       }
 
+      const currentParams = new URLSearchParams(window.location.search);
+      const previewShare = currentParams.get("_vercel_share");
       const url =
         window.location.origin +
         "/join?token=" +
-        encodeURIComponent(String(data.token));
+        encodeURIComponent(String(data.token)) +
+        (previewShare
+          ? "&_vercel_share=" + encodeURIComponent(previewShare)
+          : "");
       setInviteUrl(url);
       await loadRooms("buyer", actingOrgId);
     } catch (error) {
