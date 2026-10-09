@@ -21,6 +21,12 @@ import {
   formatFileSize,
   uploadRoomAttachment,
 } from "@/lib/room-files";
+import { ProjectStatePanel } from "./project-state-panel";
+import {
+  executeReviewStagingProposal,
+  loadProjectRoomState,
+  type ProjectRoomState,
+} from "@/lib/project-state";
 
 export default function ProjectRoomPage() {
   // Session & Auth state
@@ -50,6 +56,44 @@ export default function ProjectRoomPage() {
   const [fileUploading, setFileUploading] = useState(false);
   const [fileUploadProgress, setFileUploadProgress] = useState(0);
   const [fileError, setFileError] = useState<string | null>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteCompany, setInviteCompany] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteUrl, setInviteUrl] = useState("");
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteCreating, setInviteCreating] = useState(false);
+  const [projectName, setProjectName] = useState("Project");
+  const [projectCode, setProjectCode] = useState("");
+  const [projectState, setProjectState] = useState<ProjectRoomState>({
+    stagingProposals: [],
+    needsYou: [],
+    canonicalObjects: [],
+  });
+  const [projectStateStatus, setProjectStateStatus] = useState<
+    "idle" | "active" | "unavailable"
+  >("idle");
+  const [reviewingProposalId, setReviewingProposalId] = useState<string | null>(
+    null,
+  );
+  const [projectStateError, setProjectStateError] = useState<string | null>(
+    null,
+  );
+  const [fileVerification, setFileVerification] = useState<
+    Record<
+      string,
+      {
+        status:
+          | "pending"
+          | "verified"
+          | "quarantined"
+          | "hash_mismatch"
+          | "verification_failed";
+        serverSha256?: string | null;
+        detectedMimeType?: string | null;
+        verificationError?: string | null;
+      }
+    >
+  >({});
 
   // Track max seq for gap filling
   const lastSeqRef = useRef<number>(0);
@@ -239,7 +283,7 @@ export default function ProjectRoomPage() {
       visibleRooms.find((r) => r.id === activeRoomId) ||
       visibleRooms[0] || {
         id: activeRoomId,
-        name: role === "supplier" ? "EastFrame Supplier Room" : "Project Room",
+        name: role === "supplier" ? "Supplier Shared Room" : "Project Room",
         boundary: role === "supplier" ? "SHARED" : "PRIVATE",
         note: role === "supplier" ? "Shared Room" : "Internal Room",
       }
@@ -260,6 +304,37 @@ export default function ProjectRoomPage() {
     const n = (activeRoom.name || "").toLowerCase();
     return b === "PRIVATE" || b === "INTERNAL" || n.includes("internal");
   }, [activeRoom, role]);
+
+  const externalPartnerName = useMemo(() => {
+    if (isInternal) return "External Supplier";
+    const raw = String(activeRoom?.name || "External Partner");
+    return raw
+      .replace(/\s+[-—]\s+Shared$/i, "")
+      .replace(/Buyer\s*↔\s*Supplier/i, "Supplier")
+      .trim();
+  }, [activeRoom, isInternal]);
+
+  useEffect(() => {
+    const projectId = activeRoom?.project_id;
+    if (!projectId) {
+      setProjectName("Project");
+      setProjectCode("");
+      return;
+    }
+
+    void (async () => {
+      const { data, error } = await supabase
+        .from("projects")
+        .select("name,code")
+        .eq("id", projectId)
+        .maybeSingle();
+
+      if (!error && data?.name) {
+        setProjectName(data.name);
+        setProjectCode(data.code || "");
+      }
+    })();
+  }, [activeRoom?.project_id]);
 
   // Gap-fill function to load sequence events gt lastSeq
   const runGapFill = useCallback(async (roomId: string) => {
@@ -289,6 +364,116 @@ export default function ProjectRoomPage() {
       console.error("Gap fill exception:", err);
     }
   }, []);
+
+  const refreshFileVerification = useCallback(async (sourceEvents: RoomEvent[]) => {
+    const fileVersionIds = Array.from(
+      new Set(
+        sourceEvents
+          .filter(
+            (event) =>
+              event.event_type === "file.attached" &&
+              typeof event.payload?.file_version_id === "string",
+          )
+          .map((event) => event.payload.file_version_id as string),
+      ),
+    );
+
+    if (fileVersionIds.length === 0) {
+      setFileVerification({});
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("room_file_versions")
+      .select(
+        "id,verification_status,server_sha256,detected_mime_type,verification_error",
+      )
+      .in("id", fileVersionIds);
+
+    if (error) {
+      console.error("File verification status query failed:", error);
+      return;
+    }
+
+    const next: Record<
+      string,
+      {
+        status:
+          | "pending"
+          | "verified"
+          | "quarantined"
+          | "hash_mismatch"
+          | "verification_failed";
+        serverSha256?: string | null;
+        detectedMimeType?: string | null;
+        verificationError?: string | null;
+      }
+    > = {};
+
+    for (const row of data || []) {
+      next[row.id] = {
+        status:
+          row.verification_status === "verified" ||
+          row.verification_status === "quarantined" ||
+          row.verification_status === "hash_mismatch" ||
+          row.verification_status === "verification_failed"
+            ? row.verification_status
+            : "pending",
+        serverSha256: row.server_sha256,
+        detectedMimeType: row.detected_mime_type,
+        verificationError: row.verification_error,
+      };
+    }
+
+    setFileVerification(next);
+  }, []);
+
+  useEffect(() => {
+    void refreshFileVerification(events);
+  }, [events, refreshFileVerification]);
+
+  const refreshProjectState = useCallback(async (roomId: string) => {
+    if (!roomId) {
+      setProjectState({
+        stagingProposals: [],
+        needsYou: [],
+        canonicalObjects: [],
+      });
+      setProjectStateStatus("idle");
+      return;
+    }
+
+    const result = await loadProjectRoomState(roomId);
+    if (!result.ok || !result.data) {
+      setProjectStateStatus("unavailable");
+      return;
+    }
+
+    setProjectState(result.data);
+    setProjectStateStatus("active");
+  }, []);
+
+  useEffect(() => {
+    if (!activeRoomId) return;
+    void refreshProjectState(activeRoomId);
+    const timer = window.setInterval(() => {
+      void refreshProjectState(activeRoomId);
+    }, 3000);
+    return () => window.clearInterval(timer);
+  }, [activeRoomId, refreshProjectState]);
+
+  useEffect(() => {
+    const hasPending = Object.values(fileVerification).some(
+      (item) => item.status === "pending",
+    );
+    if (!hasPending || events.length === 0) return;
+
+    const timer = window.setTimeout(() => {
+      void refreshFileVerification(events);
+    }, 1500);
+
+    return () => window.clearTimeout(timer);
+  }, [events, fileVerification, refreshFileVerification]);
 
   const maybeAnalyzeEvent = useCallback(
     async (event: RoomEvent) => {
@@ -577,10 +762,10 @@ export default function ProjectRoomPage() {
     }
   };
 
-  const handleOpenFile = async (objectPath: string, fileName?: string) => {
+  const handleOpenFile = async (fileVersionId: string) => {
     try {
       setFileError(null);
-      const signedUrl = await createRoomFileSignedUrl(objectPath, fileName, 120);
+      const signedUrl = await createRoomFileSignedUrl(fileVersionId);
       window.open(signedUrl, "_blank", "noopener,noreferrer");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to open file.";
@@ -590,6 +775,88 @@ export default function ProjectRoomPage() {
 
   const handleCancelFileUpload = () => {
     fileUploadAbortRef.current?.abort();
+  };
+
+  const handleReviewProjectState = async (
+    proposalId: string | null,
+    action: "accept" | "dismiss",
+    needsYouId?: string,
+  ) => {
+    if (!proposalId || !actingOrgId || !activeRoomId) return;
+    setReviewingProposalId(proposalId);
+    setProjectStateError(null);
+    try {
+      const result = await executeReviewStagingProposal({
+        proposalId,
+        action,
+        actorOrganizationId: actingOrgId,
+      });
+      if (!result.ok) {
+        throw new Error(result.error || "Unable to review proposal.");
+      }
+      await refreshProjectState(activeRoomId);
+    } catch (error) {
+      setProjectStateError(
+        error instanceof Error ? error.message : "Unable to review proposal.",
+      );
+    } finally {
+      setReviewingProposalId(null);
+    }
+  };
+
+  const handleViewSourceEvent = (sourceEventId: string | null | undefined) => {
+    if (!sourceEventId) return;
+    document
+      .getElementById(`event-${sourceEventId}`)
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
+  const handleCreateSupplierInvite = async () => {
+    if (
+      role !== "buyer" ||
+      !activeRoom?.project_id ||
+      !inviteCompany.trim()
+    ) {
+      return;
+    }
+
+    setInviteCreating(true);
+    setInviteError(null);
+    setInviteUrl("");
+
+    try {
+      const { data, error } = await supabase.rpc(
+        "create_supplier_room_invite",
+        {
+          p_project_id: activeRoom.project_id,
+          p_supplier_organization_name: inviteCompany.trim(),
+          p_invited_email: inviteEmail.trim() || null,
+          p_expires_in_hours: 168,
+        },
+      );
+
+      if (error || !data?.token) {
+        throw new Error(error?.message || "Unable to create invitation.");
+      }
+
+      const currentParams = new URLSearchParams(window.location.search);
+      const previewShare = currentParams.get("_vercel_share");
+      const url =
+        window.location.origin +
+        "/join?token=" +
+        encodeURIComponent(String(data.token)) +
+        (previewShare
+          ? "&_vercel_share=" + encodeURIComponent(previewShare)
+          : "");
+      setInviteUrl(url);
+      await loadRooms("buyer", actingOrgId);
+    } catch (error) {
+      setInviteError(
+        error instanceof Error ? error.message : "Unable to create invitation.",
+      );
+    } finally {
+      setInviteCreating(false);
+    }
   };
 
   // Format message sender and organization
@@ -602,17 +869,17 @@ export default function ProjectRoomPage() {
     if (isMe) {
       return {
         who: "You",
-        org: role === "buyer" ? "Apex Living Modular" : "EastFrame Steel",
+        org: role === "buyer" ? "Buyer Organization" : externalPartnerName,
       };
     }
 
     if (role === "buyer") {
       if (isInternal) {
-        return { who: "Korn Kittisak", org: "Commercial · Apex Living Modular" };
+        return { who: "Buyer teammate", org: "Buyer Organization" };
       }
-      return { who: "Wang Lin 王林", org: "EastFrame Steel Co., Ltd." };
+      return { who: "Supplier teammate", org: externalPartnerName };
     } else {
-      return { who: "Tanawat Chen", org: "Apex Living Modular" };
+      return { who: "Buyer teammate", org: "Buyer Organization" };
     }
   };
 
@@ -728,7 +995,7 @@ export default function ProjectRoomPage() {
           <div className="p-4 border-b border-slate-800">
             <div className="flex items-center justify-between">
               <div className="text-sm font-semibold truncate">
-                {role === "buyer" ? "Apex Living Modular" : "EastFrame Steel"}
+                {role === "buyer" ? "Buyer Organization" : externalPartnerName}
               </div>
               <span
                 className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${
@@ -741,7 +1008,7 @@ export default function ProjectRoomPage() {
               </span>
             </div>
             <div className="text-[11px] text-slate-400 mt-1">
-              {role === "buyer" ? "Bangkok, Thailand" : "Zhejiang, China"}
+              {role === "buyer" ? "Project owner workspace" : "External partner workspace"}
             </div>
           </div>
 
@@ -750,8 +1017,10 @@ export default function ProjectRoomPage() {
               Active Project
             </div>
             <div className="rounded-lg border border-slate-800 bg-slate-900 p-3">
-              <div className="text-xs font-semibold text-white">Bangkok Prefab Office</div>
-              <div className="text-[10px] text-sky-400 mt-0.5 font-mono">BKK-MOD-2026-08</div>
+              <div className="text-xs font-semibold text-white">{projectName}</div>
+              <div className="text-[10px] text-sky-400 mt-0.5 font-mono">
+                {projectCode || "SourceRating Project"}
+              </div>
             </div>
           </div>
 
@@ -909,7 +1178,7 @@ export default function ProjectRoomPage() {
                       🔒 CONFIDENTIAL
                     </span>
                     <span className="truncate text-[10px] sm:text-[11px]">
-                      Buyer Internal · 仅买方可见 · เฉพาะทีมภายใน (EastFrame cannot see)
+                      Buyer Internal · 仅买方可见 · เฉพาะทีมภายใน ({externalPartnerName} cannot see)
                     </span>
                   </>
                 ) : (
@@ -918,7 +1187,7 @@ export default function ProjectRoomPage() {
                       ⚠️ SHARED ROOM
                     </span>
                     <span className="truncate text-[10px] sm:text-[11px]">
-                      Visible to EastFrame Steel (Supplier) · 供应商可见 · ซัพพลายเออร์มองเห็นได้
+                      Visible to {externalPartnerName} · 供应商可见 · ซัพพลายเออร์มองเห็นได้
                     </span>
                   </>
                 )}
@@ -977,7 +1246,7 @@ export default function ProjectRoomPage() {
                   <div className="text-[11px] text-slate-400">
                     {isInternal
                       ? "Send a confidential internal note to begin."
-                      : "Send an alignment message to EastFrame Steel."}
+                      : `Send an alignment message to ${externalPartnerName}.`}
                   </div>
                 </div>
               )}
@@ -1007,6 +1276,11 @@ export default function ProjectRoomPage() {
                 const isSuperseded =
                   isFileEvent &&
                   Number(ev.payload?.version_no || 0) < latestFileVersion;
+                const verification = isFileEvent
+                  ? fileVerification[String(ev.payload?.file_version_id || "")]
+                  : undefined;
+                const verificationStatus =
+                  verification?.status || (isFileEvent ? "pending" : undefined);
                 const isMyMessage = currentUserId && ev.actor_user_id === currentUserId;
                 const timeStr = ev.created_at
                   ? new Date(ev.created_at).toLocaleTimeString([], {
@@ -1033,8 +1307,8 @@ export default function ProjectRoomPage() {
                       <span className="text-slate-400">
                         {isMyMessage
                           ? role === "buyer"
-                            ? "Apex Living"
-                            : "EastFrame"
+                            ? "Buyer Organization"
+                            : externalPartnerName
                           : author.org}
                       </span>
                       {typeof ev.seq === "number" && (
@@ -1061,17 +1335,21 @@ export default function ProjectRoomPage() {
                       {isFileEvent && (
                         <button
                           type="button"
+                          disabled={verificationStatus !== "verified"}
                           onClick={() =>
                             void handleOpenFile(
-                              ev.payload.object_path,
-                              ev.payload.file_name,
+                              String(ev.payload.file_version_id || ""),
                             )
                           }
                           className={`block w-full rounded-xl p-3 text-left text-xs transition ${
                             isMyMessage
                               ? "bg-sky-700/60 border border-sky-400 text-white hover:bg-sky-700"
                               : "bg-slate-50 border border-slate-200 text-slate-800 hover:bg-slate-100"
-                          } ${isSuperseded ? "opacity-55" : ""}`}
+                          } ${isSuperseded ? "opacity-55" : ""} ${
+                            verificationStatus !== "verified"
+                              ? "cursor-not-allowed"
+                              : ""
+                          }`}
                         >
                           {ev.payload.caption && (
                             <div className="mb-2 whitespace-pre-wrap break-words text-[12px]">
@@ -1092,6 +1370,41 @@ export default function ProjectRoomPage() {
                                 <div className="min-w-0 flex-1 truncate font-semibold">
                                   {ev.payload.file_name || "Project document"}
                                 </div>
+                                {verificationStatus === "verified" && (
+                                  <span
+                                    className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${
+                                      isMyMessage
+                                        ? "bg-emerald-300/20 text-emerald-50"
+                                        : "bg-emerald-100 text-emerald-700"
+                                    }`}
+                                  >
+                                    Verified
+                                  </span>
+                                )}
+                                {verificationStatus === "pending" && (
+                                  <span
+                                    className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${
+                                      isMyMessage
+                                        ? "bg-white/15 text-white"
+                                        : "bg-amber-100 text-amber-700"
+                                    }`}
+                                  >
+                                    Verifying
+                                  </span>
+                                )}
+                                {verificationStatus &&
+                                  verificationStatus !== "pending" &&
+                                  verificationStatus !== "verified" && (
+                                    <span
+                                      className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${
+                                        isMyMessage
+                                          ? "bg-rose-300/20 text-rose-50"
+                                          : "bg-rose-100 text-rose-700"
+                                      }`}
+                                    >
+                                      Blocked
+                                    </span>
+                                  )}
                                 {isSuperseded && (
                                   <span
                                     className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${
@@ -1121,14 +1434,26 @@ export default function ProjectRoomPage() {
                                   isMyMessage ? "text-sky-200" : "text-slate-400"
                                 }`}
                               >
-                                SHA256 {String(ev.payload.sha256 || "").slice(0, 16)}...
+                                SHA256{" "}
+                                {String(
+                                  verification?.serverSha256 ||
+                                    ev.payload.sha256 ||
+                                    "",
+                                ).slice(0, 16)}
+                                ...
                               </div>
                               <div
                                 className={`mt-1 text-[10px] font-semibold ${
                                   isMyMessage ? "text-white" : "text-sky-700"
                                 }`}
                               >
-                                Open / Download · 打开文件
+                                {verificationStatus === "verified"
+                                  ? "Open / Download · 打开文件"
+                                  : verificationStatus &&
+                                      verificationStatus !== "pending"
+                                    ? verification?.verificationError ||
+                                      "File verification failed"
+                                    : "Server verification in progress"}
                               </div>
                             </div>
                           </div>
@@ -1182,7 +1507,7 @@ export default function ProjectRoomPage() {
                   <div className="flex items-baseline gap-1.5 text-[10px] flex-row-reverse">
                     <span className="font-bold text-slate-800">You · 你</span>
                     <span className="text-slate-400">
-                      {role === "buyer" ? "Apex Living" : "EastFrame"}
+                      {role === "buyer" ? "Buyer Organization" : externalPartnerName}
                     </span>
                   </div>
 
@@ -1269,14 +1594,14 @@ export default function ProjectRoomPage() {
                     <>
                       <span>🔒</span>
                       <span className="font-semibold text-indigo-900 truncate">
-                        Internal Note: Only Apex Living Modular can see this · 仅买方内部可见
+                        Internal Note: Only Buyer Organization can see this · 仅买方内部可见
                       </span>
                     </>
                   ) : (
                     <>
                       <span>🌐</span>
                       <span className="truncate">
-                        Sending to: <b className="text-slate-800">EastFrame Steel & Apex Living Modular</b> · 供需双方可见
+                        Sending to: <b className="text-slate-800">{externalPartnerName} & Buyer Organization</b> · 供需双方可见
                       </span>
                     </>
                   )}
@@ -1309,8 +1634,8 @@ export default function ProjectRoomPage() {
                 }}
                 placeholder={
                   isInternal
-                    ? "Write an internal confidential message (EastFrame cannot see this) · 内部私密备忘..."
-                    : "Write a message visible to EastFrame Steel & Apex team · 发送给供应商与买方团队..."
+                    ? `Write an internal confidential message (${externalPartnerName} cannot see this) · 内部私密备忘...`
+                    : `Write a message visible to ${externalPartnerName} & Buyer team · 发送给供应商与买方团队...`
                 }
                 className="w-full resize-none px-3 py-2 text-[13px] sm:text-sm outline-none text-slate-900 bg-transparent min-h-[38px] max-h-[100px] leading-relaxed"
               />
@@ -1408,67 +1733,90 @@ export default function ProjectRoomPage() {
                 <div className="text-sm font-bold text-slate-800 mt-0.5">{visibleRooms.length}</div>
               </div>
             </div>
+
+            {role === "buyer" && (
+              <div className="mt-3 rounded-lg border border-sky-100 bg-sky-50/60 p-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <div className="text-[11px] font-semibold text-slate-800">
+                      Invite Supplier
+                    </div>
+                    <div className="text-[10px] text-slate-500">
+                      Creates a separate supplier room with isolated access.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setInviteOpen((value) => !value)}
+                    className="rounded-md bg-sky-600 px-2 py-1 text-[10px] font-semibold text-white hover:bg-sky-700"
+                  >
+                    {inviteOpen ? "Close" : "Create"}
+                  </button>
+                </div>
+
+                {inviteOpen && (
+                  <div className="mt-2 space-y-2">
+                    <input
+                      value={inviteCompany}
+                      onChange={(event) => setInviteCompany(event.target.value)}
+                      placeholder="Supplier company name"
+                      className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[11px] outline-none focus:border-sky-400"
+                    />
+                    <input
+                      type="email"
+                      value={inviteEmail}
+                      onChange={(event) => setInviteEmail(event.target.value)}
+                      placeholder="Invitee email (optional)"
+                      className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[11px] outline-none focus:border-sky-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void handleCreateSupplierInvite()}
+                      disabled={inviteCreating || inviteCompany.trim().length < 2}
+                      className="w-full rounded-md bg-slate-900 px-2 py-1.5 text-[11px] font-semibold text-white disabled:opacity-50"
+                    >
+                      {inviteCreating
+                        ? "Creating..."
+                        : "Generate 7-day Invite Link"}
+                    </button>
+
+                    {inviteError && (
+                      <div className="text-[10px] text-rose-700">
+                        {inviteError}
+                      </div>
+                    )}
+
+                    {inviteUrl && (
+                      <div className="rounded-md border border-emerald-200 bg-emerald-50 p-2">
+                        <div className="break-all font-mono text-[9px] text-emerald-900">
+                          {inviteUrl}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void navigator.clipboard.writeText(inviteUrl)
+                          }
+                          className="mt-1.5 rounded bg-emerald-700 px-2 py-1 text-[10px] font-semibold text-white"
+                        >
+                          Copy Invite Link
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
-          <div className="p-4 space-y-4 overflow-y-auto flex-1">
-            {/* AI Assistant Status Notice */}
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs">
-              <div className="flex items-center gap-2 font-semibold text-slate-700">
-                <span className="h-2 w-2 rounded-full bg-slate-400"></span>
-                <span>System Status</span>
-              </div>
-              <p className="mt-1.5 text-[11px] leading-relaxed text-slate-500">
-                AI assistant is temporarily unavailable; live project messaging continues normally.
-              </p>
-            </div>
-
-            {/* Room Boundary Cognition Panel */}
-            <div
-              className={`rounded-xl border p-3.5 text-xs space-y-2.5 ${
-                isInternal
-                  ? "bg-indigo-50/70 border-indigo-200 text-indigo-950"
-                  : "bg-amber-50/70 border-amber-200 text-amber-950"
-              }`}
-            >
-              <div className="flex items-center gap-1.5 font-bold">
-                <span>{isInternal ? "🔒" : "🌐"}</span>
-                <span>
-                  {isInternal
-                    ? "Confidential Boundary · 内部私密边界"
-                    : "Shared Room Boundary · 外部共享边界"}
-                </span>
-              </div>
-              <p className="text-[11px] leading-relaxed">
-                {isInternal
-                  ? "Strictly internal to Apex Living Modular. External supplier (EastFrame Steel) has no RLS visibility into this room."
-                  : "Transparent shared room between Apex Living Modular and EastFrame Steel Co., Ltd. Both organizations see all messages."}
-              </p>
-            </div>
-
-            {/* Session Details */}
-            <div className="rounded-xl border border-slate-200 p-3.5 bg-white text-xs space-y-2">
-              <div className="font-semibold text-slate-800">Active Connection</div>
-              <div className="flex justify-between text-[11px] text-slate-600">
-                <span>Role:</span>
-                <span className="font-medium capitalize">{role === "buyer" ? "Buyer · 买方" : "Supplier · 供应商"}</span>
-              </div>
-              <div className="flex justify-between text-[11px] text-slate-600">
-                <span>Room:</span>
-                <span className="font-medium truncate max-w-[140px]">{activeRoom.name}</span>
-              </div>
-              <div className="flex justify-between text-[11px] text-slate-600">
-                <span>Boundary:</span>
-                <span className="font-medium font-mono text-[10px]">{isInternal ? "INTERNAL (Private)" : "SHARED (External)"}</span>
-              </div>
-              <div className="flex justify-between text-[11px] text-slate-600">
-                <span>Latest Seq:</span>
-                <span className="font-mono font-medium">#{lastSeqRef.current}</span>
-              </div>
-              <div className="flex justify-between text-[11px] text-slate-600">
-                <span>Sync Engine:</span>
-                <span className="text-emerald-600 font-medium">Realtime + Gap-Fill</span>
-              </div>
-            </div>
+          <div className="p-3 overflow-y-auto flex-1">
+            <ProjectStatePanel
+              state={projectState}
+              stateStatus={projectStateStatus}
+              reviewingProposalId={reviewingProposalId}
+              actionError={projectStateError}
+              onReview={handleReviewProjectState}
+              onViewSource={handleViewSourceEvent}
+            />
           </div>
         </aside>
       </div>
