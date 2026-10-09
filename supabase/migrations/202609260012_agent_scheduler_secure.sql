@@ -1,4 +1,8 @@
 -- P1.5 resident agent scheduler with custom shared secret.
+-- L1 stage 2 (2026-10-10): the worker URL is no longer hard-coded to the
+-- production project. A fresh environment gets no worker_url and therefore
+-- no cron job; set private.agent_runtime_config.worker_url for that
+-- environment and re-run the scheduling block to enable the worker.
 create extension if not exists pg_net with schema extensions;
 create extension if not exists pg_cron;
 
@@ -13,7 +17,6 @@ create table if not exists private.agent_runtime_config (
 
 insert into private.agent_runtime_config(key,value)
 values
-  ('worker_url','https://qnozpurjtgkmwtvsrjoi.supabase.co/functions/v1/source-rating-agent-worker'),
   ('worker_secret',encode(gen_random_bytes(32),'hex'))
 on conflict (key) do nothing;
 
@@ -92,6 +95,14 @@ begin
 
   if v_job_id is not null then
     perform cron.unschedule(v_job_id);
+  end if;
+
+  if not exists (
+    select 1 from private.agent_runtime_config
+    where key='worker_url' and coalesce(value,'') <> ''
+  ) then
+    raise notice 'agent worker_url not configured; source-rating-agent-minute not scheduled';
+    return;
   end if;
 
   perform cron.schedule(
