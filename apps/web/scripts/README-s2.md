@@ -22,3 +22,8 @@ Reports, screenshots and synthetic PDF/XLSX/PNG fixtures go to
 invite tokens or session state are written into reports. Fixtures and accounts
 are retained, so reruns use unique names. Stop only the lane's Supabase project
 after acceptance; leave Docker Desktop running.
+
+After applying the inquiry migration, run `node scripts/s2-web-e2e.cjs inquiries`.
+It exercises the real form and buyer Needs You listing, two same-organization
+submitters, direct RLS/RPC denials, idempotent retry, refresh/restart and mobile
+access. Its report/screenshots go to `../carryover/B6-artifacts`.

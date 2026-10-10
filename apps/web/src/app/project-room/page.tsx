@@ -21,6 +21,7 @@ import {
   uploadRoomAttachment,
 } from "@/lib/room-files";
 import { ProjectStatePanel } from "./project-state-panel";
+import { InquiryPanel } from "./inquiry-panel";
 import {
   executeReviewStagingProposal,
   loadProjectRoomState,
@@ -1000,7 +1001,7 @@ export default function ProjectRoomPage() {
               {/* Room selector / title */}
               <div className="flex items-center gap-2 min-w-0">
                 {role === "buyer" && visibleRooms.length > 1 ? (
-                  <div className="flex rounded-lg bg-slate-100 p-0.5 text-xs">
+                  <div className="flex min-w-0 overflow-x-auto rounded-lg bg-slate-100 p-0.5 text-xs">
                     {visibleRooms.map((r) => {
                       const rIsInternal = r.kind === "buyer_internal";
                       const isSelected = r.id === activeRoom.id;
@@ -1008,7 +1009,7 @@ export default function ProjectRoomPage() {
                         <button
                           key={r.id}
                           onClick={() => setActiveRoomId(r.id)}
-                          className={`flex items-center gap-1 rounded-md px-2 py-1 font-medium transition ${
+                          className={`flex shrink-0 items-center gap-1 rounded-md px-2 py-1 font-medium transition ${
                             isSelected
                               ? rIsInternal
                                 ? "bg-indigo-900 text-white shadow-sm"
@@ -1090,6 +1091,9 @@ export default function ProjectRoomPage() {
               </div>
             </div>
           </header>
+
+          {activeRoomId && <InquiryPanel key={activeRoomId} roomId={activeRoomId} isBuyer={role === "buyer"}
+            onSubmitted={() => { void refreshProjectState(activeRoomId); }} />}
 
           {/* Messages Stream */}
           <div
@@ -1506,6 +1510,7 @@ export default function ProjectRoomPage() {
 
               {/* Textarea with Chinese IME preservation */}
               <textarea
+                aria-label="Room message"
                 ref={textareaRef}
                 rows={1}
                 value={inputText}

@@ -116,6 +116,7 @@ async function main() {
     "needs_you",
     "organization_memberships",
     "organizations",
+    "project_inquiries",
     "project_invites",
     "project_participants",
     "projects",
@@ -319,6 +320,13 @@ async function main() {
     p_token: invite.token,
   }, "invite_already_used");
 
+  // Keep full public-table coverage non-vacuous after B6 adds inquiries.
+  for (const [actor, room] of [[buyer.api, S2.internalRoom], [supplier.api, S2.sharedRoom]] as const) {
+    await must("inquiry fixture", actor.rpc("submit_project_inquiry", {
+      p_room_id: room, p_client_request_id: crypto.randomUUID(),
+      p_subject: `[S2-TEST] B4 inquiry ${stamp}`, p_detail: "[S2-TEST] RLS positive control",
+    }));
+  }
   const roomTables = [
     "rooms",
     "room_events",
@@ -329,6 +337,7 @@ async function main() {
     "needs_you",
     "canonical_objects",
     "audit_log",
+    "project_inquiries",
   ];
   for (const table of roomTables) {
     const positive = await must(

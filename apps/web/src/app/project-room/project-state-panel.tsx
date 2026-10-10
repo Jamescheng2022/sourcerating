@@ -161,6 +161,13 @@ export function ProjectStatePanel({
             </div>
           ) : (
             needsYou.map((item) => {
+              if (item.inquiry_id) {
+                return <article key={item.id} className="rounded-lg border border-slate-200 bg-white p-3 space-y-2">
+                  <h3 className="font-semibold text-slate-900 text-xs">{item.title}</h3>
+                  <p className="whitespace-pre-wrap break-words text-[11px] text-slate-600">{item.detail}</p>
+                  <p className="text-[10px] text-slate-500">Saved in the buyer inquiry collection.</p>
+                </article>;
+              }
               const associatedProposal = item.proposal_id
                 ? stagingProposals.find((p) => p.id === item.proposal_id)
                 : null;

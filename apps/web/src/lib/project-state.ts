@@ -15,6 +15,7 @@ export interface StagingProposal {
 
 export interface NeedsYouItem {
   id: string;
+  inquiry_id?: string | null;
   room_id: string;
   source_event_id: string | null;
   proposal_id: string | null;

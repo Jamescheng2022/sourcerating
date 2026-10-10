@@ -8,7 +8,7 @@ const ROOT = path.resolve(__dirname, '../../../..');
 const { chromium } = require(process.env.S2_PLAYWRIGHT_MODULE || path.join(ROOT, 'tools/node_modules/playwright'));
 const { createClient } = require('@supabase/supabase-js');
 const mode = process.argv[2] || 'e2e';
-const output = path.join(ROOT, 'carryover', mode === 'inquiries' ? 'B6-artifacts' : 'B5-artifacts');
+const output = process.env.S2_EVIDENCE_DIR || path.join(ROOT, 'carryover', mode === 'inquiries' ? 'B6-artifacts' : 'B5-artifacts');
 fs.mkdirSync(output, { recursive: true });
 const url = 'http://127.0.0.1:3000';
 const values = JSON.parse(execFileSync(path.join(ROOT, 'tools/node_modules/@supabase/cli-windows-x64/bin/supabase.exe'), ['status', '-o', 'json'], { cwd: path.join(ROOT, 'repo'), stdio: ['ignore', 'pipe', 'ignore'] }));
@@ -63,7 +63,7 @@ async function login(page, email, password) {
   await page.getByLabel('Email', { exact: true }).fill(email, { timeout: 8000 });
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await page.locator('textarea').waitFor();
+  await page.getByRole('textbox', { name: 'Room message', exact: true }).waitFor();
 }
 async function signedIn(email, password) {
   const api = createClient(values.API_URL, values.ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
@@ -72,10 +72,10 @@ async function signedIn(email, password) {
 }
 async function chooseRoom(page, name) {
   await page.getByRole('button').filter({ hasText: name }).first().click();
-  await page.locator('textarea').waitFor();
+  await page.getByRole('textbox', { name: 'Room message', exact: true }).waitFor();
 }
 async function send(page, text) {
-  await page.locator('textarea').fill(text);
+  await page.getByRole('textbox', { name: 'Room message', exact: true }).fill(text);
   const persisted = page.waitForResponse(r => r.url().endsWith('/rpc/append_room_event') && r.request().method() === 'POST');
   await page.getByRole('button', { name: 'Send · 发送', exact: true }).click();
   const response = await persisted; assert.equal(response.status(), 200);
@@ -101,6 +101,134 @@ xref=len(pdf);pdf+=b'xref\\n0 5\\n0000000000 65535 f \\n'+b''.join(('%010d 00000
 `, dir, stamp]);
   return ['pdf', 'xlsx', 'png'].map(ext => path.join(dir, stamp + '.' + ext));
 }
+async function inquirySuite(buyer) {
+  const room = '52000000-0000-4000-8000-0000000000e2';
+  const internal = '52000000-0000-4000-8000-0000000000e1';
+  const org = '52000000-0000-4000-8000-0000000000c1';
+  const stamp = 's2-inquiry-' + Date.now();
+  const admin = createClient(values.API_URL, values.SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+  const secondEmail = stamp + '@s2-test.invalid'; const secondPassword = crypto.randomBytes(24).toString('hex');
+  const user = await admin.auth.admin.createUser({ email: secondEmail, password: secondPassword, email_confirm: true, user_metadata: { display_name: '[S2-TEST] Second inquiry submitter' } });
+  assert.ifError(user.error);
+  assert.ifError((await admin.from('organization_memberships').insert({ organization_id: org, user_id: user.data.user.id, role: 'member' })).error);
+  assert.ifError((await admin.from('room_members').insert({ room_id: room, user_id: user.data.user.id, acting_organization_id: org, room_role: 'member' })).error);
+  const firstContext = await context(), secondContext = await context();
+  const first = await firstContext.newPage(), second = await secondContext.newPage();
+  const a = await signedIn('s2-supplier@s2-test.invalid', passwords.S2_SUPPLIER_PASSWORD);
+  const b = await signedIn(secondEmail, secondPassword);
+  const buyerApi = await signedIn('s2-buyer@s2-test.invalid', passwords.S2_BUYER_PASSWORD);
+  const anon = createClient(values.API_URL, values.ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+  await check('Two submitters in the SAME supplier organization sign in through UI', async () => {
+    await login(first, 's2-supplier@s2-test.invalid', passwords.S2_SUPPLIER_PASSWORD);
+    await login(second, secondEmail, secondPassword);
+    await chooseRoom(first, '[S2-TEST] Supplier Co - Shared'); await chooseRoom(second, '[S2-TEST] Supplier Co - Shared');
+  });
+  const subjectA = '[S2-TEST] First inquiry ' + stamp, subjectB = '[S2-TEST] Second inquiry ' + stamp;
+  let inquiryA, inquiryB, argsA;
+  async function submitInquiry(page, subject) {
+    await page.locator('summary').filter({ hasText: 'Inquiries' }).click();
+    await page.getByLabel('Inquiry subject', { exact: true }).fill(subject);
+    await page.getByLabel('Inquiry details', { exact: true }).fill('[S2-TEST] Please confirm delivery and documents.');
+    const saving = page.waitForResponse(r => r.url().endsWith('/rpc/submit_project_inquiry'));
+    await page.getByRole('button', { name: 'Submit inquiry', exact: true }).click();
+    const response = await saving; assert.equal(response.status(), 200);
+    await page.getByRole('status').filter({ hasText: 'Inquiry saved' }).waitFor();
+    return { row: await response.json(), args: response.request().postDataJSON() };
+  }
+  await check('First UI form persists inquiry with authenticated submitter and exact room', async () => {
+    const submitted = await submitInquiry(first, subjectA); inquiryA = submitted.row; argsA = submitted.args;
+    assert.equal(inquiryA.subject, subjectA); assert.equal(inquiryA.room_id, room); assert.equal(inquiryA.submitted_by_user_id, a.user.id);
+  });
+  await check('Second UI form persists a distinct inquiry', async () => {
+    inquiryB = (await submitInquiry(second, subjectB)).row;
+    assert.equal(inquiryB.submitted_by_user_id, b.user.id); assert.notEqual(inquiryA.id, inquiryB.id);
+  });
+  await check('Buyer collection and existing Needs You both show the two saved inquiries', async () => {
+    await chooseRoom(buyer, '[S2-TEST] Supplier Co - Shared');
+    await buyer.locator('summary').filter({ hasText: 'Inquiries' }).click();
+    await buyer.getByRole('heading', { name: subjectA, exact: true }).waitFor();
+    await buyer.getByRole('heading', { name: subjectB, exact: true }).waitFor();
+    await buyer.getByText('Inquiry: ' + subjectA, { exact: true }).waitFor();
+    await buyer.getByText('Inquiry: ' + subjectB, { exact: true }).waitFor();
+  });
+  await check('First submitter UI shows own inquiry and never the same-org colleague inquiry', async () => {
+    await first.getByRole('heading', { name: subjectA, exact: true }).waitFor();
+    assert.equal(await first.getByText(subjectB, { exact: true }).count(), 0);
+    assert.equal(await first.getByText('Inquiry: ' + subjectB, { exact: true }).count(), 0);
+  });
+  await check('Second submitter UI shows own inquiry and never first submitter inquiry', async () => {
+    await second.getByRole('heading', { name: subjectB, exact: true }).waitFor();
+    assert.equal(await second.getByText(subjectA, { exact: true }).count(), 0);
+  });
+  for (const [label, actor, deniedId] of [['first', a.api, inquiryB.id], ['second', b.api, inquiryA.id]]) {
+    await check(label + ' submitter direct API cannot read another populated inquiry', async () => {
+      const control = await admin.from('project_inquiries').select('id').eq('id', deniedId).single(); assert.ifError(control.error);
+      const read = await actor.from('project_inquiries').select('*').eq('id', deniedId); assert.ifError(read.error); assert.deepEqual(read.data, []);
+    });
+  }
+  await check('Submitters cannot read buyer-only inquiry Needs You rows', async () => {
+    for (const actor of [a.api, b.api]) {
+      const rows = await actor.from('needs_you').select('*').in('inquiry_id', [inquiryA.id, inquiryB.id]); assert.ifError(rows.error); assert.deepEqual(rows.data, []);
+    }
+    const control = await buyerApi.api.from('needs_you').select('*').in('inquiry_id', [inquiryA.id, inquiryB.id]); assert.ifError(control.error); assert.equal(control.data.length, 2);
+  });
+  await check('Anon cannot read inquiry collection', async () => {
+    assert.equal((await anon.from('project_inquiries').select('*')).error?.code, '42501');
+  });
+  for (const [label, api, args] of [['anon', anon, argsA], ['supplier internal room', a.api, { ...argsA, p_room_id: internal, p_client_request_id: crypto.randomUUID() }]]) {
+    await check(label + ' cannot submit an inquiry (42501)', async () => { assert.equal((await api.rpc('submit_project_inquiry', args)).error?.code, '42501'); });
+  }
+  const outsiderUser = await admin.auth.admin.createUser({ email: stamp + '-outsider@s2-test.invalid', password: secondPassword, email_confirm: true }); assert.ifError(outsiderUser.error);
+  const outsider = await signedIn(stamp + '-outsider@s2-test.invalid', secondPassword);
+  await check('Authenticated non-member cannot read or submit inquiry', async () => {
+    const read = await outsider.api.from('project_inquiries').select('*').eq('id', inquiryA.id); assert.ifError(read.error); assert.deepEqual(read.data, []);
+    assert.equal((await outsider.api.rpc('submit_project_inquiry', argsA)).error?.code, '42501');
+  });
+  await check('Direct INSERT cannot spoof the buyer as submitter', async () => {
+    assert.equal((await a.api.from('project_inquiries').insert({ room_id: room, client_request_id: crypto.randomUUID(), submitted_by_user_id: buyerApi.user.id, subject: subjectA, detail: 'spoof' })).error?.code, '42501');
+  });
+  await check('Direct UPDATE/DELETE of real inquiries are denied even to owner submitter', async () => {
+    assert.equal((await a.api.from('project_inquiries').update({ submitted_by_user_id: buyerApi.user.id }).eq('id', inquiryA.id)).error?.code, '42501');
+    assert.equal((await a.api.from('project_inquiries').delete().eq('id', inquiryA.id)).error?.code, '42501');
+    const preserved = await a.api.from('project_inquiries').select('*').eq('id', inquiryA.id).single(); assert.ifError(preserved.error); assert.equal(preserved.data.submitted_by_user_id, a.user.id);
+  });
+  await check('Concurrent retry of the original request creates no duplicate inquiry or buyer task', async () => {
+    const retried = await Promise.all([a.api.rpc('submit_project_inquiry', argsA), a.api.rpc('submit_project_inquiry', argsA)]);
+    for (const result of retried) { assert.ifError(result.error); assert.equal(result.data.id, inquiryA.id); }
+    const rows = await admin.from('project_inquiries').select('id').eq('client_request_id', argsA.p_client_request_id); assert.ifError(rows.error); assert.equal(rows.data.length, 1);
+    const tasks = await buyerApi.api.from('needs_you').select('id').eq('inquiry_id', inquiryA.id); assert.ifError(tasks.error); assert.equal(tasks.data.length, 1);
+    // Also race two first submissions, rather than testing only existing-row replay.
+    const freshArgs = { ...argsA, p_client_request_id: crypto.randomUUID(), p_subject: subjectA + ' concurrent' };
+    const fresh = await Promise.all([a.api.rpc('submit_project_inquiry', freshArgs), a.api.rpc('submit_project_inquiry', freshArgs)]);
+    for (const result of fresh) assert.ifError(result.error);
+    assert.equal(fresh[0].data.id, fresh[1].data.id);
+    const freshTasks = await buyerApi.api.from('needs_you').select('id').eq('inquiry_id', fresh[0].data.id); assert.ifError(freshTasks.error); assert.equal(freshTasks.data.length, 1);
+  });
+  await check('Reusing request ID with changed content is rejected without changing saved data', async () => {
+    assert.equal((await a.api.rpc('submit_project_inquiry', { ...argsA, p_subject: 'changed' })).error?.code, '22023');
+    assert.equal((await a.api.from('project_inquiries').select('subject').eq('id', inquiryA.id).single()).data.subject, subjectA);
+  });
+  await check('Server-side empty/oversized content validation rejects direct RPC bypass', async () => {
+    for (const args of [{ p_subject: ' ' }, { p_subject: 'x'.repeat(161) }, { p_detail: 'x'.repeat(8001) }]) {
+      assert.equal((await a.api.rpc('submit_project_inquiry', { ...argsA, p_client_request_id: crypto.randomUUID(), ...args })).error?.code, '22023');
+    }
+  });
+  await buyer.screenshot({ path: path.join(output, '01-buyer-collection-needs-you.png') });
+  await first.screenshot({ path: path.join(output, '02-submitter-own-only.png') });
+  await check('Inquiries persist across refresh and production server restart', async () => {
+    await stopServer(); await startServer();
+    await buyer.reload(); await chooseRoom(buyer, '[S2-TEST] Supplier Co - Shared'); await buyer.locator('summary').filter({ hasText: 'Inquiries' }).click();
+    await first.reload(); await chooseRoom(first, '[S2-TEST] Supplier Co - Shared'); await first.locator('summary').filter({ hasText: 'Inquiries' }).click();
+    await buyer.getByRole('heading', { name: subjectB, exact: true }).waitFor(); await first.getByRole('heading', { name: subjectA, exact: true }).waitFor();
+    assert.equal(await first.getByText(subjectB, { exact: true }).count(), 0);
+  });
+  await check('Inquiry form is reachable at mobile width', async () => {
+    await first.setViewportSize({ width: 390, height: 844 });
+    await first.getByLabel('Inquiry subject', { exact: true }).scrollIntoViewIfNeeded(); assert(await first.getByLabel('Inquiry subject', { exact: true }).isVisible());
+    await first.screenshot({ path: path.join(output, '03-mobile-inquiry.png') });
+  });
+  await check('Inquiry flow has zero outbound browser requests or uncaught page errors', async () => { assert.deepEqual(remoteRequests, []); assert.deepEqual(pageErrors, []); });
+}
 async function main() {
   await startServer();
   browser = await chromium.launch({ executablePath: process.env.S2_BROWSER_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true });
@@ -115,6 +243,7 @@ async function main() {
     return;
   }
   await check('Buyer signs in with seeded email/password through UI', () => login(buyer, 's2-buyer@s2-test.invalid', passwords.S2_BUYER_PASSWORD));
+  if (mode === 'inquiries') { await inquirySuite(buyer); return; }
   const stamp = 's2-web-' + Date.now();
   await check('Buyer sees the seeded internal and shared rooms', async () => {
     await buyer.getByRole('button').filter({ hasText: '[S2-TEST] Buyer Internal' }).first().waitFor();
@@ -214,7 +343,7 @@ async function main() {
   await check('Offline failed draft stays retryable; reconnect catches missed messages', async () => {
     await invitedContext.setOffline(true);
     const offlineText = '[S2-TEST] Offline retry ' + stamp;
-    await invited.locator('textarea').fill(offlineText); await invited.getByRole('button', { name: 'Send · 发送', exact: true }).click();
+    await invited.getByRole('textbox', { name: 'Room message', exact: true }).fill(offlineText); await invited.getByRole('button', { name: 'Send · 发送', exact: true }).click();
     await invited.getByRole('button', { name: 'Retry · 重试', exact: true }).waitFor();
     await send(buyer, '[S2-TEST] While supplier offline ' + stamp);
     await invitedContext.setOffline(false);
