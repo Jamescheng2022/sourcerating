@@ -10,7 +10,7 @@
 //      never changes an existing account or discloses its existence). Then sign in and call
 //      the claim_project_invite RPC, which performs the membership change.
 //
-// Called with the anon apikey only (no user JWT), so verify_jwt = false in
+// Hosted preview/bootstrap require a signed server relay (no user JWT), so verify_jwt = false in
 // supabase/config.toml. Authorization is possession of a valid, unused,
 // unexpired, unrevoked, email-bound invite token. The nominated address is fixed;
 // this pilot preparation flow does not prove that the invitee controls its inbox.
@@ -19,7 +19,6 @@ import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 import {
   corsHeaders,
   json,
-  readJsonObject,
   requireEnv,
   sha256Hex,
 } from "../_shared/http.ts";
@@ -31,6 +30,7 @@ import {
   isEmailExistsError,
   isWellFormedToken,
 } from "../_shared/invite.ts";
+import { digestHex, LOCAL_RELAY_PROJECT, readRelayBody, RELAY_PROJECT, verifyRelay } from "../_shared/invite-relay.ts";
 
 const INVALID_INVITE = "Invitation is invalid or expired.";
 const BOOTSTRAP_AUDIT_ACTION = "project_invite.account_bootstrapped";
@@ -42,8 +42,25 @@ Deno.serve(async (req, info) => {
     return json({ ok: false, error: "method_not_allowed" }, 405, cors);
   }
 
-  const body = await readJsonObject(req);
-  if (!body) return json({ ok: false, error: "invalid_request" }, 400, cors);
+  const internalUrl = new URL(requireEnv("SUPABASE_URL"));
+  const local = internalUrl.protocol === "http:" && ["kong", "127.0.0.1", "localhost"].includes(internalUrl.hostname);
+  const rawBody = await readRelayBody(req);
+  if (rawBody === null) return json({ ok: false, error: "request_too_large" }, 413, cors);
+  let relay = null;
+  if (!local || req.headers.has("x-sr-signature")) {
+    const expectedProject = local ? LOCAL_RELAY_PROJECT : RELAY_PROJECT;
+    if ((!local && internalUrl.origin !== `https://${RELAY_PROJECT}.supabase.co`) ||
+      Deno.env.get("SR_INVITE_RELAY_PROJECT_REF") !== expectedProject) {
+      return json({ ok: false, error: "relay_config_invalid" }, 503, cors);
+    }
+    try {
+      relay = await verifyRelay(req, rawBody, expectedProject, requireEnv("SR_INVITE_RELAY_SECRET"));
+    } catch { return json({ ok: false, error: "relay_config_invalid" }, 503, cors); }
+    if (!relay) return json({ ok: false, error: "relay_denied" }, 401, cors);
+  }
+  let body: Record<string, unknown> | null;
+  try { body = JSON.parse(rawBody || "null"); } catch { return json({ ok: false, error: "invalid_request" }, 400, cors); }
+  if (!body || typeof body !== "object" || Array.isArray(body)) return json({ ok: false, error: "invalid_request" }, 400, cors);
 
   const action = body.action;
   if (action !== "preview" && action !== "bootstrap") {
@@ -67,6 +84,14 @@ Deno.serve(async (req, info) => {
     return json({ ok: false, error: "server_config_missing" }, 500, cors);
   }
 
+  if (relay) {
+    const { data: fresh, error } = await admin.rpc("consume_invite_relay_nonce", {
+      p_project_ref: relay.project, p_nonce_hash: await digestHex(relay.nonce),
+      p_timestamp: Number(relay.timestamp),
+    });
+    if (error) return json({ ok: false, error: "relay_unavailable" }, 503, cors);
+    if (!fresh) return json({ ok: false, error: "relay_replay_denied" }, 401, cors);
+  }
   const tokenHash = await sha256Hex(body.token);
   const { data: invite, error: inviteError } = await admin
     .from("project_invites")
@@ -137,18 +162,16 @@ Deno.serve(async (req, info) => {
     );
     return json({ ok: true }, 200, cors);
   };
-  const internalUrl = new URL(requireEnv("SUPABASE_URL"));
-  const local = internalUrl.protocol === "http:" && ["kong", "127.0.0.1", "localhost"].includes(internalUrl.hostname);
-  const peer = bootstrapPeerAddress(info, req.headers, {
-    requireTrustedProxy: !local,
-    trustedProxyIps: (Deno.env.get("SR_TRUSTED_PROXY_IPS") || "").split(",").map(value => value.trim()).filter(Boolean),
-  });
-  if (!peer) return json({ ok: false, error: "Invitation service is temporarily unavailable." }, 503, cors);
+  // The MAC authenticates hosted visitor context. No IP/XFF trust list.
+  // Unsigned loopback calls preserve the proven local/native path only.
+  const localPeer = local ? bootstrapPeerAddress(info, req.headers) : null;
+  const peerHash = relay?.peerHash ?? (localPeer ? await sha256Hex(localPeer) : null);
+  if (!peerHash) return json({ ok: false, error: "Invitation service is temporarily unavailable." }, 503, cors);
   const { data: attemptAllowed, error: attemptError } = await admin.rpc(
     "consume_invite_bootstrap_attempt",
     {
       p_invite_id: invite.id,
-      p_peer_hash: await sha256Hex(peer),
+      p_peer_hash: peerHash,
     },
   );
   if (attemptError) {

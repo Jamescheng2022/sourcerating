@@ -239,7 +239,7 @@ module.exports = async function suite(d) {
   });
   await check('P1-03 transient invitation failure can be retried to recover the actual valid form', async () => {
     let fail = true;
-    await join.route('**/functions/v1/project-invite', route => {
+    await join.route('**/api/project-invite', route => {
       if (fail && route.request().postDataJSON()?.action === 'preview') { fail = false; return route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ ok: false, error: 'Temporary test outage' }) }); }
       return route.continue();
     });
@@ -250,7 +250,7 @@ module.exports = async function suite(d) {
   await check('P1-03 failed join submit preserves name/email/password and enables retry', async () => {
     await join.getByLabel('Your name').fill('[S2-TEST] retained join draft'); assert.equal(await join.getByLabel('Email', { exact: true }).inputValue(), stamp + '@s2-test.invalid'); assert(await join.getByLabel('Email', { exact: true }).isDisabled());
     const password = crypto.randomBytes(24).toString('hex'); await join.getByLabel('Password', { exact: true }).fill(password);
-    await join.route('**/functions/v1/project-invite', route => route.request().postDataJSON()?.action === 'bootstrap' ? route.fulfill({ status: 503, contentType: 'application/json', body: '{"ok":false,"error":"Temporary test outage"}' }) : route.continue());
+    await join.route('**/api/project-invite', route => route.request().postDataJSON()?.action === 'bootstrap' ? route.fulfill({ status: 503, contentType: 'application/json', body: '{"ok":false,"error":"Temporary test outage"}' }) : route.continue());
     await join.getByRole('button', { name: 'Join Project Room' }).click(); await join.getByRole('alert').filter({ hasText: /\S/ }).waitFor();
     assert.equal(await join.getByLabel('Your name').inputValue(), '[S2-TEST] retained join draft'); assert.equal(await join.getByLabel('Password', { exact: true }).inputValue(), password);
     assert.equal(await join.getByLabel('Email', { exact: true }).inputValue(), stamp + '@s2-test.invalid'); assert(await join.getByRole('button', { name: 'Join Project Room' }).isEnabled());

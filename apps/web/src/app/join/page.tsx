@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
-import { supabase, SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { STORAGE_KEY_ORG_ID, STORAGE_KEY_ROLE } from "@/lib/demo-session";
 
 type InvitePreview = {
@@ -43,12 +43,11 @@ export default function JoinProjectPage() {
     void (async () => {
       try {
         const response = await fetch(
-          SUPABASE_URL + "/functions/v1/project-invite",
+          "/api/project-invite",
           {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              apikey: SUPABASE_ANON_KEY,
             },
             body: JSON.stringify({ action: "preview", token: rawToken }),
           },
@@ -76,12 +75,11 @@ export default function JoinProjectPage() {
 
     try {
       const bootstrap = await fetch(
-        SUPABASE_URL + "/functions/v1/project-invite",
+        "/api/project-invite",
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            apikey: SUPABASE_ANON_KEY,
           },
           body: JSON.stringify({
             action: "bootstrap",

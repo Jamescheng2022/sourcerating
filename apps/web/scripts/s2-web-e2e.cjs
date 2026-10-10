@@ -17,6 +17,7 @@ const passwords = JSON.parse(fs.readFileSync(path.join(ROOT, 'secrets/s2-local-p
 const results = [];
 const remoteRequests = [];
 const pageErrors = [];
+const inviteRequests = [];
 let server, browser;
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function check(label, fn) {
@@ -30,6 +31,10 @@ async function startServer() {
   env.NEXT_PUBLIC_SUPABASE_URL = values.API_URL;
   env.NEXT_PUBLIC_SUPABASE_ANON_KEY = values.ANON_KEY;
   env.NEXT_TELEMETRY_DISABLED = '1';
+  // Only the loopback acceptance server receives the dedicated relay secret.
+  // Never inherit service-role/password/provider credentials into the server.
+  env.SR_INVITE_RELAY_SECRET = process.env.SR_INVITE_RELAY_SECRET;
+  env.SR_INVITE_RELAY_PROJECT_REF = 'sourcerating-l1-stage2';
   const log = fs.openSync(path.join(output, 'server.log'), 'a');
   server = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '--port', '3000'], { cwd: path.resolve(__dirname, '..'), env, windowsHide: true, stdio: ['ignore', log, log] });
   fs.closeSync(log);
@@ -49,6 +54,15 @@ async function stopServer() {
 async function context() {
   const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 }, acceptDownloads: true });
   ctx.on('page', page => page.on('pageerror', error => pageErrors.push(error.message)));
+  ctx.on('request', request => {
+    const target = new URL(request.url());
+    if (target.pathname.endsWith('/project-invite')) {
+      const headers = request.headers();
+      inviteRequests.push({ origin: target.origin, path: target.pathname,
+        action: request.postDataJSON()?.action,
+        signed: Object.keys(headers).some(name => name.startsWith('x-sr-')) });
+    }
+  });
   await ctx.route('**/*', route => {
     const target = new URL(route.request().url());
     if (['data:', 'about:'].includes(target.protocol) || (target.protocol === 'blob:' && target.origin === url)) return route.continue();
@@ -309,6 +323,11 @@ async function main() {
     assert.equal(await invited.locator('#event-' + buyerEvent.id).count(), 1);
   });
   const invitedActor = await signedIn(inviteeEmail, inviteePassword);
+  await check('Both browser invite actions use same-origin relay without signature headers', async () => {
+    assert(inviteRequests.some(r => r.action === 'preview'));
+    assert(inviteRequests.some(r => r.action === 'bootstrap'));
+    assert(inviteRequests.every(r => r.origin === url && r.path === '/api/project-invite' && !r.signed));
+  });
   const outsider = await signedIn('s2-supplier@s2-test.invalid', passwords.S2_SUPPLIER_PASSWORD);
   const files = fixtures(stamp); const registered = [];
   for (const [index, file] of files.entries()) {

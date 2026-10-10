@@ -22,3 +22,6 @@ jointech-precast/
 
 # Local native build outputs (including generated public backend configuration)
 /pilot-artifacts/
+
+# Local link metadata; provider credentials never live here.
+/.vercel/
