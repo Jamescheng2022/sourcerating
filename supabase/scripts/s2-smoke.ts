@@ -146,11 +146,35 @@ async function main() {
   record("preview of unknown token is refused", bad.status === 404 && bad.json.ok === false, bad.status);
 
   const preview = await callFunction("project-invite", { action: "preview", token });
+  // Local Kong replaces the function's origin allowlist header with "*".
+  // These requests send no cookies, so either value permits the browser call.
+  const allowsOrigin = (origin: string | null) => origin === ORIGIN || origin === "*";
+  const preflight = await fetch(`${URL_BASE}/functions/v1/project-invite`, {
+    method: "OPTIONS",
+    headers: {
+      Origin: ORIGIN,
+      "Access-Control-Request-Method": "POST",
+      "Access-Control-Request-Headers": "apikey,content-type",
+    },
+  });
+  const allowedHeaders = (preflight.headers.get("access-control-allow-headers") ?? "").toLowerCase().split(",")
+    .map((header) => header.trim());
+  const allowedMethods = (preflight.headers.get("access-control-allow-methods") ?? "").toUpperCase().split(",")
+    .map((method) => method.trim());
+  await preflight.body?.cancel();
   record(
     "preview returns project/room/invited email (+CORS for localhost)",
     preview.status === 200 && preview.json.ok === true && preview.json.invitedEmail === inviteeEmail &&
-      preview.cors === ORIGIN,
-    { status: preview.status, room: (preview.json.room as Record<string, unknown> | undefined)?.name },
+      allowsOrigin(preview.cors) && preflight.ok &&
+      allowsOrigin(preflight.headers.get("access-control-allow-origin")) && allowedMethods.includes("POST") &&
+      ["apikey", "content-type"].every((header) => allowedHeaders.includes(header)),
+    {
+      status: preview.status,
+      room: (preview.json.room as Record<string, unknown> | undefined)?.name,
+      cors: preview.cors,
+      preflight: preflight.status,
+      allowedHeaders,
+    },
   );
 
   const mismatch = await callFunction("project-invite", {
