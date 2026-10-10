@@ -3,6 +3,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import zipfile
@@ -43,6 +44,8 @@ def main() -> int:
     parser.add_argument("--supabase-url", required=True, help="Backend URL; emulator uses http://10.0.2.2:54321")
     parser.add_argument("--supabase-anon-key-file", required=True, type=Path,
                         help="Outside-repo file containing only the public anon/publishable key")
+    parser.add_argument("--application-id", default="com.sourcerating.mobile",
+                        help="Optional side-by-side local test package; preserves an existing differently signed app")
     args = parser.parse_args()
     url = args.supabase_url.rstrip("/")
     parsed = urlsplit(url)
@@ -50,6 +53,10 @@ def main() -> int:
         parser.error("--supabase-url must be an HTTP(S) origin, without credentials, path, query or fragment")
     if parsed.scheme == "http" and parsed.hostname not in ("10.0.2.2", "127.0.0.1", "localhost"):
         parser.error("HTTP is allowed only for the local backend/emulator")
+    if not re.fullmatch(r"[a-zA-Z][a-zA-Z0-9_]*(?:\.[a-zA-Z][a-zA-Z0-9_]*)+", args.application_id):
+        parser.error("--application-id must be a Java-style package name")
+    if args.application_id != "com.sourcerating.mobile" and parsed.hostname not in ("10.0.2.2", "127.0.0.1", "localhost"):
+        parser.error("side-by-side test packages require a local backend")
     key_file = args.supabase_anon_key_file.resolve()
     if key_file.is_relative_to(REPO.resolve()):
         parser.error("keep the public key input file outside the repo")
@@ -85,14 +92,17 @@ def main() -> int:
     run(JAVAC, "-encoding", "UTF-8", "-source", "8", "-target", "8", "-classpath", PLATFORM, "-d", CLASSES, *sources)
     resources_apk = BUILD / "resources.apk"
     # Permit HTTP only to the configured local host, keeping the source manifest secure.
-    manifest_path = HERE / "AndroidManifest.xml"
+    android_ns = "http://schemas.android.com/apk/res/android"
+    ET.register_namespace("android", android_ns)
+    manifest = ET.parse(HERE / "AndroidManifest.xml")
+    manifest.getroot().set("package", args.application_id)
+    application = manifest.getroot().find("application")
+    application.find("activity").set(f"{{{android_ns}}}name", "com.sourcerating.mobile.MainActivity")
+    if args.application_id != "com.sourcerating.mobile":
+        application.set(f"{{{android_ns}}}label", "SourceRating Local")
+    manifest_path = BUILD / "AndroidManifest.xml"
     if parsed.scheme == "http":
-        android_ns = "http://schemas.android.com/apk/res/android"
-        ET.register_namespace("android", android_ns)
-        manifest = ET.parse(manifest_path)
-        manifest.getroot().find("application").set(f"{{{android_ns}}}networkSecurityConfig", "@xml/local_network_security")
-        manifest_path = BUILD / "AndroidManifest.xml"
-        manifest.write(manifest_path, encoding="utf-8", xml_declaration=True)
+        application.set(f"{{{android_ns}}}networkSecurityConfig", "@xml/local_network_security")
         res_xml = BUILD / "local-res" / "xml"
         res_xml.mkdir(parents=True)
         (res_xml / "local_network_security.xml").write_text(
@@ -104,6 +114,7 @@ def main() -> int:
         resource_inputs = [compiled_res, local_res]
     else:
         resource_inputs = [compiled_res]
+    manifest.write(manifest_path, encoding="utf-8", xml_declaration=True)
     run(AAPT2, "link", "-o", resources_apk, "-I", PLATFORM, "--manifest", manifest_path,
         "--min-sdk-version", "26", "--target-sdk-version", "35", "--version-code", "4",
         "--version-name", "0.2.2-native", *resource_inputs)

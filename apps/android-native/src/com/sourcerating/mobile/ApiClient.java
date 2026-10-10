@@ -52,45 +52,23 @@ final class ApiClient {
     }
     void clearSession() { prefs.edit().clear().apply(); }
 
-    JSONObject loginDemo(String role) throws Exception {
-        JSONObject authReq = new JSONObject().put("role", role);
-        HttpResult demo = requestRaw("POST", SUPABASE_URL + "/functions/v1/p1-demo-auth",
-                authReq.toString().getBytes(StandardCharsets.UTF_8),
-                "application/json", false, true,
-                new String[][]{{"Origin", "https://sourcerating.com"}});
-        requireOk(demo, "Demo login");
-        JSONObject demoJson = new JSONObject(demo.body);
-        String email = demoJson.optString("email", "");
-        String password = demoJson.optString("password", "");
-        if (email.isEmpty() || password.isEmpty()) throw new Exception("Demo login did not return credentials.");
-
+    JSONObject loginWithPassword(String email, String password) throws Exception {
+        clearSession();
         JSONObject signed = passwordSignIn(email, password);
-        Object claim = rpc("claim_p1_demo_role", new JSONObject().put("p_role", role));
-        String org = extractOrg(claim);
-        if (org.isEmpty()) {
-            org = firstNonEmpty(
-                    demoJson.optString("organization_id", ""),
-                    demoJson.optString("org_id", ""),
-                    demoJson.optString("actor_organization_id", ""),
-                    demoJson.optString("acting_org_id", "")
-            );
+        try {
+            JSONArray memberships = (JSONArray) requestJson("GET", "/rest/v1/room_members?select=acting_organization_id,rooms!inner(owner_organization_id)&user_id=eq."
+                    + enc(getUserId()) + "&removed_at=is.null", null, true);
+            if (memberships.length() == 0) throw new Exception("No active room membership. Open your project invitation to join.");
+            JSONObject member = memberships.getJSONObject(0);
+            String org = member.getString("acting_organization_id");
+            JSONObject room = member.getJSONObject("rooms");
+            String role = org.equals(room.optString("owner_organization_id")) ? "buyer" : "supplier";
+            prefs.edit().putString(K_ROLE, role).putString(K_ORG, org).apply();
+            return signed;
+        } catch (Exception e) {
+            clearSession();
+            throw e;
         }
-        if (org.isEmpty()) {
-            JSONObject user = signed.optJSONObject("user");
-            if (user != null) {
-                JSONObject um = user.optJSONObject("user_metadata");
-                JSONObject am = user.optJSONObject("app_metadata");
-                org = firstNonEmpty(
-                        um == null ? "" : um.optString("organization_id", ""),
-                        um == null ? "" : um.optString("org_id", ""),
-                        am == null ? "" : am.optString("organization_id", ""),
-                        am == null ? "" : am.optString("org_id", "")
-                );
-            }
-        }
-        if (org.isEmpty()) throw new Exception("No acting organization was assigned.");
-        prefs.edit().putString(K_ROLE, role).putString(K_ORG, org).apply();
-        return signed;
     }
 
     JSONObject joinInvite(String token, String email, String password, String displayName) throws Exception {
@@ -202,9 +180,51 @@ final class ApiClient {
                 .put("p_client_msg_id", UUID.randomUUID().toString())
                 .put("p_caption", caption == null || caption.trim().isEmpty() ? JSONObject.NULL : caption.trim());
         Object result = rpc("register_room_file_version", register);
-        if (result instanceof JSONObject) return (JSONObject) result;
-        if (result instanceof JSONArray && ((JSONArray) result).length() > 0) return ((JSONArray) result).getJSONObject(0);
-        return new JSONObject();
+        JSONObject registered = result instanceof JSONObject ? (JSONObject) result : new JSONObject();
+        JSONObject file = registered.optJSONObject("file");
+        if (file == null || file.optString("id").isEmpty()) throw new Exception("File registration returned no version.");
+        try { verifyFile(file.getString("id")); } catch (Exception ignored) { /* The file dialog offers a retry. */ }
+        return registered;
+    }
+
+    JSONObject getFile(String id) throws Exception {
+        JSONArray rows = (JSONArray) requestJson("GET", "/rest/v1/room_file_versions?select=*&id=eq." + enc(id) + "&limit=1", null, true);
+        if (rows.length() == 0) throw new Exception("File is unavailable or you are not a room member.");
+        return rows.getJSONObject(0);
+    }
+
+    JSONObject verifyFile(String id) throws Exception {
+        return (JSONObject) requestJson("POST", "/functions/v1/room-file-gateway",
+                new JSONObject().put("action", "verify").put("fileVersionId", id), true);
+    }
+
+    byte[] downloadFile(String id) throws Exception {
+        JSONObject file = getFile(id);
+        if (!"verified".equals(file.optString("verification_status"))) throw new Exception("File bytes have not passed the server checks.");
+        JSONObject signed = (JSONObject) requestJson("POST", "/functions/v1/room-file-gateway",
+                new JSONObject().put("action", "sign").put("fileVersionId", id), true);
+        if (!signed.optBoolean("ok")) throw new Exception("Unable to download this file.");
+        URL source = new URL(signed.getString("signedUrl"));
+        URL backend = new URL(SUPABASE_URL);
+        // The host's local gateway signs 127.0.0.1 URLs; the emulator reaches that
+        // same origin through 10.0.2.2. Never rebase an unrelated origin/path.
+        boolean localAlias = backend.getHost().equals("10.0.2.2")
+                && (source.getHost().equals("127.0.0.1") || source.getHost().equals("localhost"));
+        if (!(source.getHost().equals(backend.getHost()) || localAlias)
+                || !source.getProtocol().equals(backend.getProtocol()) || source.getPort() != backend.getPort()
+                || source.getUserInfo() != null || !source.getPath().startsWith("/storage/v1/object/sign/room-files/")) {
+            throw new Exception("Unexpected file download origin.");
+        }
+        URL target = new URL(backend.getProtocol(), backend.getHost(), backend.getPort(), source.getFile());
+        HttpURLConnection conn = (HttpURLConnection) target.openConnection();
+        conn.setInstanceFollowRedirects(false);
+        conn.setConnectTimeout(TIMEOUT_MS); conn.setReadTimeout(TIMEOUT_MS);
+        try {
+            if (conn.getResponseCode() != 200) throw new Exception("File download failed.");
+            byte[] bytes = readAllBytes(conn.getInputStream(), 50 * 1024 * 1024);
+            if (!sha256(bytes).equals(file.optString("server_sha256"))) throw new Exception("Downloaded bytes do not match the server SHA-256.");
+            return bytes;
+        } finally { conn.disconnect(); }
     }
 
     private JSONObject passwordSignIn(String email, String password) throws Exception {

@@ -33,6 +33,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
@@ -40,6 +41,8 @@ import java.util.concurrent.Executors;
 
 public final class MainActivity extends Activity {
     private static final int PICK_FILE = 7401;
+    private static final int SAVE_FILE = 7402;
+    private String downloadFileId;
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ArrayList<JSONObject> rooms = new ArrayList<>();
@@ -107,15 +110,28 @@ public final class MainActivity extends Activity {
 
         root.addView(text("SourceRating", 30, Color.WHITE, true), matchWrap());
         root.addView(text("Native Project Room pilot\nSame SourceRating backend, no embedded website.", 14, muted(), false), topMargin(8));
-        root.addView(sectionLabel("QUICK PILOT"), topMargin(28));
-
-        Button buyer = primaryButton("Enter as Buyer");
-        root.addView(buyer, topMargin(10));
-        buyer.setOnClickListener(v -> demoLogin("buyer", buyer));
-
-        Button supplier = secondaryButton("Enter as Supplier");
-        root.addView(supplier, topMargin(10));
-        supplier.setOnClickListener(v -> demoLogin("supplier", supplier));
+        root.addView(sectionLabel("SIGN IN"), topMargin(28));
+        EditText loginEmail = input("Sign-in email", false);
+        loginEmail.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
+        EditText loginPassword = input("Sign-in password", true);
+        root.addView(loginEmail, topMargin(10));
+        root.addView(loginPassword, topMargin(10));
+        Button signIn = primaryButton("Sign in");
+        root.addView(signIn, topMargin(10));
+        signIn.setOnClickListener(v -> {
+            String e = loginEmail.getText().toString().trim();
+            String pw = loginPassword.getText().toString();
+            if (e.isEmpty() || pw.isEmpty()) { toast("Enter your email and password."); return; }
+            setButtonBusy(signIn, true, "Signing in...");
+            io.execute(() -> {
+                try {
+                    api.loginWithPassword(e, pw);
+                    main.post(this::showApp);
+                } catch (Exception ex) {
+                    main.post(() -> { setButtonBusy(signIn, false, "Sign in"); showError("Sign in failed", ex.getMessage()); });
+                }
+            });
+        });
 
         root.addView(sectionLabel("JOIN BY INVITATION"), topMargin(30));
         EditText token = input("Invitation token", false);
@@ -153,21 +169,6 @@ public final class MainActivity extends Activity {
         });
         root.addView(text("Invitation access uses the same Supabase RLS policies as the web app.", 12, muted(), false), topMargin(16));
         setContentView(scroll);
-    }
-
-    private void demoLogin(String role, Button button) {
-        setButtonBusy(button, true, "Connecting...");
-        io.execute(() -> {
-            try {
-                api.loginDemo(role);
-                main.post(this::showApp);
-            } catch (Exception ex) {
-                main.post(() -> {
-                    setButtonBusy(button, false, role.equals("buyer") ? "Enter as Buyer" : "Enter as Supplier");
-                    showError("Sign in failed", ex.getMessage());
-                });
-            }
-        });
     }
 
     private void showApp() {
@@ -266,6 +267,12 @@ public final class MainActivity extends Activity {
         messageList.setTranscriptMode(ListView.TRANSCRIPT_MODE_NORMAL);
         messageAdapter = new MessageAdapter();
         messageList.setAdapter(messageAdapter);
+        messageList.setOnItemClickListener((parent, view, position, id) -> {
+            JSONObject payload = events.get(position).optJSONObject("payload");
+            if (payload != null && "file.attached".equals(events.get(position).optString("event_type"))) {
+                showFileDialog(payload.optString("file_version_id", ""));
+            }
+        });
         pane.addView(messageList, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 
         LinearLayout composerBar = row();
@@ -305,11 +312,6 @@ public final class MainActivity extends Activity {
                 for (int i = 0; i < array.length(); i++) {
                     JSONObject room = array.optJSONObject(i);
                     if (room == null) continue;
-                    if ("supplier".equals(api.getRole())) {
-                        String kind = room.optString("kind", "").toLowerCase(Locale.US);
-                        String name = room.optString("name", "").toLowerCase(Locale.US);
-                        if (kind.contains("buyer_internal") || name.contains("internal")) continue;
-                    }
                     loaded.add(room);
                 }
                 main.post(() -> {
@@ -449,6 +451,26 @@ public final class MainActivity extends Activity {
 
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == SAVE_FILE) {
+            String fileId = downloadFileId;
+            downloadFileId = null;
+            if (resultCode != RESULT_OK || data == null || data.getData() == null || fileId == null) return;
+            Uri target = data.getData();
+            setStatus("Downloading…");
+            io.execute(() -> {
+                try {
+                    byte[] bytes = api.downloadFile(fileId);
+                    try (OutputStream out = getContentResolver().openOutputStream(target)) {
+                        if (out == null) throw new Exception("Cannot write the selected document.");
+                        out.write(bytes);
+                    }
+                    main.post(() -> { toast("Downloaded; SHA-256 matches server bytes"); refreshActiveRoom(false); });
+                } catch (Exception ex) {
+                    main.post(() -> showError("Download failed", cleanError(ex)));
+                }
+            });
+            return;
+        }
         if (requestCode != PICK_FILE || resultCode != RESULT_OK || data == null || data.getData() == null) return;
         Uri uri = data.getData();
         JSONObject room = activeRoom();
@@ -471,6 +493,39 @@ public final class MainActivity extends Activity {
             } catch (Exception ex) {
                 main.post(() -> setStatus("Upload failed — " + cleanError(ex)));
             }
+        });
+    }
+
+    private void showFileDialog(String fileId) {
+        if (fileId.isEmpty()) return;
+        io.execute(() -> {
+            try {
+                JSONObject file = api.getFile(fileId);
+                String status = file.optString("verification_status", "pending");
+                String detail = "Version " + file.optInt("version_no") + "\nServer check: " + status
+                        + "\nDetected type: " + file.optString("detected_mime_type", "not checked")
+                        + "\nServer SHA-256: " + file.optString("server_sha256", "not checked")
+                        + "\n\nChecks compare byte count, SHA-256 and detected file type. They do not certify document contents or scan for malware.";
+                main.post(() -> {
+                    AlertDialog.Builder dialog = new AlertDialog.Builder(this).setTitle(file.optString("logical_name", "Attachment"))
+                            .setMessage(detail).setNegativeButton("Close", null);
+                    if ("verified".equals(status)) {
+                        dialog.setPositiveButton("Download", (d, which) -> {
+                            downloadFileId = fileId;
+                            Intent save = new Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE)
+                                    .setType(file.optString("mime_type", "application/octet-stream"))
+                                    .putExtra(Intent.EXTRA_TITLE, file.optString("logical_name", "attachment"));
+                            startActivityForResult(save, SAVE_FILE);
+                        });
+                    } else if ("pending".equals(status)) {
+                        dialog.setPositiveButton("Retry check", (d, which) -> io.execute(() -> {
+                            try { api.verifyFile(fileId); showFileDialog(fileId); }
+                            catch (Exception ex) { main.post(() -> showError("Check failed", cleanError(ex))); }
+                        }));
+                    }
+                    dialog.show();
+                });
+            } catch (Exception ex) { main.post(() -> showError("File unavailable", cleanError(ex))); }
         });
     }
 
@@ -581,6 +636,7 @@ public final class MainActivity extends Activity {
                 String fn = payload == null ? "" : firstNonEmpty(payload.optString("file_name", ""),
                         payload.optString("logical_name", ""), payload.optString("name", ""));
                 body = "📎 " + (fn.isEmpty() ? "Attachment" : fn);
+                body += "  ·  v" + (payload == null ? 1 : payload.optInt("version_no", 1));
                 String cap = payload == null || payload.isNull("caption") ? "" : payload.optString("caption", "");
                 if ("null".equalsIgnoreCase(cap)) cap = "";
                 if (!cap.isEmpty()) body += "\n" + cap;
