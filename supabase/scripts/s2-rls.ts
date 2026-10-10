@@ -168,9 +168,15 @@ async function main() {
     [S2.internalRoom, S2.sharedRoom].every((id) => buyerRooms.some((r) => r.id === id)),
   );
   const supplierRooms = await must("supplier rooms", supplier.api.from("rooms").select("id"));
+  const activeOrgIds = (await must("supplier active organizations", admin.from("organization_memberships")
+    .select("organization_id").eq("user_id", supplier.id).is("removed_at", null))).map((m) => m.organization_id);
+  const allowedRooms = (await must("supplier authorized room fixture", admin.from("room_members")
+    .select("room_id").eq("user_id", supplier.id).is("removed_at", null).in("acting_organization_id", activeOrgIds)))
+    .map((m) => m.room_id);
   record(
-    "supplier unfiltered room query returns only seeded shared room",
-    supplierRooms.length === 1 && supplierRooms[0].id === S2.sharedRoom,
+    "supplier unfiltered query equals active authorized room memberships, including seeded shared room",
+    supplierRooms.some((r) => r.id === S2.sharedRoom) &&
+      JSON.stringify([...new Set(supplierRooms.map((r) => r.id))].sort()) === JSON.stringify([...new Set(allowedRooms)].sort()),
   );
   const buyerMemberships = await must(
     "buyer memberships",
@@ -190,8 +196,8 @@ async function main() {
   );
   record(
     "supplier member role and acting org correct",
-    supplierMemberships.length === 1 &&
-      supplierMemberships[0].room_role === "member" && supplierMemberships[0].acting_organization_id === S2.supplierOrg,
+    supplierMemberships.some((m) => m.room_id === S2.sharedRoom && m.room_role === "member" &&
+      m.acting_organization_id === S2.supplierOrg && !m.removed_at),
   );
 
   const internalEvent = await must(

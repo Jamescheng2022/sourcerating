@@ -29,6 +29,29 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Local stage 2 acceptance
+
+From this directory, after applying the repo migrations to the local stack and
+building with its public key, run `node scripts/s2-web-e2e.cjs e2e`,
+`node scripts/s2-web-e2e.cjs inquiries`, and `node scripts/s2-web-e2e.cjs ui`.
+The runner refuses a nonlocal Supabase URL, starts/stops a production Next server
+on 127.0.0.1:3000, and uses isolated headless Chrome contexts. It reads the lane's
+CLI, Playwright installation and synthetic passwords outside Git. Set
+`S2_EVIDENCE_DIR` to a separate artifact directory for each suite. These tests retain
+their synthetic fixtures; they do not delete data or send mail.
+
+Inquiry acknowledgement atomically marks the buyer's task done and retains the
+inquiry with `acknowledged_at`. The RPC derives authorization from active room and
+owner-organization memberships. Clients retain SELECT-only inquiry access; the
+submitter organization is a database-derived snapshot on new submissions. Older
+inquiries explicitly show that the organization was not recorded. Repeated or
+concurrent acknowledgement leaves the first resolution timestamp unchanged.
+
+The UI suite covers the accepted U1 P1/P2 findings, 390px navigation and proposal
+review, join recovery, file-check scope, sign-out confirmation, AI-off status, and
+acknowledgement denials. File byte checks establish size/hash/detected type only.
+They do not establish document authenticity or malware safety.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

@@ -15,6 +15,7 @@ import {
 interface ProjectStatePanelProps {
   state: ProjectRoomState;
   stateStatus: "idle" | "active" | "unavailable";
+  aiStatus: string | null;
   reviewingProposalId: string | null;
   actionError: string | null;
   onReview: (
@@ -29,6 +30,7 @@ interface ProjectStatePanelProps {
 export function ProjectStatePanel({
   state,
   stateStatus,
+  aiStatus,
   reviewingProposalId,
   actionError,
   onReview,
@@ -93,35 +95,36 @@ export function ProjectStatePanel({
 
   return (
     <div className={`space-y-4 ${isMobile ? "text-xs" : "text-xs"}`}>
-      {/* Agent Status Notification */}
+      {/* Saved database state does not establish AI availability. */}
       <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 shadow-xs">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 font-semibold text-slate-800">
             <span
               className={`h-2 w-2 rounded-full shrink-0 ${
-                stateStatus === "active"
+                aiStatus?.startsWith("AI assistant active via ")
                   ? "bg-emerald-500 animate-pulse"
                   : stateStatus === "unavailable"
                   ? "bg-amber-400"
                   : "bg-slate-400"
               }`}
             />
-            <span className="text-[12px]">Project Agent</span>
+            <span className="text-[12px]">AI assistant</span>
           </div>
           <span
             className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
-              stateStatus === "active"
+              aiStatus?.startsWith("AI assistant active via ")
                 ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
                 : "bg-amber-100 text-amber-800 border border-amber-200"
             }`}
           >
-            {stateStatus === "active" ? "Active" : "Unavailable"}
+            {aiStatus?.startsWith("AI assistant active via ") ? "Active" : "Unavailable"}
           </span>
         </div>
         <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
-          {stateStatus === "active"
-            ? "Project agent active"
-            : "Project agent unavailable; messaging continues normally"}
+          {aiStatus || "AI availability not confirmed; messaging continues normally."}
+        </p>
+        <p className="mt-1 text-[11px] text-slate-600">
+          Saved project state: {stateStatus === "active" ? "available" : stateStatus === "idle" ? "loading" : "unavailable"}
         </p>
       </div>
 
@@ -155,7 +158,7 @@ export function ProjectStatePanel({
               <div className="text-[11px] font-medium text-slate-700">
                 No items needing your action
               </div>
-              <div className="text-[10px] text-slate-400 mt-0.5">
+              <div className="text-[10px] text-slate-600 mt-0.5">
                 New decisions or approvals will appear here.
               </div>
             </div>
@@ -166,6 +169,11 @@ export function ProjectStatePanel({
                   <h3 className="font-semibold text-slate-900 text-xs">{item.title}</h3>
                   <p className="whitespace-pre-wrap break-words text-[11px] text-slate-600">{item.detail}</p>
                   <p className="text-[10px] text-slate-500">Saved in the buyer inquiry collection.</p>
+                  <button type="button" disabled={reviewingProposalId === item.id}
+                    onClick={() => void onReview(null, "dismiss", item.id)}
+                    className="rounded bg-sky-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">
+                    {reviewingProposalId === item.id ? "Acknowledging..." : "Acknowledge inquiry"}
+                  </button>
                 </article>;
               }
               const associatedProposal = item.proposal_id
@@ -199,6 +207,7 @@ export function ProjectStatePanel({
               return (
                 <div
                   key={item.id}
+                  data-testid={`needs-you-${item.id}`}
                   className="rounded-lg border border-slate-200 bg-white p-3 space-y-2 hover:border-slate-300 transition"
                 >
                   {/* Item Header */}
@@ -206,7 +215,7 @@ export function ProjectStatePanel({
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         {renderPriorityBadge(item.priority)}
-                        <span className="text-[10px] text-slate-400 font-mono">
+                        <span className="text-[10px] text-slate-600 font-mono">
                           {item.created_at
                             ? new Date(item.created_at).toLocaleTimeString([], {
                                 hour: "2-digit",
@@ -238,7 +247,7 @@ export function ProjectStatePanel({
                         </span>
                       ))}
                       {extracted.length > 2 && (
-                        <span className="text-[10px] text-slate-400">
+                        <span className="text-[10px] text-slate-600">
                           +{extracted.length - 2} more
                         </span>
                       )}
@@ -273,7 +282,7 @@ export function ProjectStatePanel({
                                 </span>
                                 <div className="text-right">
                                   {val.previous && (
-                                    <span className="text-slate-400 line-through mr-1 text-[10px]">
+                                    <span className="text-slate-600 line-through mr-1 text-[10px]">
                                       {val.previous}
                                     </span>
                                   )}
@@ -446,7 +455,7 @@ export function ProjectStatePanel({
               <div className="text-[11px] font-medium text-slate-700">
                 No unassigned staging drafts
               </div>
-              <div className="text-[10px] text-slate-400 mt-0.5">
+              <div className="text-[10px] text-slate-600 mt-0.5">
                 Resident agent creates drafts as project conversation progresses.
               </div>
             </div>
@@ -479,7 +488,7 @@ export function ProjectStatePanel({
                         </span>
                       )}
                     </div>
-                    <span className="text-[10px] text-slate-400 font-mono">
+                    <span className="text-[10px] text-slate-600 font-mono">
                       {draft.created_at
                         ? new Date(draft.created_at).toLocaleTimeString([], {
                             hour: "2-digit",
@@ -506,7 +515,7 @@ export function ProjectStatePanel({
                         </span>
                       ))}
                       {extracted.length > 2 && (
-                        <span className="text-[10px] text-slate-400">
+                        <span className="text-[10px] text-slate-600">
                           +{extracted.length - 2} more
                         </span>
                       )}
@@ -656,7 +665,7 @@ export function ProjectStatePanel({
               <div className="text-[11px] font-medium text-slate-700">
                 No canonical state established yet
               </div>
-              <div className="text-[10px] text-slate-400 mt-0.5">
+              <div className="text-[10px] text-slate-600 mt-0.5">
                 Accepted proposals will establish immutable canonical project specifications.
               </div>
             </div>
@@ -690,7 +699,7 @@ export function ProjectStatePanel({
                         </span>
                       )}
                     </div>
-                    <span className="text-[10px] text-slate-400 font-mono">
+                    <span className="text-[10px] text-slate-600 font-mono">
                       {formattedDate}
                     </span>
                   </div>

@@ -64,6 +64,9 @@ export default function ProjectRoomPage() {
   const [inviteUrl, setInviteUrl] = useState("");
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteCreating, setInviteCreating] = useState(false);
+  const [copyNotice, setCopyNotice] = useState<string | null>(null);
+  const [mobileView, setMobileView] = useState<"chat" | "context">("chat");
+  useEffect(() => { setCopyNotice(null); }, [inviteUrl, activeRoomId]);
   const [projectName, setProjectName] = useState("Project");
   const [projectCode, setProjectCode] = useState("");
   const [projectState, setProjectState] = useState<ProjectRoomState>({
@@ -232,6 +235,7 @@ export default function ProjectRoomPage() {
 
   // Sign out
   const handleResetIdentity = async () => {
+    if (!window.confirm("Sign out? Unsent message and inquiry drafts will be cleared.")) return;
     await resetDemoIdentity();
     setRole(null);
     setActingOrgId(null);
@@ -746,12 +750,18 @@ export default function ProjectRoomPage() {
     action: "accept" | "dismiss",
     needsYouId?: string,
   ) => {
-    if (!proposalId || !actingOrgId || !activeRoomId) return;
-    setReviewingProposalId(proposalId);
+    if ((!proposalId && !needsYouId) || !actingOrgId || !activeRoomId) return;
+    setReviewingProposalId(proposalId || needsYouId || null);
     setProjectStateError(null);
     try {
+      if (!proposalId && needsYouId) {
+        const { error } = await supabase.rpc("acknowledge_project_inquiry", { p_needs_you_id: needsYouId });
+        if (error) throw new Error("Unable to acknowledge inquiry. Please try again.");
+        await refreshProjectState(activeRoomId);
+        return;
+      }
       const result = await executeReviewStagingProposal({
-        proposalId,
+        proposalId: proposalId!,
         action,
         actorOrganizationId: actingOrgId,
       });
@@ -770,9 +780,10 @@ export default function ProjectRoomPage() {
 
   const handleViewSourceEvent = (sourceEventId: string | null | undefined) => {
     if (!sourceEventId) return;
-    document
+    setMobileView("chat");
+    requestAnimationFrame(() => document
       .getElementById(`event-${sourceEventId}`)
-      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      ?.scrollIntoView({ behavior: "smooth", block: "center" }));
   };
 
   const handleCreateSupplierInvite = async () => {
@@ -889,7 +900,11 @@ export default function ProjectRoomPage() {
       style={{ height: viewportHeight, minHeight: viewportHeight, maxHeight: viewportHeight }}
       className="overflow-hidden bg-slate-100 text-slate-900 flex flex-col w-full"
     >
-      <div className="grid h-full min-h-0 grid-cols-1 md:grid-cols-[230px_minmax(0,1fr)_340px]">
+      <nav aria-label="Mobile project views" className="flex shrink-0 gap-2 border-b border-slate-200 bg-white p-2 md:hidden">
+        <button type="button" aria-controls="room-chat" aria-pressed={mobileView === "chat"} onClick={() => setMobileView("chat")} className="rounded border border-slate-300 px-3 py-2 text-sm font-semibold">Chat</button>
+        <button type="button" aria-controls="room-context" aria-pressed={mobileView === "context"} onClick={() => setMobileView("context")} className="rounded border border-slate-300 px-3 py-2 text-sm font-semibold">Needs You ({projectState.needsYou.length}) · Specs</button>
+      </nav>
+      <div className="grid flex-1 min-h-0 grid-cols-1 md:grid-cols-[230px_minmax(0,1fr)_340px]">
         {/* LEFT SIDEBAR (Desktop) */}
         <aside className="hidden md:flex flex-col bg-slate-950 text-slate-200 border-r border-slate-800 min-h-0">
           <div className="p-4 border-b border-slate-800">
@@ -994,20 +1009,23 @@ export default function ProjectRoomPage() {
         </aside>
 
         {/* MIDDLE SECTION: CHAT CONVERSATION (Mobile First IM Feel) */}
-        <section className="flex min-w-0 flex-col bg-white h-full min-h-0 relative">
+        <section id="room-chat" className={`${mobileView === "chat" ? "flex" : "hidden"} md:flex min-w-0 flex-col bg-white h-full min-h-0 relative`}>
           {/* Header Chrome: Reduced vertical height */}
           <header className="shrink-0 border-b border-slate-200 bg-white">
             <div className="px-3 py-2 sm:px-4 sm:py-2.5 flex items-center justify-between gap-2">
               {/* Room selector / title */}
               <div className="flex items-center gap-2 min-w-0">
-                {role === "buyer" && visibleRooms.length > 1 ? (
-                  <div className="flex min-w-0 overflow-x-auto rounded-lg bg-slate-100 p-0.5 text-xs">
+                {visibleRooms.length > 1 ? (
+                  <nav aria-label="Room selection" className="flex min-w-0 overflow-x-auto rounded-lg bg-slate-100 p-0.5 text-xs">
                     {visibleRooms.map((r) => {
                       const rIsInternal = r.kind === "buyer_internal";
                       const isSelected = r.id === activeRoom.id;
                       return (
                         <button
                           key={r.id}
+                          title={r.name}
+                          aria-label={r.name}
+                          aria-pressed={isSelected}
                           onClick={() => setActiveRoomId(r.id)}
                           className={`flex shrink-0 items-center gap-1 rounded-md px-2 py-1 font-medium transition ${
                             isSelected
@@ -1018,13 +1036,13 @@ export default function ProjectRoomPage() {
                           }`}
                         >
                           <span>{rIsInternal ? "🔒" : "🌐"}</span>
-                          <span className="truncate max-w-[110px] sm:max-w-none">
-                            {rIsInternal ? "Internal · 内部" : "Shared · 外部"}
+                          <span className="max-w-[190px] whitespace-normal text-left">
+                            {r.name}
                           </span>
                         </button>
                       );
                     })}
-                  </div>
+                  </nav>
                 ) : (
                   <div className="flex items-center gap-1.5 truncate">
                     <span className="text-sm">{isInternal ? "🔒" : "🌐"}</span>
@@ -1049,10 +1067,10 @@ export default function ProjectRoomPage() {
 
                 <button
                   onClick={handleResetIdentity}
-                  title="Switch Role / Reset Session"
+                  title="Sign out of this session"
                   className="rounded border border-slate-200 px-2 py-0.5 text-[10px] font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition"
                 >
-                  Switch · 切换
+                  Sign out · 退出
                 </button>
               </div>
             </div>
@@ -1275,7 +1293,7 @@ export default function ProjectRoomPage() {
                                         : "bg-emerald-100 text-emerald-700"
                                     }`}
                                   >
-                                    Verified
+                                    Byte checks passed
                                   </span>
                                 )}
                                 {verificationStatus === "pending" && (
@@ -1286,7 +1304,7 @@ export default function ProjectRoomPage() {
                                         : "bg-amber-100 text-amber-700"
                                     }`}
                                   >
-                                    Verifying
+                                    Checking file bytes
                                   </span>
                                 )}
                                 {verificationStatus &&
@@ -1339,6 +1357,7 @@ export default function ProjectRoomPage() {
                                 ).slice(0, 16)}
                                 ...
                               </div>
+                              {verificationStatus === "verified" && <p className={`mt-1 text-[10px] ${isMyMessage ? "text-sky-100" : "text-slate-600"}`}>Size, SHA256 and detected type checked. No malware scan or authenticity check.</p>}
                               <div
                                 className={`mt-1 text-[10px] font-semibold ${
                                   isMyMessage ? "text-white" : "text-sky-700"
@@ -1350,7 +1369,7 @@ export default function ProjectRoomPage() {
                                       verificationStatus !== "pending"
                                     ? verification?.verificationError ||
                                       "File verification failed"
-                                    : "Server verification in progress"}
+                                    : "Checking file size, SHA256 and detected type"}
                               </div>
                             </div>
                           </div>
@@ -1468,7 +1487,7 @@ export default function ProjectRoomPage() {
           {showScrollBottomBtn && (
             <button
               onClick={() => scrollToBottom("smooth")}
-              className="absolute bottom-24 right-4 z-10 rounded-full bg-slate-900/90 text-white px-3 py-1.5 text-xs shadow-lg backdrop-blur flex items-center gap-1.5 hover:bg-slate-900 transition"
+              className="shrink-0 self-end m-2 rounded-full bg-slate-900 text-white px-3 py-1.5 text-xs shadow-lg flex items-center gap-1.5 hover:bg-slate-800 transition"
             >
               <span>↓</span>
               <span>Latest messages · 最新消息</span>
@@ -1556,10 +1575,11 @@ export default function ProjectRoomPage() {
               )}
 
               {/* Footer Bar */}
-              <div className="flex items-center justify-between px-3 pb-2 pt-1 border-t border-slate-100">
-                <div className="flex min-w-0 items-center gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 px-3 pb-2 pt-1 border-t border-slate-100">
+                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                   <button
                     type="button"
+                    aria-describedby="attachment-formats"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={fileUploading}
                     className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
@@ -1577,7 +1597,7 @@ export default function ProjectRoomPage() {
                       Cancel
                     </button>
                   )}
-                  <div className="truncate text-[10px] text-slate-400">
+                  <div id="attachment-formats" className="order-last w-full whitespace-normal text-[10px] text-slate-600 sm:order-none sm:w-auto">
                     {inputText.trim()
                       ? "Current text will be sent as the file caption"
                       : "PDF / Excel / image · max 50 MB"}
@@ -1608,7 +1628,7 @@ export default function ProjectRoomPage() {
         </section>
 
         {/* RIGHT SIDEBAR: PROJECT STATE (Honest Live Information, No Fake Tabs or Affordances) */}
-        <aside className="hidden md:flex flex-col bg-white border-l border-slate-200 min-h-0">
+        <aside id="room-context" aria-label="Project context" className={`${mobileView === "context" ? "flex" : "hidden"} md:flex flex-col bg-white border-l border-slate-200 min-h-0`}>
           <div className="p-4 border-b border-slate-200">
             <div className="flex items-center justify-between">
               <div className="text-sm font-bold text-slate-900">Project Context</div>
@@ -1617,7 +1637,7 @@ export default function ProjectRoomPage() {
               </span>
             </div>
             <div className="mt-1 text-[11px] text-slate-500">
-              Real-time alignment between Bangkok buyer & Chinese factory
+              Room decisions and shared specifications
             </div>
 
             {/* Live Counters */}
@@ -1691,13 +1711,15 @@ export default function ProjectRoomPage() {
                         </div>
                         <button
                           type="button"
-                          onClick={() =>
-                            void navigator.clipboard.writeText(inviteUrl)
-                          }
+                          onClick={async () => {
+                            try { await navigator.clipboard.writeText(inviteUrl); setCopyNotice("Invite link copied."); }
+                            catch { setCopyNotice("Unable to copy. Select the link and copy it manually."); }
+                          }}
                           className="mt-1.5 rounded bg-emerald-700 px-2 py-1 text-[10px] font-semibold text-white"
                         >
-                          Copy Invite Link
+                          {copyNotice === "Invite link copied." ? "Copied" : "Copy Invite Link"}
                         </button>
+                        {copyNotice && <p role="status" className="mt-1 text-xs text-slate-800">{copyNotice}</p>}
                       </div>
                     )}
                   </div>
@@ -1710,6 +1732,7 @@ export default function ProjectRoomPage() {
             <ProjectStatePanel
               state={projectState}
               stateStatus={projectStateStatus}
+              aiStatus={aiStatus}
               reviewingProposalId={reviewingProposalId}
               actionError={projectStateError}
               onReview={handleReviewProjectState}

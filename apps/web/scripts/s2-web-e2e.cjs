@@ -244,6 +244,10 @@ async function main() {
   }
   await check('Buyer signs in with seeded email/password through UI', () => login(buyer, 's2-buyer@s2-test.invalid', passwords.S2_BUYER_PASSWORD));
   if (mode === 'inquiries') { await inquirySuite(buyer); return; }
+  if (mode === 'ui') {
+    await require('./s2-ui-review.cjs')({ buyer, context, check, login, signedIn, fixtures, values, passwords, output, url, createClient, remoteRequests, pageErrors });
+    return;
+  }
   const stamp = 's2-web-' + Date.now();
   await check('Buyer sees the seeded internal and shared rooms', async () => {
     await buyer.getByRole('button').filter({ hasText: '[S2-TEST] Buyer Internal' }).first().waitFor();
@@ -308,8 +312,8 @@ async function main() {
       await invited.locator('input[type=file]').setInputFiles(file);
       const record = await (await registration).json(); assert(record.file?.id); registered.push(record.file);
       const tile = invited.getByRole('button').filter({ hasText: path.basename(file) }).last();
-      await tile.getByText('Verified', { exact: true }).waitFor(); assert(await tile.isEnabled());
-      await buyer.getByRole('button').filter({ hasText: path.basename(file) }).last().getByText('Verified', { exact: true }).waitFor();
+      await tile.getByText('Byte checks passed', { exact: true }).waitFor(); assert(await tile.isEnabled());
+      await buyer.getByRole('button').filter({ hasText: path.basename(file) }).last().getByText('Byte checks passed', { exact: true }).waitFor();
     });
     await check(['PDF', 'XLSX', 'PNG'][index] + ' buyer UI download has identical SHA256', async () => {
       const signing = buyer.waitForResponse(r => r.url().includes('/functions/v1/room-file-gateway') && r.request().postDataJSON()?.action === 'sign');
@@ -335,7 +339,7 @@ async function main() {
     await invited.locator('input[type=file]').setInputFiles(files[0]);
     const record = await (await registration).json(); assert.equal(record.file.version_no, 2); assert.equal(record.file.supersedes_version_id, registered[0].id);
     const tiles = invited.getByRole('button').filter({ hasText: path.basename(files[0]) });
-    await tiles.last().getByText('Verified', { exact: true }).waitFor();
+    await tiles.last().getByText('Byte checks passed', { exact: true }).waitFor();
     await tiles.first().getByText('Superseded', { exact: true }).waitFor();
   });
   await invited.screenshot({ path: path.join(output, '01-supplier-messages-files.png') });
@@ -357,7 +361,7 @@ async function main() {
     await stopServer(); await startServer(); await buyer.reload(); await chooseRoom(buyer, roomName); await invited.reload();
     await shown(buyer, supplierText); await shown(invited, buyerText);
     const tiles = invited.getByRole('button').filter({ hasText: path.basename(files[0]) });
-    await tiles.last().getByText('Verified', { exact: true }).waitFor(); await tiles.first().getByText('Superseded', { exact: true }).waitFor();
+    await tiles.last().getByText('Byte checks passed', { exact: true }).waitFor(); await tiles.first().getByText('Superseded', { exact: true }).waitFor();
     await invited.screenshot({ path: path.join(output, '03-after-reconnect-restart.png') });
   });
   await check('AI keys are absent; rule analysis works and no browser requests leave localhost', async () => {

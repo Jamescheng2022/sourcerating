@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
 import { supabase, SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/supabase";
 import { STORAGE_KEY_ORG_ID, STORAGE_KEY_ROLE } from "@/lib/demo-session";
 
@@ -24,11 +25,14 @@ export default function JoinProjectPage() {
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const rawToken = params.get("token") || "";
     setToken(rawToken);
+    setLoading(true);
+    setError(null);
 
     if (!rawToken) {
       setError("Missing invite token.");
@@ -61,7 +65,7 @@ export default function JoinProjectPage() {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [retry]);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -139,7 +143,7 @@ export default function JoinProjectPage() {
           SourceRating Project Invitation
         </div>
         <h1 className="mt-2 text-xl font-bold text-white">
-          Join {preview?.organization?.name || "project partner room"}
+          Join project room
         </h1>
         <p className="mt-2 text-sm leading-6 text-slate-400">
           Project:{" "}
@@ -155,10 +159,17 @@ export default function JoinProjectPage() {
         </p>
 
         {error && (
-          <div className="mt-4 rounded-lg border border-rose-800/60 bg-rose-950/40 px-3 py-2 text-xs text-rose-200">
+          <div role="alert" className="mt-4 rounded-lg border border-rose-800/60 bg-rose-950/40 px-3 py-2 text-xs text-rose-200">
             {error}
           </div>
         )}
+
+        {!preview?.ok && <div className="mt-4 space-y-3 text-sm">
+          <p className="text-slate-300">Ask the project buyer for a fresh invitation if this link is missing, invalid or expired.</p>
+          {token && <button type="button" onClick={() => setRetry(value => value + 1)} className="rounded bg-sky-500 px-3 py-2 font-semibold text-slate-950">Retry invitation check</button>}
+        </div>}
+        <Link href="/project-room" className="mt-4 inline-block text-sm font-semibold text-sky-300 underline">Go to project sign in</Link>
+        {preview?.organization?.name && <p className="mt-3 text-sm text-slate-300">Joining as: {preview.organization.name}</p>}
 
         {preview?.ok && (
           <form onSubmit={handleSubmit} className="mt-5 space-y-3">
@@ -209,7 +220,7 @@ export default function JoinProjectPage() {
               {submitting ? "Joining project..." : "Join Project Room"}
             </button>
 
-            <p className="text-[11px] leading-5 text-slate-500">
+            <p className="text-[11px] leading-5 text-slate-400">
               This invitation grants access only to the room shown above. Other
               companies&apos; private rooms remain isolated.
             </p>
