@@ -1,4 +1,4 @@
-import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase';
+import { supabase } from './supabase';
 
 export type DemoRole = 'buyer' | 'supplier';
 
@@ -46,119 +46,30 @@ export interface PendingDraft {
 export const STORAGE_KEY_ROLE = 'p1_demo_role';
 export const STORAGE_KEY_ORG_ID = 'p1_demo_acting_org_id';
 
-/**
- * Perform Demo Auth flow:
- * 1. Edge function POST p1-demo-auth -> { role, email, password, userId }
- * 2. signInWithPassword
- * 3. RPC claim_p1_demo_role({ p_role: role })
- */
-export async function loginWithDemoRole(role: DemoRole): Promise<{
-  role: DemoRole;
-  actingOrgId: string | null;
-  userId: string;
-  email: string;
-}> {
-  // Step 1: Call demo auth edge function
-  const edgeFnUrl = `${SUPABASE_URL}/functions/v1/p1-demo-auth`;
-  const response = await fetch(edgeFnUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-    },
-    body: JSON.stringify({ role }),
-  });
+/** Restore a UI identity from active database memberships, never editable metadata. */
+export async function resolveSessionIdentity() {
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) return null;
+  const { data, error } = await supabase.from('room_members')
+    .select('acting_organization_id,rooms!inner(owner_organization_id)')
+    .eq('user_id', user.id).is('removed_at', null);
+  if (error) throw error;
+  const preferred = getPersistedDemoSession().actingOrgId;
+  const membership = data?.find(row => row.acting_organization_id === preferred) || data?.[0];
+  if (!membership) throw new Error('No active project room membership. Open your project invitation to join.');
+  const room = Array.isArray(membership.rooms) ? membership.rooms[0] : membership.rooms;
+  const role: DemoRole = room.owner_organization_id === membership.acting_organization_id ? 'buyer' : 'supplier';
+  localStorage.setItem(STORAGE_KEY_ROLE, role);
+  localStorage.setItem(STORAGE_KEY_ORG_ID, membership.acting_organization_id);
+  return { role, actingOrgId: membership.acting_organization_id, userId: user.id };
+}
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Demo auth error (${response.status}): ${errorText || 'Failed to authenticate'}`);
-  }
-
-  const authData = await response.json();
-  const email = authData.email;
-  const password = authData.password;
-  const userId = authData.userId || authData.user_id || '';
-
-  if (!email || !password) {
-    throw new Error('Demo auth did not return required credentials.');
-  }
-
-  // Step 2: Sign in with password
-  const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-
-  if (signInError) {
-    throw signInError;
-  }
-
-  // Step 3: RPC claim_p1_demo_role
-  let claimData: any = null;
-  try {
-    const rpcRes = await supabase.rpc('claim_p1_demo_role', {
-      p_role: role,
-    });
-    if (rpcRes.error) {
-      console.warn('claim_p1_demo_role warning:', rpcRes.error);
-    } else {
-      claimData = rpcRes.data;
-    }
-  } catch (err) {
-    console.warn('claim_p1_demo_role call exception:', err);
-  }
-
-  // Determine acting organization ID. Table-returning RPCs come back as an array.
-  let actingOrgId: string | null = null;
-  const claimRow = Array.isArray(claimData) ? claimData[0] : claimData;
-
-  if (typeof claimRow === 'string' && claimRow.trim()) {
-    actingOrgId = claimRow.trim();
-  } else if (claimRow && typeof claimRow === 'object') {
-    actingOrgId =
-      claimRow.organization_id ||
-      claimRow.org_id ||
-      claimRow.actor_organization_id ||
-      claimRow.id ||
-      null;
-  }
-
-  if (!actingOrgId && authData) {
-    actingOrgId =
-      authData.organization_id ||
-      authData.org_id ||
-      authData.actor_organization_id ||
-      authData.acting_org_id ||
-      null;
-  }
-
-  const user = signInData.user;
-  if (!actingOrgId && user) {
-    actingOrgId =
-      user.user_metadata?.organization_id ||
-      user.app_metadata?.organization_id ||
-      user.user_metadata?.org_id ||
-      user.app_metadata?.org_id ||
-      null;
-  }
-
-  // Persist locally
-  if (typeof window !== 'undefined') {
-    localStorage.setItem(STORAGE_KEY_ROLE, role);
-    if (actingOrgId) {
-      localStorage.setItem(STORAGE_KEY_ORG_ID, actingOrgId);
-    } else {
-      localStorage.removeItem(STORAGE_KEY_ORG_ID);
-    }
-  }
-
-  return {
-    role,
-    actingOrgId,
-    userId: user?.id || userId,
-    email,
-  };
+export async function loginWithPassword(email: string, password: string) {
+  const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+  if (error) throw error;
+  const identity = await resolveSessionIdentity();
+  if (!identity) throw new Error('Unable to restore your project session.');
+  return identity;
 }
 
 /**

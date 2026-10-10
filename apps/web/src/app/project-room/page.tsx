@@ -7,13 +7,12 @@ import {
   Room,
   RoomEvent,
   PendingDraft,
-  loginWithDemoRole,
+  loginWithPassword,
+  resolveSessionIdentity,
   resetDemoIdentity,
-  getPersistedDemoSession,
   dedupeAndSortEvents,
   getMaxSeq,
   extractEventText,
-  STORAGE_KEY_ORG_ID,
 } from "@/lib/demo-session";
 import { analyzeRoomEvent } from "@/lib/staging";
 import {
@@ -34,7 +33,9 @@ export default function ProjectRoomPage() {
   const [actingOrgId, setActingOrgId] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
-  const [authLoading, setAuthLoading] = useState<DemoRole | null>(null);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
 
   // Viewport height tracking for mobile/Android virtual keyboard
@@ -95,6 +96,15 @@ export default function ProjectRoomPage() {
     >
   >({});
 
+  useEffect(() => {
+    if (!activeRoomId || !currentUserId) return;
+    let current = true;
+    void supabase.from("room_members").select("acting_organization_id")
+      .eq("room_id", activeRoomId).eq("user_id", currentUserId).is("removed_at", null)
+      .then(({ data }) => { if (current && data?.[0]) setActingOrgId(data[0].acting_organization_id); });
+    return () => { current = false; };
+  }, [activeRoomId, currentUserId]);
+
   // Track max seq for gap filling
   const lastSeqRef = useRef<number>(0);
   const activeRoomIdRef = useRef<string>("");
@@ -139,24 +149,14 @@ export default function ProjectRoomPage() {
 
     async function initSession() {
       try {
-        const { role: savedRole, actingOrgId: savedOrgId } = getPersistedDemoSession();
-        const { data: sessionData } = await supabase.auth.getSession();
-
-        if (sessionData.session && savedRole) {
-          if (isMounted) {
-            setRole(savedRole);
-            setActingOrgId(savedOrgId);
-            setCurrentUserId(sessionData.session.user.id);
-          }
-        } else {
-          if (isMounted) {
-            setRole(null);
-            setActingOrgId(null);
-            setCurrentUserId(null);
-          }
+        const identity = await resolveSessionIdentity();
+        if (isMounted && identity) {
+          setRole(identity.role);
+          setActingOrgId(identity.actingOrgId);
+          setCurrentUserId(identity.userId);
         }
       } catch (err) {
-        console.error("Session init error:", err);
+        setAuthError(err instanceof Error ? err.message : "Unable to restore session.");
       } finally {
         if (isMounted) {
           setIsInitializing(false);
@@ -182,15 +182,7 @@ export default function ProjectRoomPage() {
       }
 
       if (rlsRooms && rlsRooms.length > 0) {
-        // Enforce supplier restriction: Supplier MUST NEVER discover or see Buyer Internal room
-        const filteredRooms =
-          currentRole === "supplier"
-            ? rlsRooms.filter((r) => {
-                const b = (r.boundary || "").toUpperCase();
-                const name = (r.name || "").toLowerCase();
-                return b !== "PRIVATE" && b !== "INTERNAL" && !name.includes("internal");
-              })
-            : rlsRooms;
+        const filteredRooms = rlsRooms; // RLS is the sole visibility boundary.
 
         setRooms(filteredRooms);
 
@@ -201,20 +193,6 @@ export default function ProjectRoomPage() {
           return filteredRooms[0]?.id || "";
         });
 
-        if (!currentOrgId && filteredRooms.length > 0) {
-          const firstRoom = filteredRooms[0];
-          const discoveredOrg =
-            currentRole === "buyer"
-              ? firstRoom.buyer_organization_id || firstRoom.organization_id
-              : firstRoom.supplier_organization_id || firstRoom.organization_id;
-
-          if (discoveredOrg) {
-            setActingOrgId(discoveredOrg);
-            if (typeof window !== "undefined") {
-              localStorage.setItem(STORAGE_KEY_ORG_ID, discoveredOrg);
-            }
-          }
-        }
       } else {
         setRooms([]);
         setActiveRoomId("");
@@ -232,25 +210,26 @@ export default function ProjectRoomPage() {
     }
   }, [role, loadRooms, actingOrgId]);
 
-  // Handle Demo Login flow
-  const handleEnterDemo = async (selectedRole: DemoRole) => {
-    setAuthLoading(selectedRole);
+  // Sign in to existing accounts; project membership supplies the UI identity.
+  const handleSignIn = async () => {
+    setAuthLoading(true);
     setAuthError(null);
     try {
-      const result = await loginWithDemoRole(selectedRole);
+      const result = await loginWithPassword(email, password);
       setRole(result.role);
       setActingOrgId(result.actingOrgId);
       setCurrentUserId(result.userId);
       await loadRooms(result.role, result.actingOrgId);
     } catch (err: any) {
-      console.error("Demo login failed:", err);
-      setAuthError(err.message || "Failed to start demo session. Please try again.");
+      console.error("Sign-in failed:", err);
+      setAuthError(err.message || "Unable to sign in. Please try again.");
     } finally {
-      setAuthLoading(null);
+      setAuthLoading(false);
+      setPassword("");
     }
   };
 
-  // Handle Reset Demo Identity
+  // Sign out
   const handleResetIdentity = async () => {
     await resetDemoIdentity();
     setRole(null);
@@ -265,17 +244,7 @@ export default function ProjectRoomPage() {
     setInputText("");
   };
 
-  // Strictly constrain visible rooms: Supplier NEVER sees Buyer Internal
-  const visibleRooms = useMemo(() => {
-    if (role === "supplier") {
-      return rooms.filter((r) => {
-        const b = (r.boundary || "").toUpperCase();
-        const n = (r.name || "").toLowerCase();
-        return b !== "PRIVATE" && b !== "INTERNAL" && !n.includes("internal");
-      });
-    }
-    return rooms;
-  }, [rooms, role]);
+  const visibleRooms = rooms;
 
   // Active room fallback
   const activeRoom = useMemo(() => {
@@ -290,20 +259,14 @@ export default function ProjectRoomPage() {
     );
   }, [visibleRooms, activeRoomId, role]);
 
-  // Auto-switch away if supplier somehow lands on an internal room
+  // Select a room returned by RLS.
   useEffect(() => {
     if (visibleRooms.length > 0 && !visibleRooms.some((r) => r.id === activeRoomId)) {
       setActiveRoomId(visibleRooms[0].id);
     }
   }, [visibleRooms, activeRoomId]);
 
-  // Boundary recognition helper: Internal (Confidential) vs Shared (Supplier)
-  const isInternal = useMemo(() => {
-    if (role === "supplier") return false;
-    const b = (activeRoom.boundary || "").toUpperCase();
-    const n = (activeRoom.name || "").toLowerCase();
-    return b === "PRIVATE" || b === "INTERNAL" || n.includes("internal");
-  }, [activeRoom, role]);
+  const isInternal = activeRoom.kind === "buyer_internal";
 
   const externalPartnerName = useMemo(() => {
     if (isInternal) return "External Supplier";
@@ -889,96 +852,32 @@ export default function ProjectRoomPage() {
       <main className="h-[100dvh] flex items-center justify-center bg-slate-950 text-slate-200">
         <div className="flex flex-col items-center gap-3">
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-sky-400 border-t-transparent"></div>
-          <div className="text-xs text-slate-400">Initializing SourceRating P1 Demo...</div>
+          <div className="text-xs text-slate-400">Restoring your project session...</div>
         </div>
       </main>
     );
   }
 
-  // 2. Demo role selection screen
   if (!role) {
     return (
-      <main className="h-[100dvh] min-h-[100dvh] max-h-[100dvh] overflow-y-auto bg-slate-950 text-slate-100 flex items-center justify-center p-4">
-        <div className="w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900/90 p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 text-lg font-bold text-white shadow-lg shadow-sky-500/25">
-              P1
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-white">Live P1 Project Room Demo</h1>
-              <p className="text-xs text-slate-400">Two-session live alignment · Supabase RLS</p>
-            </div>
-          </div>
-
-          <div className="mt-5 rounded-xl border border-slate-800 bg-slate-950/60 p-4 text-xs text-slate-300 space-y-2">
-            <div className="font-semibold text-slate-200">Demonstration Scope:</div>
-            <ul className="list-disc list-inside space-y-1.5 text-slate-400 text-[11px]">
-              <li>
-                <strong className="text-sky-300">Buyer · 买方 · ผู้ซื้อ:</strong> Apex Living Modular. Has access to confidential Internal Room & shared EastFrame room.
-              </li>
-              <li>
-                <strong className="text-amber-300">Supplier · 供应商 · ซัพพลายเออร์:</strong> EastFrame Steel. Access strictly constrained by RLS to shared room only. Internal room is never visible.
-              </li>
-              <li>Real-time event synchronization with sequence gap filling and IME-safe messaging.</li>
-            </ul>
-          </div>
-
-          {authError && (
-            <div className="mt-4 rounded-xl border border-red-900/50 bg-red-950/40 p-3 text-xs text-red-300">
-              ⚠️ {authError}
-            </div>
-          )}
-
-          <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <button
-              onClick={() => handleEnterDemo("buyer")}
-              disabled={authLoading !== null}
-              className="group flex flex-col items-start rounded-xl border border-sky-500/40 bg-sky-950/30 p-4 text-left transition hover:border-sky-400 hover:bg-sky-900/40 disabled:opacity-50"
-            >
-              <div className="flex w-full items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-sky-400">Buyer · 买方</span>
-                {authLoading === "buyer" && (
-                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-sky-400 border-t-transparent" />
-                )}
-              </div>
-              <div className="mt-2 text-sm font-bold text-white group-hover:text-sky-300">
-                Enter as Buyer
-              </div>
-              <div className="mt-0.5 text-[11px] text-sky-300/80">
-                สำหรับผู้ซื้อ
-              </div>
-              <div className="mt-1 text-[11px] text-slate-400">
-                Apex Living Modular · 2 rooms (Internal + Shared)
-              </div>
-            </button>
-
-            <button
-              onClick={() => handleEnterDemo("supplier")}
-              disabled={authLoading !== null}
-              className="group flex flex-col items-start rounded-xl border border-amber-500/40 bg-amber-950/30 p-4 text-left transition hover:border-amber-400 hover:bg-amber-900/40 disabled:opacity-50"
-            >
-              <div className="flex w-full items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-amber-400">Supplier · 供应商</span>
-                {authLoading === "supplier" && (
-                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-amber-400 border-t-transparent" />
-                )}
-              </div>
-              <div className="mt-2 text-sm font-bold text-white group-hover:text-amber-300">
-                Enter as Supplier
-              </div>
-              <div className="mt-0.5 text-[11px] text-amber-300/80">
-                สำหรับซัพพลายเออร์
-              </div>
-              <div className="mt-1 text-[11px] text-slate-400">
-                EastFrame Steel · 1 room (Shared only)
-              </div>
-            </button>
-          </div>
-
-          <div className="mt-6 text-center text-[11px] text-slate-500">
-            Powered by deployed Supabase backend · No service-role key on frontend
-          </div>
-        </div>
+      <main className="min-h-[100dvh] flex items-center justify-center bg-slate-950 p-4 text-slate-100">
+        <form className="w-full max-w-md space-y-4 rounded-2xl border border-slate-800 bg-slate-900 p-6"
+          onSubmit={(event) => { event.preventDefault(); void handleSignIn(); }}>
+          <h1 className="text-xl font-bold">SourceRating Project Room</h1>
+          <p className="text-sm text-slate-400">Sign in to your invited project rooms.</p>
+          <label className="block text-sm">Email
+            <input type="email" autoComplete="username" required value={email} onChange={e => setEmail(e.target.value)}
+              className="mt-1 w-full rounded border border-slate-700 bg-slate-950 p-2" />
+          </label>
+          <label className="block text-sm">Password
+            <input type="password" autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)}
+              className="mt-1 w-full rounded border border-slate-700 bg-slate-950 p-2" />
+          </label>
+          {authError && <p role="alert" className="text-sm text-rose-300">{authError}</p>}
+          <button type="submit" disabled={authLoading} className="w-full rounded bg-sky-500 p-2 font-semibold text-slate-950 disabled:opacity-50">
+            {authLoading ? "Signing in..." : "Sign in"}
+          </button>
+        </form>
       </main>
     );
   }
@@ -1037,10 +936,7 @@ export default function ProjectRoomPage() {
             ) : (
               visibleRooms.map((r) => {
                 const isSelected = r.id === activeRoom.id;
-                const rIsInternal =
-                  (r.boundary || "").toUpperCase() === "PRIVATE" ||
-                  (r.boundary || "").toUpperCase() === "INTERNAL" ||
-                  (r.name || "").toLowerCase().includes("internal");
+                const rIsInternal = r.kind === "buyer_internal";
 
                 return (
                   <button
@@ -1091,7 +987,7 @@ export default function ProjectRoomPage() {
               onClick={handleResetIdentity}
               className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800 hover:text-white transition"
             >
-              Switch Role · 切换身份
+              Sign out · 退出
             </button>
           </div>
         </aside>
@@ -1106,10 +1002,7 @@ export default function ProjectRoomPage() {
                 {role === "buyer" && visibleRooms.length > 1 ? (
                   <div className="flex rounded-lg bg-slate-100 p-0.5 text-xs">
                     {visibleRooms.map((r) => {
-                      const rIsInternal =
-                        (r.boundary || "").toUpperCase() === "PRIVATE" ||
-                        (r.boundary || "").toUpperCase() === "INTERNAL" ||
-                        (r.name || "").toLowerCase().includes("internal");
+                      const rIsInternal = r.kind === "buyer_internal";
                       const isSelected = r.id === activeRoom.id;
                       return (
                         <button
