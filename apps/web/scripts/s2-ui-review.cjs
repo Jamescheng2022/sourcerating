@@ -190,6 +190,7 @@ module.exports = async function suite(d) {
   await check('P3-03 invite copy reports success and offers manual recovery on clipboard failure', async () => {
     await buyer.getByRole('button', { name: 'Create', exact: true }).click();
     await buyer.getByPlaceholder('Supplier company name').fill('[S2-TEST] Copy feedback ' + stamp);
+    await buyer.getByPlaceholder('Invitee email (required)').fill(stamp + '-copy@s2-test.invalid');
     await buyer.getByRole('button', { name: 'Generate 7-day Invite Link' }).click();
     await buyer.getByRole('button', { name: 'Copy Invite Link', exact: true }).waitFor();
     await buyer.evaluate(() => Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async () => {} } }));
@@ -229,7 +230,7 @@ module.exports = async function suite(d) {
   }
   const token = crypto.randomBytes(32).toString('hex'), expiredToken = crypto.randomBytes(32).toString('hex');
   for (const [raw, expires] of [[token, Date.now() + 3600000], [expiredToken, Date.now() - 3600000]]) {
-    assert.ifError((await admin.from('project_invites').insert({ token_hash: crypto.createHash('sha256').update(raw).digest('hex'), project_id: project, room_id: shared, target_organization_id: supplierOrg, invited_role: 'supplier', created_by_user_id: ba.user.id, created_by_organization_id: buyerOrg, expires_at: new Date(expires).toISOString() })).error);
+    assert.ifError((await admin.from('project_invites').insert({ token_hash: crypto.createHash('sha256').update(raw).digest('hex'), project_id: project, room_id: shared, target_organization_id: supplierOrg, invited_role: 'supplier', invited_email: stamp + '@s2-test.invalid', created_by_user_id: ba.user.id, created_by_organization_id: buyerOrg, expires_at: new Date(expires).toISOString() })).error);
   }
   await check('P1-03 expired join link has a recoverable sign-in path and new-invite instruction', async () => {
     await join.goto(url + '/join?token=' + expiredToken); await join.getByRole('alert').filter({ hasText: /\S/ }).waitFor();
@@ -247,7 +248,7 @@ module.exports = async function suite(d) {
     await join.getByText('Joining as: ' + inquiry.submitter_organization_name, { exact: true }).waitFor();
   });
   await check('P1-03 failed join submit preserves name/email/password and enables retry', async () => {
-    await join.getByLabel('Your name').fill('[S2-TEST] retained join draft'); await join.getByLabel('Email', { exact: true }).fill(stamp + '@s2-test.invalid');
+    await join.getByLabel('Your name').fill('[S2-TEST] retained join draft'); assert.equal(await join.getByLabel('Email', { exact: true }).inputValue(), stamp + '@s2-test.invalid'); assert(await join.getByLabel('Email', { exact: true }).isDisabled());
     const password = crypto.randomBytes(24).toString('hex'); await join.getByLabel('Password', { exact: true }).fill(password);
     await join.route('**/functions/v1/project-invite', route => route.request().postDataJSON()?.action === 'bootstrap' ? route.fulfill({ status: 503, contentType: 'application/json', body: '{"ok":false,"error":"Temporary test outage"}' }) : route.continue());
     await join.getByRole('button', { name: 'Join Project Room' }).click(); await join.getByRole('alert').filter({ hasText: /\S/ }).waitFor();

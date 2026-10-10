@@ -456,7 +456,7 @@ export function ProjectStatePanel({
                 No unassigned staging drafts
               </div>
               <div className="text-[10px] text-slate-600 mt-0.5">
-                Resident agent creates drafts as project conversation progresses.
+                Drafts appear here when available.
               </div>
             </div>
           ) : (

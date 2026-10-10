@@ -1,7 +1,8 @@
 """Real native UI acceptance on the existing AVD; local synthetic data only.
 
 Start the local stack, build/install the local APK and boot SourceRating_API35
-without snapshot load/save first. No SDK/emulator install, package uninstall,
+read-only without snapshot load/save, or use the authorized dedicated clone.
+No SDK/emulator install, package uninstall,
 snapshot mutation, remote backend, or user creation is performed here.
 """
 import argparse
@@ -17,6 +18,7 @@ import sys
 import time
 import traceback
 import urllib.error
+import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 import zipfile
@@ -28,6 +30,7 @@ SHARED = '52000000-0000-4000-8000-0000000000e2'
 INTERNAL = '52000000-0000-4000-8000-0000000000e1'
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--adb-port', default='5038')
+parser.add_argument('--avd-name', choices=['SourceRating_API35', 'SourceRating_API35_L1'], default='SourceRating_API35')
 parser.add_argument('--package', default='com.sourcerating.mobile.stage2')
 parser.add_argument('--evidence-dir', type=Path, default=ROOT / 'carryover/B7-artifacts/live')
 args = parser.parse_args()
@@ -49,8 +52,15 @@ def adb(*argv):
     return subprocess.check_output(ADB + list(argv), stderr=subprocess.STDOUT, timeout=45)
 
 def nodes():
-    adb('shell', 'uiautomator', 'dump', '/sdcard/s2-b7-ui.xml')
-    return list(ET.fromstring(adb('exec-out', 'cat', '/sdcard/s2-b7-ui.xml')).iter('node'))
+    # A cold boot can briefly return no hierarchy before the Activity draws.
+    for attempt in range(3):
+        adb('shell', 'uiautomator', 'dump', '/sdcard/s2-b7-ui.xml')
+        try:
+            return list(ET.fromstring(adb('exec-out', 'cat', '/sdcard/s2-b7-ui.xml')).iter('node'))
+        except ET.ParseError:
+            if attempt == 2:
+                raise AssertionError('ADB returned no valid UI hierarchy after three reads') from None
+            time.sleep(.5)
 
 def texts():
     return [n.get('text', '') for n in nodes() if n.get('password') != 'true']
@@ -85,6 +95,22 @@ def wait_ui(needle, timeout=45):
         time.sleep(.3)
     raise AssertionError('UI never displayed ' + needle)
 
+def scroll_message_into_view(needle, older):
+    # A narrow phone cannot show both participants and all file cards at once.
+    for attempt in range(9):
+        current = nodes()
+        visible = '\n'.join(n.get('text', '') for n in current if n.get('password') != 'true')
+        if needle in visible:
+            return visible
+        if attempt == 8:
+            break
+        listing = next(n for n in current if n.get('class') == 'android.widget.ListView')
+        x1, y1, x2, y2 = map(int, re.findall(r'\d+', listing.get('bounds')))
+        top, bottom = y1 + (y2 - y1) // 5, y2 - (y2 - y1) // 5
+        start, end = (top, bottom) if older else (bottom, top)
+        adb('shell', 'input', 'swipe', str((x1 + x2) // 2), str(start), str((x1 + x2) // 2), str(end), '400')
+    raise AssertionError('Native message list never displayed ' + needle)
+
 def check(label, condition):
     assert condition, label
     CHECKS.append(label)
@@ -113,6 +139,7 @@ def auth(role):
     return result['access_token']
 
 def login(role):
+    wait_ui('Sign-in email')
     fill('Sign-in email', 's2-' + role + '@s2-test.invalid')
     fill('Sign-in password', PASSWORDS['S2_' + role.upper() + '_PASSWORD'])
     tap('Sign in')
@@ -120,17 +147,34 @@ def login(role):
 
 def room(name):
     tap_node(next(n for n in nodes() if n.get('class') == 'android.widget.Spinner'))
+    # Retained fixtures can put the selected item below the first menu item.
+    for _ in range(6):
+        if name in texts(): break
+        size = adb('shell', 'wm', 'size').decode()
+        width, height = map(int, re.findall(r'(\d+)x(\d+)', size)[-1])
+        adb('shell', 'input', 'swipe', str(width // 2), str(height // 3), str(width // 2), str(height * 3 // 4), '400')
     tap(name)
+    wait_ui(name)
     wait_ui('polling 3s')
 
 def upload(path):
     adb('push', str(path), '/sdcard/Download/' + path.name)
     tap('+')
+    # Wait for DocumentsUI to draw its navigation controls on a cold boot.
+    deadline = time.monotonic() + 45
+    while time.monotonic() < deadline:
+        listed_nodes = nodes()
+        if any(n.get('content-desc') == 'Show roots' or n.get('text') == path.name for n in listed_nodes):
+            break
+        time.sleep(.3)
+    else:
+        raise AssertionError('native document picker never became ready')
     listed = texts()
     if path.name not in listed:
         tap_node(next(n for n in nodes() if n.get('content-desc') == 'Show roots'))
         tap('Downloads')
     tap(path.name)
+    wait_ui('SourceRating')
     wait_ui('📎 ' + path.name)
 
 def files(token, room_id=SHARED):
@@ -158,12 +202,25 @@ def events(token):
     return [r['payload'].get('text') for r in rows]
 
 def main():
-    check('existing SourceRating_API35 AVD selected', b'SourceRating_API35' in adb('emu', 'avd', 'name'))
+    avd_name = adb('emu', 'avd', 'name').decode().splitlines()[0].strip()
+    check('authorized ' + args.avd_name + ' AVD selected', avd_name == args.avd_name)
     buyer, supplier = auth('buyer'), auth('supplier')
+    supplier_status, supplier_identity = http('/auth/v1/user', supplier)
+    assert supplier_status == 200 and supplier_identity.get('id'), 'live supplier identity required'
     adb('shell', 'am', 'force-stop', args.package)
     adb('shell', 'am', 'start', '-n', args.package + '/com.sourcerating.mobile.MainActivity')
-    if 'Logout' in texts(): tap('Logout')
+    deadline = time.monotonic() + 45
+    while time.monotonic() < deadline:
+        initial = texts()
+        if 'Logout' in initial:
+            tap('Logout')
+            break
+        if 'Sign-in email' in initial:
+            break
+        time.sleep(.3)
+    else: raise AssertionError('native startup controls never became ready')
     login('buyer')
+    room('[S2-TEST] Buyer Internal')
     check('buyer email/password login', 'Buyer Internal' in '\n'.join(texts()))
     screenshot('01-buyer-login')
     fixture_dir = OUT / 'fixtures'
@@ -246,16 +303,22 @@ def main():
     check('native supplier reply visible to buyer through RLS', supplier_message in events(buyer))
     upload(png)
     supplier_files = wait_files(supplier, 5)
-    check('supplier native attachment upload uses its own org-scoped version chain', any(r['logical_name'] == png.name.lower() and r['version_no'] == 1 and r['uploader_user_id'] == '32d0b61b-4f9f-42de-8d2e-46edd51e9803' and r['server_sha256'] == hashlib.sha256(png.read_bytes()).hexdigest() for r in supplier_files))
+    check('supplier native attachment upload uses its own org-scoped version chain', any(r['logical_name'] == png.name.lower() and r['version_no'] == 1 and r['uploader_user_id'] == supplier_identity['id'] and r['server_sha256'] == hashlib.sha256(png.read_bytes()).hexdigest() for r in supplier_files))
     screenshot('03-supplier-message-and-files')
     tap('Logout')
     login('buyer')
     room('[S2-TEST] Supplier Co - Shared')
     check('supplier reply visible in native buyer UI', supplier_message in wait_ui(supplier_message))
+    status, sender_rows = http('/rest/v1/room_events?select=actor_display_name&room_id=eq.' + SHARED + '&payload->>text=eq.' + urllib.parse.quote(supplier_message), buyer)
+    check('native sender label comes from server actor snapshot', status == 200 and len(sender_rows) == 1 and sender_rows[0]['actor_display_name'] in wait_ui(sender_rows[0]['actor_display_name']))
     adb('shell', 'am', 'force-stop', args.package)
     adb('shell', 'am', 'start', '-n', args.package + '/com.sourcerating.mobile.MainActivity')
-    check('force-stop/reopen restores session room and both messages', buyer_message in wait_ui(supplier_message))
-    check('force-stop/reopen retains attachment versions', '📎 ' + pdf.name + '  ·  v2' in wait_ui('📎 ' + pdf.name + '  ·  v2'))
+    wait_ui(supplier_message)
+    check('force-stop/reopen restores session room and both messages', buyer_message in scroll_message_into_view(buyer_message, older=True))
+    scroll_message_into_view(supplier_message, older=False)
+    version_label = '📎 ' + pdf.name + '  ·  v2'
+    check('force-stop/reopen retains attachment versions', version_label in scroll_message_into_view(version_label, older=True))
+    scroll_message_into_view(supplier_message, older=False)
     # Emulator network is restored in finally, including on test failure.
     adb('shell', 'svc', 'wifi', 'disable')
     adb('shell', 'svc', 'data', 'disable')

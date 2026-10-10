@@ -19,7 +19,11 @@ const remoteRequests = [];
 const pageErrors = [];
 let server, browser;
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-async function check(label, fn) { await fn(); results.push({ label, pass: true }); console.log('PASS ' + label); }
+async function check(label, fn) {
+  fs.writeFileSync(path.join(output, 'progress.json'), JSON.stringify({ pending: label, results }, null, 2));
+  await fn(); results.push({ label, pass: true }); console.log('PASS ' + label);
+  fs.writeFileSync(path.join(output, 'progress.json'), JSON.stringify({ pending: null, results }, null, 2));
+}
 async function startServer() {
   const env = { ...process.env };
   for (const key of Object.keys(env)) if (/API_KEY|SERVICE_ROLE|SECRET|PASSWORD|S2_ALLOW_REMOTE/i.test(key)) delete env[key];
@@ -244,6 +248,7 @@ async function main() {
   }
   await check('Buyer signs in with seeded email/password through UI', () => login(buyer, 's2-buyer@s2-test.invalid', passwords.S2_BUYER_PASSWORD));
   if (mode === 'inquiries') { await inquirySuite(buyer); return; }
+  if (mode === 'review') { await require('./s2-prelaunch-review.cjs')({ buyer, context, check, login, signedIn, fixtures, values, passwords, output, url, createClient, remoteRequests, pageErrors }); return; }
   if (mode === 'ui') {
     await require('./s2-ui-review.cjs')({ buyer, context, check, login, signedIn, fixtures, values, passwords, output, url, createClient, remoteRequests, pageErrors });
     return;
@@ -266,7 +271,7 @@ async function main() {
   await check('Buyer generates a bound supplier invitation through UI', async () => {
     await buyer.getByRole('button', { name: 'Create', exact: true }).click();
     await buyer.getByPlaceholder('Supplier company name').fill(company);
-    await buyer.getByPlaceholder('Invitee email (optional)').fill(inviteeEmail);
+    await buyer.getByPlaceholder('Invitee email (required)').fill(inviteeEmail);
     const response = buyer.waitForResponse(r => r.url().endsWith('/rpc/create_supplier_room_invite'));
     await buyer.getByRole('button', { name: 'Generate 7-day Invite Link' }).click();
     const created = await (await response).json(); assert(created.token && created.room_id); inviteRoom = created.room_id;

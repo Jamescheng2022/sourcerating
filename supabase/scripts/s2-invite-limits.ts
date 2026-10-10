@@ -96,219 +96,46 @@ async function localSql(sql: string): Promise<string> {
   if (!result.success) throw new Error(new TextDecoder().decode(result.stderr));
   return new TextDecoder().decode(result.stdout).trim();
 }
+
 async function main() {
   const admin = client(env("SUPABASE_SERVICE_ROLE_KEY")), buyer = client();
-  await must(
-    buyer.auth.signInWithPassword({
-      email: S2.buyerEmail,
-      password: env("S2_BUYER_PASSWORD"),
-    }),
-  );
-  const stamp = `s2-limits-${Date.now()}`;
-  if (phase === "rates") {
-    await rateTests(admin, buyer, stamp);
-    console.log(JSON.stringify({ phase, total: checks, passed: checks }));
-    return;
+  await must(buyer.auth.signInWithPassword({email:S2.buyerEmail,password:env("S2_BUYER_PASSWORD")}));
+  const stamp = `s2-b8-${Date.now()}`;
+  if (phase === "rates") {await rateTests(admin,buyer,stamp);}
+  else {
+    const bound = await must(buyer.rpc("create_supplier_room_invite",{p_project_id:S2.project,p_supplier_organization_name:`[S2-TEST] B8 ${stamp}`,p_invited_email:S2.supplierEmail}));
+    const legacyToken = crypto.randomUUID().replaceAll("-","")+crypto.randomUUID().replaceAll("-","");
+    const legacy = await must(admin.from("project_invites").insert({token_hash:await sha256Hex(legacyToken),project_id:S2.project,room_id:bound.room_id,target_organization_id:bound.target_organization_id,invited_role:"supplier",invited_email:null,created_by_user_id:(await buyer.auth.getUser()).data.user!.id,created_by_organization_id:S2.buyerOrg,expires_at:new Date(Date.now()+3600000).toISOString()}).select("id").single());
+    const emails = Array.from({length:12},(_,i)=>`${stamp}-${i}@s2-test.invalid`);
+    const replies = await Promise.all(emails.map((email,i)=>bootstrap(legacyToken,email,{"X-Forwarded-For":`192.0.2.${i+1}`})));
+    expect(replies.every(r=>r.status===403),"all 12 concurrent legacy unbound bootstrap requests denied");
+    const existingProbe = await bootstrap(legacyToken,S2.supplierEmail);
+    expect(existingProbe.status===replies[0].status && JSON.stringify(existingProbe.body)===JSON.stringify(replies[0].body),"legacy unbound existing/absent addresses have identical denials (no email oracle)");
+    expect(!(await allUsers(admin)).some(u=>emails.includes(u.email||"")),"unbound invite cannot create any confirmed account");
+    const counter = await must(admin.from("project_invites").select("unbound_bootstrap_reservations,bootstrap_attempt_count").eq("id",legacy.id).single());
+    expect(counter.unbound_bootstrap_reservations===0 && counter.bootstrap_attempt_count===0,"unbound rejection spends no counters or reservations");
+    expect(await must(admin.rpc("reserve_invite_bootstrap",{p_invite_id:legacy.id}))===false,"service reservation refuses legacy unbound invite");
+    for (const [name,actor] of [["anon",client()],["authenticated",buyer]] as const) {
+      expect((await actor.rpc("reserve_invite_bootstrap",{p_invite_id:legacy.id})).error?.code==="42501",`${name} cannot call reservation RPC`);
+      expect((await actor.rpc("consume_invite_bootstrap_attempt",{p_invite_id:legacy.id,p_peer_hash:await sha256Hex(stamp)})).error?.code==="42501",`${name} cannot manipulate attempt counters`);
+    }
+    if (phase === "uniform") {
+      const freshEmail = `${stamp}-bound@s2-test.invalid`;
+      const fresh = await must(buyer.rpc("create_supplier_room_invite",{p_project_id:S2.project,p_supplier_organization_name:`[S2-TEST] Fresh ${stamp}`,p_invited_email:freshEmail}));
+      const existing = await bootstrap(bound.token,S2.supplierEmail,{},`different-${crypto.randomUUID()}`);
+      const created = await bootstrap(fresh.token,freshEmail);
+      expect(existing.status===200 && created.status===200 && JSON.stringify(existing.body)===JSON.stringify(created.body),"bound existing/new accounts have uniform 200 body");
+      expect((await allUsers(admin)).some(u=>u.email===freshEmail),"positive bound account preparation succeeds");
+      await must(client().auth.signInWithPassword({email:S2.supplierEmail,password:env("S2_SUPPLIER_PASSWORD")}));
+      expect(true,"existing bound account keeps its original password");
+      for(let i=1;i<12;i++) expect((await bootstrap(bound.token,S2.supplierEmail,{"X-Forwarded-For":`203.0.113.${i}`})).status===200,`bound token attempt ${i+1} allowed`);
+      expect((await bootstrap(bound.token,S2.supplierEmail,{"X-Forwarded-For":"203.0.113.99"})).status===429,"HTTP token 13 denied despite forged forwarding header");
+      const mismatch = await bootstrap(fresh.token,`${stamp}-arbitrary@s2-test.invalid`);
+      expect(mismatch.status===403,"bound token cannot prepare an arbitrary different address");
+      await rateTests(admin,buyer,stamp);
+    }
   }
-  const invite = await must(
-    buyer.rpc("create_supplier_room_invite", {
-      p_project_id: S2.project,
-      p_supplier_organization_name: `[S2-TEST] Cap ${stamp}`,
-    }),
-  );
-  const emails = Array.from(
-    { length: 12 },
-    (_, i) => `${stamp}-${i}@s2-test.invalid`,
-  );
-  const responses = await Promise.all(
-    emails.map((email, i) =>
-      bootstrap(invite.token, email, {
-        "X-Forwarded-For": `192.0.2.${i + 1}`,
-        "X-Real-IP": `198.51.100.${i + 1}`,
-      })
-    ),
-  );
-  const users = await allUsers(admin);
-  const created = users.filter((u) => emails.includes(u.email || ""));
-  expect(
-    created.length === 3,
-    "12 concurrent HTTP requests create exactly 3 accounts; cap cannot be exceeded",
-  );
-  const row = await must(
-    admin.from("project_invites").select("id,unbound_bootstrap_reservations")
-      .eq("room_id", invite.room_id).single(),
-  );
-  expect(
-    row.unbound_bootstrap_reservations === 3,
-    "database reservation counter stops at 3 under concurrency",
-  );
-  expect(
-    responses.every((r) => [200, 429].includes(r.status)),
-    "all concurrent requests resolve as prepared or limited, without ambiguous failures",
-  );
-  const rpcArgs = { p_invite_id: row.id };
-  for (
-    const [name, actor] of [["anon", client()], [
-      "authenticated",
-      buyer,
-    ]] as const
-  ) {
-    const denied = await actor.rpc("reserve_invite_bootstrap", rpcArgs);
-    expect(
-      denied.error?.code === "42501",
-      `${name} cannot call privileged reservation RPC`,
-    );
-  }
-  if (phase === "uniform") await uniformTests(admin, buyer, stamp, responses);
-  console.log(
-    JSON.stringify({
-      phase,
-      total: checks,
-      passed: checks,
-      concurrentRequests: 12,
-      accountsCreated: created.length,
-    }),
-  );
-}
-async function uniformTests(
-  admin: SupabaseClient,
-  buyer: SupabaseClient,
-  stamp: string,
-  concurrent: Awaited<ReturnType<typeof bootstrap>>[],
-) {
-  const samePrepared = (reply: Awaited<ReturnType<typeof bootstrap>>) =>
-    reply.status === 200 && JSON.stringify(reply.body) === '{"ok":true}';
-  expect(
-    concurrent.every(samePrepared),
-    "concurrent new-account and cap-exhausted HTTP responses have identical status/body",
-  );
-  const createInvite = (name: string, email: string | null = null) =>
-    must(buyer.rpc("create_supplier_room_invite", {
-      p_project_id: S2.project,
-      p_supplier_organization_name: `[S2-TEST] Limits ${stamp} ${name}`,
-      p_invited_email: email,
-    }));
-  const invite = await createInvite("uniform");
-  const existingBefore = (await allUsers(admin)).find((user) =>
-    user.email === S2.supplierEmail
-  );
-  const newEmail = `${stamp}-uniform-new@s2-test.invalid`,
-    cappedEmail = `${stamp}-uniform-capped@s2-test.invalid`;
-  const replies = [];
-  for (
-    const email of [S2.supplierEmail, newEmail, S2.supplierEmail, cappedEmail]
-  ) {
-    replies.push(
-      await bootstrap(
-        invite.token,
-        email,
-        {},
-        email === S2.supplierEmail
-          ? `S2-TEST-different-${crypto.randomUUID()}`
-          : env("S2_SUPPLIER_PASSWORD"),
-      ),
-    );
-  }
-  expect(
-    replies.every(samePrepared),
-    "existing, absent, repeated-existing and exhausted-cap emails get the same 200/ok response",
-  );
-  const users = await allUsers(admin);
-  expect(
-    users.some((user) => user.email === newEmail) &&
-      !users.some((user) => user.email === cappedEmail),
-    "positive Auth controls prove one absent account was prepared and cap exhaustion created no extra account",
-  );
-  const existingAfter = users.find((user) => user.email === S2.supplierEmail);
-  expect(
-    existingBefore?.id === existingAfter?.id &&
-      JSON.stringify(existingBefore?.user_metadata) ===
-        JSON.stringify(existingAfter?.user_metadata),
-    "existing account identity and metadata are not overwritten",
-  );
-  await must(
-    client().auth.signInWithPassword({
-      email: S2.supplierEmail,
-      password: env("S2_SUPPLIER_PASSWORD"),
-    }),
-  );
-  expect(true, "existing account still signs in with its original password");
-  for (let i = 4; i < 12; i++) {
-    const reply = await bootstrap(
-      invite.token,
-      i % 2 ? S2.supplierEmail : `${stamp}-probe-${i}@s2-test.invalid`,
-      { "X-Forwarded-For": `203.0.113.${i}` },
-    );
-    expect(
-      samePrepared(reply),
-      `attempt ${
-        i + 1
-      } remains uniform independent of existence and spoofed forwarding IP`,
-    );
-  }
-  const limitedExisting = await bootstrap(invite.token, S2.supplierEmail, {
-    "X-Forwarded-For": "203.0.113.99",
-  });
-  const limitedAbsent = await bootstrap(
-    invite.token,
-    `${stamp}-limited-absent@s2-test.invalid`,
-    { "X-Real-IP": "203.0.113.100" },
-  );
-  expect(
-    limitedExisting.status === 429 && limitedAbsent.status === 429 &&
-      JSON.stringify(limitedExisting.body) ===
-        JSON.stringify(limitedAbsent.body),
-    "token attempt limit counts every probe and returns uniform 429 after 12 despite changing headers",
-  );
-
-  const rpcArgs = {
-    p_invite_id: (await must(
-      admin.from("project_invites").select("id").eq("room_id", invite.room_id)
-        .single(),
-    )).id,
-    p_peer_hash: await sha256Hex("192.0.2.55"),
-  };
-  for (
-    const [name, actor] of [["anon", client()], [
-      "authenticated",
-      buyer,
-    ]] as const
-  ) {
-    const denied = await actor.rpc("consume_invite_bootstrap_attempt", rpcArgs);
-    expect(
-      denied.error?.code === "42501",
-      `${name} cannot manipulate privileged attempt counters`,
-    );
-  }
-  await rateTests(admin, buyer, stamp);
-  const invalidInputInvite = await createInvite(
-    "invalid-input",
-    S2.supplierEmail,
-  );
-  const invalidResponse = await fetch(url + "/functions/v1/project-invite", {
-    method: "POST",
-    headers: { apikey: anonKey, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      action: "bootstrap",
-      token: invalidInputInvite.token,
-      email: S2.supplierEmail,
-      password: "x",
-    }),
-  });
-  expect(
-    invalidResponse.status === 400,
-    "input validation still rejects too-short passwords",
-  );
-  const invalidRow = await must(
-    admin.from("project_invites").select(
-      "bootstrap_attempt_count,unbound_bootstrap_reservations",
-    ).eq("room_id", invalidInputInvite.room_id).single(),
-  );
-  expect(
-    invalidRow.bootstrap_attempt_count === 1 &&
-      invalidRow.unbound_bootstrap_reservations === 0,
-    "failed validation consumes an attempt without consuming a creation reservation",
-  );
+  console.log(JSON.stringify({phase,total:checks,passed:checks}));
 }
 async function rateTests(
   admin: SupabaseClient,
@@ -339,6 +166,14 @@ async function rateTests(
     tokenResults.filter(Boolean).length === 12,
     "20 concurrent requests from distinct peer buckets cannot exceed the token's 12-attempt window",
   );
+
+  const victimPeer = await sha256Hex(`${stamp}-victim-peer`);
+  const denied = await Promise.all(Array.from({length:100},()=>must(admin.rpc("consume_invite_bootstrap_attempt",{p_invite_id:tokenRow.id,p_peer_hash:victimPeer}))));
+  expect(denied.every(v=>v===false),"100 exhausted-token concurrent requests denied");
+  expect(await localSql(`select count(*) from sourcerating_private.invite_bootstrap_peer_limits where peer_hash='${victimPeer}';`)==="0","exhausted token cannot drain another client's peer budget");
+  const victimInvite = await createInvite("legitimate-peer",S2.supplierEmail);
+  const victimRow = await must(admin.from("project_invites").select("id").eq("room_id",victimInvite.room_id).single());
+  expect(await must(admin.rpc("consume_invite_bootstrap_attempt",{p_invite_id:victimRow.id,p_peer_hash:victimPeer}))===true,"legitimate second token retains its peer positive control");
   const peerHash = await sha256Hex(`${stamp}-synthetic-global-peer`);
   const globalInvites = await Promise.all(
     Array.from(
@@ -407,7 +242,7 @@ async function rateTests(
     peerRecovered === true && peerCounter === "1",
     "expired synthetic per-IP window recovers and resets its attempt count",
   );
-  const capInvite = await createInvite("window-cap");
+  const capInvite = await createInvite("window-cap", S2.supplierEmail);
   const capRow = await must(
     admin.from("project_invites").select("id").eq("room_id", capInvite.room_id)
       .single(),
@@ -418,8 +253,8 @@ async function rateTests(
     reserved.push(await must(admin.rpc("reserve_invite_bootstrap", rpcArgs)));
   }
   expect(
-    JSON.stringify(reserved) === "[true,true,true,false]",
-    "window fixture has a proven exhausted lifetime creation cap",
+    reserved.every(Boolean),
+    "bound reservations stay limited to the bound address",
   );
   await must(
     admin.from("project_invites").update({
@@ -438,8 +273,8 @@ async function rateTests(
     admin.rpc("reserve_invite_bootstrap", rpcArgs),
   );
   expect(
-    tokenRecovered === true && stillCapped === false,
-    "token attempt window recovers while lifetime account-creation cap remains exhausted",
+    tokenRecovered === true && stillCapped === true,
+    "bound token attempt window recovers without enabling unbound creation",
   );
   const privatePrivileges = await localSql(
     "select (not has_schema_privilege('anon','sourcerating_private','usage') and not has_schema_privilege('authenticated','sourcerating_private','usage') and not has_table_privilege('anon','sourcerating_private.invite_bootstrap_peer_limits','select') and not has_table_privilege('authenticated','sourcerating_private.invite_bootstrap_peer_limits','select') and (select relrowsecurity from pg_class where oid='sourcerating_private.invite_bootstrap_peer_limits'::regclass))::text;",

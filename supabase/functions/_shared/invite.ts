@@ -20,11 +20,34 @@ export const PASSWORD_MIN_LENGTH = 10;
 // GoTrue hashes with bcrypt, which only uses the first 72 bytes.
 export const PASSWORD_MAX_BYTES = 72;
 export const DISPLAY_NAME_MAX_LENGTH = 120;
-// The authoritative lifetime cap is enforced by the database reservation RPC.
-export function bootstrapPeerAddress(info: { remoteAddr?: { hostname?: string } } = {}): string {
-  // Never trust caller forwarding headers. Proxy/missing metadata share a
-  // conservative bucket rather than accepting an attacker-selected address.
-  return info.remoteAddr?.hostname || "unknown-peer";
+// Unbound bootstrap is disabled. Attempt budgets are locked in the database.
+export function bootstrapPeerAddress(
+  info: { remoteAddr?: { hostname?: string } } = {},
+  headers = new Headers(),
+  policy: { requireTrustedProxy?: boolean; trustedProxyIps?: string[] } = {},
+): string | null {
+  const normalize = (value: string): string | null => {
+    if (/^(?:\d{1,3}\.){3}\d{1,3}$/.test(value)) {
+      return value.split(".").every(part => Number(part) <= 255) ? value.split(".").map(Number).join(".") : null;
+    }
+    try {
+      const hostname = new URL(`http://[${value}]/`).hostname;
+      return hostname.startsWith("[") ? hostname.slice(1, -1) : null;
+    } catch { return null; }
+  };
+  const peer = normalize(info.remoteAddr?.hostname || "");
+  if (!peer) return null;
+  if (!policy.requireTrustedProxy) return peer; // local direct route ignores every forwarding header
+  const trusted = new Set((policy.trustedProxyIps || []).map(normalize).filter(Boolean));
+  if (!trusted.has(peer)) return null; // no shared proxy/unknown fallback bucket
+  const raw = headers.get("x-forwarded-for");
+  if (!raw || raw.length > 1024) return null;
+  const chain = raw.split(",").map(value => normalize(value.trim()));
+  if (!chain.length || chain.some(value => !value)) return null;
+  // Walk right to left over the explicitly trusted proxy hops. Caller-prepended
+  // values cannot replace the closest untrusted client address.
+  for (const address of chain.reverse()) if (!trusted.has(address)) return address;
+  return null;
 }
 
 const TOKEN_RE = /^[0-9a-f]{64}$/;
@@ -70,6 +93,7 @@ export function checkBootstrapInput(
   body: Record<string, unknown>,
   invite: Pick<InviteRow, "invited_email">,
 ): BootstrapCheck {
+  if (!invite.invited_email) return { ok: false, status: 403, error: "Email-bound invitation required." };
   const email = normalizeEmail(body.email);
   if (!email) return { ok: false, status: 400, error: "Enter a valid email address." };
 

@@ -49,6 +49,8 @@ def main() -> int:
     args = parser.parse_args()
     url = args.supabase_url.rstrip("/")
     parsed = urlsplit(url)
+    if parsed.hostname == "qnozpurjtgkmwtvsrjoi.supabase.co":
+        parser.error("the existing production backend is excluded from pilot builds")
     if parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment or parsed.path:
         parser.error("--supabase-url must be an HTTP(S) origin, without credentials, path, query or fragment")
     if parsed.scheme == "http" and parsed.hostname not in ("10.0.2.2", "127.0.0.1", "localhost"):

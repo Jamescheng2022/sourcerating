@@ -12,7 +12,8 @@
 //
 // Called with the anon apikey only (no user JWT), so verify_jwt = false in
 // supabase/config.toml. Authorization is possession of a valid, unused,
-// unexpired, unrevoked invite token.
+// unexpired, unrevoked, email-bound invite token. The nominated address is fixed;
+// this pilot preparation flow does not prove that the invitee controls its inbox.
 
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 import {
@@ -88,6 +89,10 @@ Deno.serve(async (req, info) => {
     );
   }
 
+  if (!invite.invited_email) {
+    return json({ ok: false, error: "Email-bound invitation required. Ask the buyer for a new link." }, 403, cors);
+  }
+
   if (action === "preview") {
     const [project, organization, room] = await Promise.all([
       admin.from("projects").select("id, name, code").eq(
@@ -132,11 +137,18 @@ Deno.serve(async (req, info) => {
     );
     return json({ ok: true }, 200, cors);
   };
+  const internalUrl = new URL(requireEnv("SUPABASE_URL"));
+  const local = internalUrl.protocol === "http:" && ["kong", "127.0.0.1", "localhost"].includes(internalUrl.hostname);
+  const peer = bootstrapPeerAddress(info, req.headers, {
+    requireTrustedProxy: !local,
+    trustedProxyIps: (Deno.env.get("SR_TRUSTED_PROXY_IPS") || "").split(",").map(value => value.trim()).filter(Boolean),
+  });
+  if (!peer) return json({ ok: false, error: "Invitation service is temporarily unavailable." }, 503, cors);
   const { data: attemptAllowed, error: attemptError } = await admin.rpc(
     "consume_invite_bootstrap_attempt",
     {
       p_invite_id: invite.id,
-      p_peer_hash: await sha256Hex(bootstrapPeerAddress(info)),
+      p_peer_hash: await sha256Hex(peer),
     },
   );
   if (attemptError) {

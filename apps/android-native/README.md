@@ -47,12 +47,17 @@ it uses the same Java source and separate Android app storage. No original
 keystore is needed. Do not uninstall or clear an existing app to bypass signing.
 
 For local runtime acceptance, boot the existing `SourceRating_API35` AVD with
-`-no-snapshot-load -no-snapshot-save` (never `-wipe-data`), install the local
+`-read-only -no-snapshot-load -no-snapshot-save`, install the local
 variant, and run from the repository root:
 
 ```powershell
 python apps/android-native/scripts/s2-android-e2e.py --adb-port 5038
 ```
+
+If read-only startup fails, use a dedicated `SourceRating_API35_L1` clone with
+cold boot, `-wipe-data -no-snapshot-load -no-snapshot-save` and the test script's
+`--avd-name SourceRating_API35_L1`. Wipe only that dedicated synthetic clone;
+never load, save, restore or wipe the original AVD snapshot/data.
 
 The script uses the existing outside-repo `[S2-TEST]` password/key files, drives
 native widgets and the system document picker through ADB, and saves screenshots,

@@ -8,4 +8,7 @@ if (!url || !publicKey) {
 }
 
 export const SUPABASE_URL = url;
+if (new URL(url).hostname === "qnozpurjtgkmwtvsrjoi.supabase.co") {
+  throw new Error("The existing production backend is excluded from pilot builds.");
+}
 export const SUPABASE_ANON_KEY = publicKey;

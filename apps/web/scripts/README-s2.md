@@ -27,3 +27,13 @@ After applying the inquiry migration, run `node scripts/s2-web-e2e.cjs inquiries
 It exercises the real form and buyer Needs You listing, two same-organization
 submitters, direct RLS/RPC denials, idempotent retry, refresh/restart and mobile
 access. Its report/screenshots go to `../carryover/B6-artifacts`.
+
+After B8 migrations, `node scripts/s2-web-e2e.cjs review` tests retired public
+pages/search and compiled marketing assets, authenticated sender snapshots and
+spoof denials, email-bound invites, build target guards, signup-off policy and
+real recovery through local Mailpit. Enable Mailpit in the reduced local stack;
+it captures Auth messages without external delivery. Recovery uses a fresh
+synthetic seeded account, preserving the two existing seed passwords. Tokens,
+reset links and passwords stay out of reports. Set `S2_EVIDENCE_DIR` to a fresh
+outside-repo directory for each run. Reports include progress as well as final
+results. Run Web and emulator acceptance serially to avoid memory pressure.

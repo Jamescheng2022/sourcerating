@@ -42,7 +42,7 @@ function invite(overrides: Partial<InviteRow> = {}): InviteRow {
     room_id: "r",
     target_organization_id: "o",
     invited_role: "supplier",
-    invited_email: null,
+    invited_email: "buyer@example.com",
     expires_at: "2026-10-20T00:00:00Z",
     used_at: null,
     revoked_at: null,
@@ -54,8 +54,8 @@ const NOW = new Date("2026-10-10T00:00:00Z");
 
 Deno.test("bootstrap IP uses the transport peer and fails closed without metadata", () => {
   assertEquals(bootstrapPeerAddress({ remoteAddr: { hostname: "192.0.2.9" } }), "192.0.2.9");
-  assertEquals(bootstrapPeerAddress({}), "unknown-peer");
-  assertEquals(bootstrapPeerAddress(undefined), "unknown-peer");
+  assertEquals(bootstrapPeerAddress({}), null);
+  assertEquals(bootstrapPeerAddress(undefined), null);
 });
 
 Deno.test("token format matches create_supplier_room_invite output", () => {
@@ -151,4 +151,32 @@ Deno.test("cleanup_orphan object path must sit in the caller's room folder", () 
   assertEquals(isRoomObjectPath(123, ROOM), false);
   assertEquals(isUuid(ROOM), true);
   assertEquals(isUuid("x"), false);
+});
+
+Deno.test("unbound invites fail closed before account preparation", () => {
+  const result = checkBootstrapInput({email:"buyer@example.com",password:"0123456789"}, invite({invited_email:null}));
+  assertEquals(result.ok === false && result.status, 403);
+});
+Deno.test("direct local peers ignore forged forwarding headers", () => {
+  assertEquals(bootstrapPeerAddress({remoteAddr:{hostname:"192.0.2.9"}},new Headers({"x-forwarded-for":"198.51.100.1"})),"192.0.2.9");
+});
+Deno.test("hosted peers require explicitly trusted immediate proxies", () => {
+  const policy = {requireTrustedProxy:true,trustedProxyIps:["192.0.2.9"]};
+  assertEquals(bootstrapPeerAddress({remoteAddr:{hostname:"192.0.2.8"}},new Headers({"x-forwarded-for":"198.51.100.1"}),policy),null);
+  assertEquals(bootstrapPeerAddress({remoteAddr:{hostname:"192.0.2.9"}},new Headers(),policy),null);
+  assertEquals(bootstrapPeerAddress({remoteAddr:{hostname:"192.0.2.9"}},new Headers({"x-forwarded-for":"198.51.100.1"}),policy),"198.51.100.1");
+});
+Deno.test("trusted chain chooses nearest untrusted client, ignoring spoofed prefix", () => {
+  const policy = {requireTrustedProxy:true,trustedProxyIps:["192.0.2.9","192.0.2.10"]};
+  assertEquals(bootstrapPeerAddress({remoteAddr:{hostname:"192.0.2.9"}},new Headers({"x-forwarded-for":"203.0.113.99,198.51.100.1,192.0.2.10"}),policy),"198.51.100.1");
+});
+Deno.test("invalid proxy chains and missing transport identities fail closed", () => {
+  const policy = {requireTrustedProxy:true,trustedProxyIps:["192.0.2.9"]};
+  for (const chain of ["bad,198.51.100.1","192.0.2.9","999.1.1.1","198.51.100.1:44"]) {
+    assertEquals(bootstrapPeerAddress({remoteAddr:{hostname:"192.0.2.9"}},new Headers({"x-forwarded-for":chain}),policy),null);
+  }
+  assertEquals(bootstrapPeerAddress({},new Headers({"x-forwarded-for":"198.51.100.1"}),policy),null);
+});
+Deno.test("IPv6 proxy and client addresses normalize consistently", () => {
+  assertEquals(bootstrapPeerAddress({remoteAddr:{hostname:"2001:db8::1"}},new Headers({"x-forwarded-for":"2001:db8:0:0::2"}),{requireTrustedProxy:true,trustedProxyIps:["2001:db8:0:0::1"]}),"2001:db8::2");
 });

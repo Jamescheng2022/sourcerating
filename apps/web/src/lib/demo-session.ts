@@ -22,6 +22,8 @@ export interface RoomEvent {
   client_msg_id?: string | null;
   actor_organization_id?: string | null;
   actor_user_id?: string | null;
+  actor_display_name?: string | null;
+  actor_organization_name?: string | null;
   event_type: string;
   payload: {
     text?: string;

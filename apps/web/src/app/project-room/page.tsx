@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
@@ -224,9 +225,9 @@ export default function ProjectRoomPage() {
       setActingOrgId(result.actingOrgId);
       setCurrentUserId(result.userId);
       await loadRooms(result.role, result.actingOrgId);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Sign-in failed:", err);
-      setAuthError(err.message || "Unable to sign in. Please try again.");
+      setAuthError(err instanceof Error ? err.message : "Unable to sign in. Please try again.");
     } finally {
       setAuthLoading(false);
       setPassword("");
@@ -622,12 +623,12 @@ export default function ProjectRoomPage() {
 
         await runGapFill(activeRoomId);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Send message exception:", err);
       setPendingDraft({
         ...newDraft,
         status: "failed",
-        error: err.message || "Network exception sending message",
+        error: err instanceof Error ? err.message : "Network exception sending message",
       });
     }
   };
@@ -671,11 +672,11 @@ export default function ProjectRoomPage() {
         }
         await runGapFill(retryDraft.room_id);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setPendingDraft({
         ...retryDraft,
         status: "failed",
-        error: err.message || "Network exception during retry",
+        error: err instanceof Error ? err.message : "Network exception during retry",
       });
     }
   };
@@ -790,7 +791,7 @@ export default function ProjectRoomPage() {
     if (
       role !== "buyer" ||
       !activeRoom?.project_id ||
-      !inviteCompany.trim()
+      !inviteCompany.trim() || !inviteEmail.trim()
     ) {
       return;
     }
@@ -805,7 +806,7 @@ export default function ProjectRoomPage() {
         {
           p_project_id: activeRoom.project_id,
           p_supplier_organization_name: inviteCompany.trim(),
-          p_invited_email: inviteEmail.trim() || null,
+          p_invited_email: inviteEmail.trim(),
           p_expires_in_hours: 168,
         },
       );
@@ -814,15 +815,7 @@ export default function ProjectRoomPage() {
         throw new Error(error?.message || "Unable to create invitation.");
       }
 
-      const currentParams = new URLSearchParams(window.location.search);
-      const previewShare = currentParams.get("_vercel_share");
-      const url =
-        window.location.origin +
-        "/join?token=" +
-        encodeURIComponent(String(data.token)) +
-        (previewShare
-          ? "&_vercel_share=" + encodeURIComponent(previewShare)
-          : "");
+      const url = window.location.origin + "/join?token=" + encodeURIComponent(String(data.token));
       setInviteUrl(url);
       await loadRooms("buyer", actingOrgId);
     } catch (error) {
@@ -836,26 +829,11 @@ export default function ProjectRoomPage() {
 
   // Format message sender and organization
   const getEventAuthorInfo = (ev: RoomEvent) => {
-    if (ev.payload?.who) {
-      return { who: ev.payload.who, org: ev.payload.org || "Team Member" };
-    }
-
     const isMe = currentUserId && ev.actor_user_id === currentUserId;
-    if (isMe) {
-      return {
-        who: "You",
-        org: role === "buyer" ? "Buyer Organization" : externalPartnerName,
-      };
-    }
-
-    if (role === "buyer") {
-      if (isInternal) {
-        return { who: "Buyer teammate", org: "Buyer Organization" };
-      }
-      return { who: "Supplier teammate", org: externalPartnerName };
-    } else {
-      return { who: "Buyer teammate", org: "Buyer Organization" };
-    }
+    return {
+      who: isMe ? "You" : ev.actor_display_name || `Member ${String(ev.actor_user_id || "unknown").slice(0, 8)}`,
+      org: ev.actor_organization_name || `Organization ${String(ev.actor_organization_id || "unknown").slice(0, 8)}`,
+    };
   };
 
   // 1. Initial loading screen
@@ -877,6 +855,7 @@ export default function ProjectRoomPage() {
           onSubmit={(event) => { event.preventDefault(); void handleSignIn(); }}>
           <h1 className="text-xl font-bold">SourceRating Project Room</h1>
           <p className="text-sm text-slate-400">Sign in to your invited project rooms.</p>
+          <Link href="/forgot-password" className="text-sm text-sky-300 underline">Forgot password?</Link>
           <label className="block text-sm">Email
             <input type="email" autoComplete="username" required value={email} onChange={e => setEmail(e.target.value)}
               className="mt-1 w-full rounded border border-slate-700 bg-slate-950 p-2" />
@@ -1540,7 +1519,7 @@ export default function ProjectRoomPage() {
                   if (e.key === "Enter" && !e.shiftKey) {
                     if (
                       isComposing ||
-                      (e.nativeEvent as any).isComposing ||
+                      e.nativeEvent.isComposing ||
                       e.keyCode === 229
                     ) {
                       return; // In Chinese IME character selection
@@ -1684,13 +1663,13 @@ export default function ProjectRoomPage() {
                       type="email"
                       value={inviteEmail}
                       onChange={(event) => setInviteEmail(event.target.value)}
-                      placeholder="Invitee email (optional)"
+                      placeholder="Invitee email (required)"
                       className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[11px] outline-none focus:border-sky-400"
                     />
                     <button
                       type="button"
                       onClick={() => void handleCreateSupplierInvite()}
-                      disabled={inviteCreating || inviteCompany.trim().length < 2}
+                      disabled={inviteCreating || inviteCompany.trim().length < 2 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail.trim())}
                       className="w-full rounded-md bg-slate-900 px-2 py-1.5 text-[11px] font-semibold text-white disabled:opacity-50"
                     >
                       {inviteCreating

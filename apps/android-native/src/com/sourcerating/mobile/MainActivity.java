@@ -18,6 +18,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
 import android.widget.Button;
@@ -169,6 +170,7 @@ public final class MainActivity extends Activity {
         });
         root.addView(text("Invitation access uses the same Supabase RLS policies as the web app.", 12, muted(), false), topMargin(16));
         setContentView(scroll);
+        applySystemInsets(scroll);
     }
 
     private void showApp() {
@@ -176,6 +178,7 @@ public final class MainActivity extends Activity {
         rooms.clear(); events.clear(); activeRoomIndex = 0;
         LinearLayout app = column();
         app.setBackgroundColor(bg());
+        app.setFocusableInTouchMode(true);
 
         LinearLayout top = row();
         top.setGravity(Gravity.CENTER_VERTICAL);
@@ -203,6 +206,8 @@ public final class MainActivity extends Activity {
         stateButton.setOnClickListener(v -> showStateDialog());
         logout.setOnClickListener(v -> { api.clearSession(); showLogin(); });
         setContentView(app);
+        app.requestFocus();
+        applySystemInsets(app);
         loadRooms();
         main.removeCallbacks(poll);
         main.postDelayed(poll, 1800);
@@ -301,6 +306,20 @@ public final class MainActivity extends Activity {
         send.setOnClickListener(v -> sendMessage(send));
         attach.setOnClickListener(v -> pickFile());
         return pane;
+    }
+
+    // Keep Android 15 system bars out of the interactive header/composer.
+    private void applySystemInsets(View root) {
+        final int left = root.getPaddingLeft(), top = root.getPaddingTop();
+        final int right = root.getPaddingRight(), bottom = root.getPaddingBottom();
+        root.setOnApplyWindowInsetsListener((view, insets) -> {
+            view.setPadding(left + insets.getSystemWindowInsetLeft(),
+                    top + insets.getSystemWindowInsetTop(),
+                    right + insets.getSystemWindowInsetRight(),
+                    bottom + insets.getSystemWindowInsetBottom());
+            return insets;
+        });
+        root.requestApplyInsets();
     }
 
     private void loadRooms() {
@@ -434,8 +453,20 @@ public final class MainActivity extends Activity {
         });
     }
 
+    private void hideComposerKeyboard() {
+        // A focused editor can reopen the keyboard when DocumentsUI returns.
+        View content = findViewById(android.R.id.content);
+        content.setFocusableInTouchMode(true);
+        content.requestFocus();
+        InputMethodManager keyboard = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+        if (composer != null && keyboard != null) {
+            keyboard.hideSoftInputFromWindow(composer.getWindowToken(), 0);
+        }
+    }
+
     private void pickFile() {
         if (activeRoom() == null) return;
+        hideComposerKeyboard();
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType("*/*");
@@ -451,6 +482,7 @@ public final class MainActivity extends Activity {
 
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == PICK_FILE || requestCode == SAVE_FILE) hideComposerKeyboard();
         if (requestCode == SAVE_FILE) {
             String fileId = downloadFileId;
             downloadFileId = null;
@@ -622,7 +654,8 @@ public final class MainActivity extends Activity {
             JSONObject event = events.get(position);
             LinearLayout outer = column();
             outer.setPadding(dp(12), dp(5), dp(12), dp(5));
-            boolean mine = api.getActingOrgId().equals(event.optString("actor_organization_id", ""));
+            String actorId = event.optString("actor_user_id", "");
+            boolean mine = !api.getUserId().isEmpty() && api.getUserId().equals(actorId);
             LinearLayout bubble = column();
             bubble.setPadding(dp(12), dp(9), dp(12), dp(9));
             bubble.setBackground(roundRect(mine ? Color.rgb(13, 78, 105) : Color.rgb(30, 41, 59), 14));
@@ -644,7 +677,11 @@ public final class MainActivity extends Activity {
                 body = type.isEmpty() ? "Project event" : type;
             }
             bubble.addView(text(body, 15, Color.WHITE, false), matchWrap());
-            String meta = (mine ? "You" : "Partner") + "  ·  #" + event.optLong("seq", 0);
+            String actorName = event.optString("actor_display_name", "");
+            if (actorName.isEmpty() || actorName.equals("null")) {
+                actorName = "Member " + actorId.substring(0, Math.min(8, actorId.length()));
+            }
+            String meta = (mine ? "You" : actorName) + "  ·  #" + event.optLong("seq", 0);
             String time = shortTime(event.optString("created_at", ""));
             if (!time.isEmpty()) meta += "  ·  " + time;
             bubble.addView(text(meta, 11, Color.rgb(148, 163, 184), false), topMargin(5));
