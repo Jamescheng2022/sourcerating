@@ -20,8 +20,12 @@ export const PASSWORD_MIN_LENGTH = 10;
 // GoTrue hashes with bcrypt, which only uses the first 72 bytes.
 export const PASSWORD_MAX_BYTES = 72;
 export const DISPLAY_NAME_MAX_LENGTH = 120;
-// Invites without a bound email can bootstrap at most this many new accounts.
-export const MAX_UNBOUND_BOOTSTRAPS = 3;
+// The authoritative lifetime cap is enforced by the database reservation RPC.
+export function bootstrapPeerAddress(info: { remoteAddr?: { hostname?: string } } = {}): string {
+  // Never trust caller forwarding headers. Proxy/missing metadata share a
+  // conservative bucket rather than accepting an attacker-selected address.
+  return info.remoteAddr?.hostname || "unknown-peer";
+}
 
 const TOKEN_RE = /^[0-9a-f]{64}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

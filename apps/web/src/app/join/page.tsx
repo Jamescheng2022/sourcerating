@@ -98,9 +98,7 @@ export default function JoinProjectPage() {
         await supabase.auth.signInWithPassword({ email, password });
       if (signInError || !signInData.user) {
         throw new Error(
-          bootstrapData.accountExists
-            ? "This email already has an account. Enter that account's existing password."
-            : signInError?.message || "Unable to sign in.",
+          "Unable to sign in. Check your email and password, or contact the project buyer.",
         );
       }
 

@@ -6,8 +6,8 @@
 //   -> 200 { ok, project{id,name,code}, organization{id,name}, room{id,name,kind},
 //            invitedRole, invitedEmail, expiresAt }
 // POST { action: "bootstrap", token, email, password, displayName? }
-//   -> 200 { ok, accountExists }  (creates a confirmed account if none exists;
-//      never changes an existing account). The client then signs in and calls
+//   -> 200 { ok: true } uniformly (prepares a confirmed account when allowed;
+//      never changes an existing account or discloses its existence). Then sign in and call
 //      the claim_project_invite RPC, which performs the membership change.
 //
 // Called with the anon apikey only (no user JWT), so verify_jwt = false in
@@ -23,6 +23,7 @@ import {
   sha256Hex,
 } from "../_shared/http.ts";
 import {
+  bootstrapPeerAddress,
   checkBootstrapInput,
   type InviteRow,
   inviteState,
@@ -33,7 +34,7 @@ import {
 const INVALID_INVITE = "Invitation is invalid or expired.";
 const BOOTSTRAP_AUDIT_ACTION = "project_invite.account_bootstrapped";
 
-Deno.serve(async (req) => {
+Deno.serve(async (req, info) => {
   const cors = corsHeaders(req);
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") {
@@ -123,6 +124,32 @@ Deno.serve(async (req) => {
   }
 
   // action === "bootstrap"
+  const replyNotBefore = performance.now() + 600 +
+    crypto.getRandomValues(new Uint8Array(1))[0];
+  const preparedResponse = async () => {
+    await new Promise((resolve) =>
+      setTimeout(resolve, Math.max(0, replyNotBefore - performance.now()))
+    );
+    return json({ ok: true }, 200, cors);
+  };
+  const { data: attemptAllowed, error: attemptError } = await admin.rpc(
+    "consume_invite_bootstrap_attempt",
+    {
+      p_invite_id: invite.id,
+      p_peer_hash: await sha256Hex(bootstrapPeerAddress(info)),
+    },
+  );
+  if (attemptError) {
+    console.error("bootstrap attempt limiter failed", attemptError.code);
+    return json({ ok: false, error: "invite_lookup_failed" }, 500, cors);
+  }
+  if (!attemptAllowed) {
+    return json(
+      { ok: false, error: "Too many attempts. Please try again later." },
+      429,
+      cors,
+    );
+  }
   const checked = checkBootstrapInput(body, invite);
   if (!checked.ok) {
     return json({ ok: false, error: checked.error }, checked.status, cors);
@@ -140,11 +167,7 @@ Deno.serve(async (req) => {
     return json({ ok: false, error: "invite_lookup_failed" }, 500, cors);
   }
   if (!reserved) {
-    return json(
-      { ok: false, error: "This invitation cannot create more accounts." },
-      429,
-      cors,
-    );
+    return preparedResponse();
   }
 
   const { data: created, error: createError } = await admin.auth.admin
@@ -156,15 +179,10 @@ Deno.serve(async (req) => {
     });
 
   if (createError) {
-    if (isEmailExistsError(createError)) {
-      return json({ ok: true, accountExists: true }, 200, cors);
+    if (!isEmailExistsError(createError)) {
+      console.error("createUser preparation failed", createError.code);
     }
-    console.error("createUser failed", createError.message);
-    return json(
-      { ok: false, error: "Unable to prepare your account." },
-      500,
-      cors,
-    );
+    return preparedResponse();
   }
 
   const { error: auditError } = await admin.from("audit_log").insert({
@@ -183,5 +201,5 @@ Deno.serve(async (req) => {
     console.error("bootstrap audit insert failed", auditError.message);
   }
 
-  return json({ ok: true, accountExists: false }, 200, cors);
+  return preparedResponse();
 });

@@ -3,6 +3,7 @@
 
 import {
   checkBootstrapInput,
+  bootstrapPeerAddress,
   cleanDisplayName,
   type InviteRow,
   inviteState,
@@ -50,6 +51,12 @@ function invite(overrides: Partial<InviteRow> = {}): InviteRow {
 }
 
 const NOW = new Date("2026-10-10T00:00:00Z");
+
+Deno.test("bootstrap IP uses the transport peer and fails closed without metadata", () => {
+  assertEquals(bootstrapPeerAddress({ remoteAddr: { hostname: "192.0.2.9" } }), "192.0.2.9");
+  assertEquals(bootstrapPeerAddress({}), "unknown-peer");
+  assertEquals(bootstrapPeerAddress(undefined), "unknown-peer");
+});
 
 Deno.test("token format matches create_supplier_room_invite output", () => {
   assertEquals(isWellFormedToken(TOKEN), true);

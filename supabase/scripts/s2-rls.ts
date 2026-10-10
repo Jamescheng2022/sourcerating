@@ -269,7 +269,7 @@ async function main() {
     }),
   });
   const bootBody = await boot.json();
-  if (!boot.ok || bootBody.accountExists !== false) throw new Error("invite bootstrap failed");
+  if (!boot.ok || JSON.stringify(bootBody) !== JSON.stringify({ ok: true })) throw new Error("invite bootstrap failed");
   const invitee = await signIn(inviteeEmail, inviteePassword);
   await denyRead(invitee.api, "rooms", invite.room_id, "invitee cannot see invited room before claiming");
   await denyRpc(supplier.api, "bound invite rejects other supplier email", "claim_project_invite", {

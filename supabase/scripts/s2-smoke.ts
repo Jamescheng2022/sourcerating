@@ -193,7 +193,7 @@ async function main() {
     password: inviteePassword,
     displayName: "[S2-TEST] Invitee",
   });
-  record("bootstrap creates the invitee account", boot.status === 200 && boot.json.accountExists === false, boot.json);
+  record("bootstrap responds uniformly before invitee signs in", boot.status === 200 && JSON.stringify(boot.json) === JSON.stringify({ ok: true }), boot.json);
 
   const again = await callFunction("project-invite", {
     action: "bootstrap",
@@ -201,7 +201,7 @@ async function main() {
     email: inviteeEmail,
     password: "S2-test-different-pw",
   });
-  record("second bootstrap reports accountExists and does not reset the password", again.json.accountExists === true);
+  record("second bootstrap returns the same status/body without an existence flag", again.status === boot.status && JSON.stringify(again.json) === JSON.stringify(boot.json));
 
   const invitee = await signIn(inviteeEmail, inviteePassword);
   record("invitee signs in with the original password", true);
