@@ -19,8 +19,8 @@ import java.util.Locale;
 import java.util.UUID;
 
 final class ApiClient {
-    static final String SUPABASE_URL = "https://qnozpurjtgkmwtvsrjoi.supabase.co";
-    static final String ANON_KEY = "sb_publishable_ksRD_ocrn4jnK6F2h6buFg_GzT9roS6";
+    static final String SUPABASE_URL = BuildConfig.SUPABASE_URL;
+    static final String ANON_KEY = BuildConfig.SUPABASE_ANON_KEY;
     private static final String PREFS = "sr_native_session";
     private static final String K_ACCESS = "access";
     private static final String K_REFRESH = "refresh";

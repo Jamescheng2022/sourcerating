@@ -20,3 +20,5 @@ jointech-precast/
 # misc temp
 -p/
 
+# Local native build outputs (including generated public backend configuration)
+/pilot-artifacts/

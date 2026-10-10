@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { analyzeProjectMessage } from "@/lib/ai/runtime";
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/supabase-config";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -26,15 +27,7 @@ export async function POST(request: Request) {
     }
 
     const body = requestSchema.parse(await request.json());
-    const url =
-      process.env.NEXT_PUBLIC_SUPABASE_URL ||
-      "https://qnozpurjtgkmwtvsrjoi.supabase.co";
-    const key =
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-      "sb_publishable_ksRD_ocrn4jnK6F2h6buFg_GzT9roS6";
-
-    const client = createClient(url, key, {
+    const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: {
         headers: {
           Authorization: `Bearer ${token}`,

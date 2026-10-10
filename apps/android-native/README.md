@@ -20,7 +20,21 @@ This is a real native Android pilot. It does not embed the SourceRating website 
 - Phone single-pane and >=720dp two-pane layout
 
 ## Build
-python build.py
+
+Supply the backend origin and an outside-repo file containing its **public**
+anon/publishable key. There is no built-in backend or key. For the Android
+emulator, `10.0.2.2` reaches the Windows host's local Supabase stack:
+
+```powershell
+python build.py --supabase-url http://10.0.2.2:54321 --supabase-anon-key-file D:\AgentWorkspaces\sourcerating-app-l1\secrets\s2-anon-key.txt
+```
+
+The build generates `BuildConfig.java` inside ignored `build/`; checked-in Java
+source is never rewritten. HTTPS targets retain the source manifest's cleartext
+block. Local HTTP builds generate a network-security exception for only the
+selected local host (10.0.2.2, 127.0.0.1 or localhost). Rebuild to change targets.
+Secret/service-role keys and nonlocal HTTP targets are refused. The debug signing
+keystore is generated outside Git at the workspace's `secrets/android-debug.keystore`.
 
 Output:
 pilot-artifacts/SourceRating-Native-debug.apk

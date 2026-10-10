@@ -2,6 +2,15 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` (or
+`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`) before development or a production build.
+Use `.env.example` as a template for an ignored `.env.local`, or supply these in
+the process environment. Only a public anon/publishable key belongs in a client
+build; never use a service-role key. Missing configuration fails instead of
+contacting a live backend. For the local stack the URL is
+`http://127.0.0.1:54321`. These values are baked into the browser bundle, so rebuild
+after changing the target. The client and analyze API route use the same config.
+
 First, run the development server:
 
 ```bash
@@ -34,4 +43,3 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-
