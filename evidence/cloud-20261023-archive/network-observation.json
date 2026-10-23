@@ -1,0 +1,28 @@
+{
+  "observed_date": "2026-10-23",
+  "read_only": true,
+  "instance_id": "ccarenv_b64_Y2NhcmVudl85MDlhZmM5Nzk5ZDg4MTkxYjM4MjkyZDhkN2Y0MDkzMA",
+  "environment_config_id": "e5a3129b-cb2c-41e3-825a-f0bf281a1a29~cecfg_6adaeab0e5f0819b97d9ae373485ac81",
+  "published_version": "e5a3129b-cb2c-41e3-825a-f0bf281a1a29~cecfgver_6adaee215c48819bbfb3e6250b23fe47",
+  "runtime_revision": "2",
+  "runtime_allowed_domains": [
+    "fonts.googleapis.com",
+    "fonts.gstatic.com"
+  ],
+  "policy_state": "unknown",
+  "draft_id": "e5a3129b-cb2c-41e3-825a-f0bf281a1a29~cecfgdraft_6adaf828aaa0819b85dab2efc29f0707",
+  "draft_revision": 3,
+  "draft_allowed_domains": [
+    "fonts.googleapis.com",
+    "fonts.gstatic.com",
+    "kong"
+  ],
+  "draft_other_changes": [
+    "install_script",
+    "start_skill",
+    "repository pins to previous commits: LUSHUPAI 535fa8b6f9012d7fed8b4c1c2c58f6fd2e27319a; SourceRating 2b7d52f497e4c23f0f17762c700c51b43d4a01d7"
+  ],
+  "display_name": "not exposed by tools",
+  "required_user_action": "Open bound cloud environment Settings; review existing draft; network.allowed_domains restricted custom domains: retain fonts and add hostname kong; save and publish. Review other draft changes before publishing.",
+  "blocker": "Historic Edge Runtime -> kong Domain forbidden remains unresolved. No retry or policy bypass this turn; publishing is not proof of resolution."
+}

@@ -1,0 +1,31 @@
+{
+  "mode": "archive",
+  "results": [
+    {
+      "label": "Buyer signs in with seeded email/password through UI",
+      "pass": true
+    },
+    {
+      "label": "Archive endpoint rejects anonymous requests without contacting the gateway",
+      "pass": true
+    },
+    {
+      "label": "Authorized empty-room archive is complete, private, and contains no invented file bytes",
+      "pass": true
+    },
+    {
+      "label": "Unrelated supplier cannot export the new buyer room",
+      "pass": true
+    },
+    {
+      "label": "Removed owner member cannot export with a live Auth session",
+      "pass": true
+    },
+    {
+      "label": "Oversized and invalid JSON archive requests fail before snapshot reads",
+      "pass": true
+    }
+  ],
+  "remoteRequests": [],
+  "pageErrors": []
+}
