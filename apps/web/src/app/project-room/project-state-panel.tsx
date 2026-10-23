@@ -2,10 +2,7 @@
 
 import { useState } from "react";
 import {
-  CanonicalObject,
-  NeedsYouItem,
   ProjectRoomState,
-  StagingProposal,
   extractChangesAndValues,
   extractEvidenceQuote,
   extractProposalSummary,

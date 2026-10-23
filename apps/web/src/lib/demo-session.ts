@@ -12,7 +12,7 @@ export interface Room {
   buyer_organization_id?: string;
   supplier_organization_id?: string;
   organization_id?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface RoomEvent {
@@ -30,10 +30,17 @@ export interface RoomEvent {
     who?: string;
     org?: string;
     file?: string;
-    [key: string]: any;
-  } | any;
+    caption?: string;
+    file_name?: string;
+    mime_type?: string;
+    size_bytes?: number;
+    version_no?: number;
+    sha256?: string;
+    supersedes_version_id?: string | null;
+    [key: string]: unknown;
+  };
   created_at: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface PendingDraft {
@@ -178,15 +185,12 @@ export function getMaxSeq(events: RoomEvent[]): number {
 /**
  * Safely parse text from room event payload
  */
-export function extractEventText(payload: any): string {
-  if (!payload) return '';
+export function extractEventText(payload: unknown): string {
   if (typeof payload === 'string') {
-    try {
-      const parsed = JSON.parse(payload);
-      return parsed.text || parsed.message || payload;
-    } catch {
-      return payload;
-    }
+    try { return extractEventText(JSON.parse(payload)) || payload; }
+    catch { return payload; }
   }
-  return payload.text || payload.message || '';
+  if (!payload || typeof payload !== 'object') return '';
+  const value = payload as Record<string, unknown>;
+  return typeof value.text === 'string' ? value.text : typeof value.message === 'string' ? value.message : '';
 }

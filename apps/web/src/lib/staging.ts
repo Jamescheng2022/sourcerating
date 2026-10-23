@@ -16,7 +16,6 @@ export type RoomAnalysisResponse = {
 export async function analyzeRoomEvent(
   roomId: string,
   eventId: string,
-  _actingOrganizationId: string,
 ): Promise<RoomAnalysisResponse> {
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;

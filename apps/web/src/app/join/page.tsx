@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { STORAGE_KEY_ORG_ID, STORAGE_KEY_ROLE } from "@/lib/demo-session";
 
@@ -17,6 +18,7 @@ type InvitePreview = {
 };
 
 export default function JoinProjectPage() {
+  const router = useRouter();
   const [token, setToken] = useState("");
   const [preview, setPreview] = useState<InvitePreview | null>(null);
   const [loading, setLoading] = useState(true);
@@ -118,7 +120,7 @@ export default function JoinProjectPage() {
         String(claimData.acting_organization_id),
       );
 
-      window.location.assign("/project-room");
+      router.replace("/project-room");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to join project.");
     } finally {

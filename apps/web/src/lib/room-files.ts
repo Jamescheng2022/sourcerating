@@ -47,16 +47,25 @@ export type RegisterFileResponse = {
   };
 };
 
+type RoomFileGatewayResponse = {
+  ok?: boolean;
+  signedUrl?: string;
+  error?: string;
+  verificationStatus?: NonNullable<RegisterFileResponse["verification"]>["status"];
+  serverSha256?: string;
+  detectedMimeType?: string;
+};
+
 async function invokeRoomFileGateway(
   body: Record<string, unknown>,
-): Promise<Record<string, any>> {
+): Promise<RoomFileGatewayResponse> {
   const { data, error } = await supabase.functions.invoke("room-file-gateway", {
     body,
   });
   if (error) {
     throw new Error(error.message || "Room file gateway failed.");
   }
-  return (data || {}) as Record<string, any>;
+  return data || {};
 }
 
 function safeFileName(name: string): string {
@@ -204,8 +213,8 @@ export async function uploadRoomAttachment(input: {
       "quarantined",
       "hash_mismatch",
       "verification_failed",
-    ].includes(verificationData.verificationStatus)
-      ? verificationData.verificationStatus
+    ].includes(verificationData.verificationStatus || "pending")
+      ? verificationData.verificationStatus!
       : "pending";
     result.verification = {
       ok: Boolean(verificationData.ok),

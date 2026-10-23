@@ -177,7 +177,7 @@ export default function ProjectRoomPage() {
   }, []);
 
   // Load rooms via RLS whenever role or session is established
-  const loadRooms = useCallback(async (currentRole: DemoRole, currentOrgId: string | null) => {
+  const loadRooms = useCallback(async () => {
     setRoomsLoading(true);
     try {
       const { data: rlsRooms, error } = await supabase.from("rooms").select("*");
@@ -211,7 +211,7 @@ export default function ProjectRoomPage() {
 
   useEffect(() => {
     if (role) {
-      loadRooms(role, actingOrgId);
+      loadRooms();
     }
   }, [role, loadRooms, actingOrgId]);
 
@@ -224,7 +224,7 @@ export default function ProjectRoomPage() {
       setRole(result.role);
       setActingOrgId(result.actingOrgId);
       setCurrentUserId(result.userId);
-      await loadRooms(result.role, result.actingOrgId);
+      await loadRooms();
     } catch (err: unknown) {
       console.error("Sign-in failed:", err);
       setAuthError(err instanceof Error ? err.message : "Unable to sign in. Please try again.");
@@ -248,6 +248,30 @@ export default function ProjectRoomPage() {
     setAiStatus(null);
     analyzedEventIdsRef.current.clear();
     setInputText("");
+  };
+
+  const [exportStatus, setExportStatus] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const exportRoomEvidence = async () => {
+    if (!activeRoomId || exporting) return;
+    setExporting(true);
+    setExportStatus(null);
+    try {
+      const { data, error } = await supabase.rpc("export_room_evidence", { p_room_id: activeRoomId });
+      if (error) throw error;
+      if (data?.schema !== "sourcerating-room-evidence-v1") throw new Error("Invalid export response.");
+      const href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+      const link = document.createElement("a");
+      link.href = href;
+      link.download = `room-${activeRoomId}-evidence.json`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(href), 1000);
+      setExportStatus("Evidence index downloaded. File bytes are not included.");
+    } catch (error) {
+      setExportStatus(error instanceof Error ? error.message : "Evidence export failed. Please retry.");
+    } finally {
+      setExporting(false);
+    }
   };
 
   const visibleRooms = rooms;
@@ -460,7 +484,7 @@ export default function ProjectRoomPage() {
       analyzedEventIdsRef.current.add(analysisKey);
 
       try {
-        const result = await analyzeRoomEvent(event.room_id, event.id, actingOrgId);
+        const result = await analyzeRoomEvent(event.room_id, event.id);
         if (!result?.ok) {
           setAiStatus("AI assistant is temporarily unavailable; live project messaging continues normally.");
           return;
@@ -470,7 +494,7 @@ export default function ProjectRoomPage() {
             ? `AI assistant active via ${result.deepProvider}; live project messaging continues normally.`
             : "AI assistant is temporarily unavailable; live project messaging continues normally."
         );
-      } catch (error) {
+      } catch {
         setAiStatus("AI assistant is temporarily unavailable; live project messaging continues normally.");
       }
     },
@@ -817,7 +841,7 @@ export default function ProjectRoomPage() {
 
       const url = window.location.origin + "/join?token=" + encodeURIComponent(String(data.token));
       setInviteUrl(url);
-      await loadRooms("buyer", actingOrgId);
+      await loadRooms();
     } catch (error) {
       setInviteError(
         error instanceof Error ? error.message : "Unable to create invitation.",
@@ -912,6 +936,9 @@ export default function ProjectRoomPage() {
             </div>
             <div className="rounded-lg border border-slate-800 bg-slate-900 p-3">
               <div className="text-xs font-semibold text-white">{projectName}</div>
+              <button type="button" onClick={exportRoomEvidence} disabled={exporting || !activeRoomId}
+                className="mt-3 text-xs text-cyan-300 disabled:opacity-50">{exporting ? "Exporting…" : "Export room evidence index"}</button>
+              {exportStatus && <p role="status" className="mt-2 text-xs text-slate-300">{exportStatus}</p>}
               <div className="text-[10px] text-sky-400 mt-0.5 font-mono">
                 {projectCode || "SourceRating Project"}
               </div>
@@ -1608,6 +1635,11 @@ export default function ProjectRoomPage() {
 
         {/* RIGHT SIDEBAR: PROJECT STATE (Honest Live Information, No Fake Tabs or Affordances) */}
         <aside id="room-context" aria-label="Project context" className={`${mobileView === "context" ? "flex" : "hidden"} md:flex flex-col bg-white border-l border-slate-200 min-h-0`}>
+          <div className="p-3 md:hidden">
+            <button type="button" onClick={exportRoomEvidence} disabled={exporting || !activeRoomId}
+              className="rounded border border-slate-300 px-3 py-2 text-sm disabled:opacity-50">{exporting ? "Exporting…" : "Export room evidence index"}</button>
+            {exportStatus && <p role="status" className="mt-2 text-xs text-slate-600">{exportStatus}</p>}
+          </div>
           <div className="p-4 border-b border-slate-200">
             <div className="flex items-center justify-between">
               <div className="text-sm font-bold text-slate-900">Project Context</div>

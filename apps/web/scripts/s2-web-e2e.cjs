@@ -4,16 +4,17 @@ const path = require('node:path');
 const { spawn, execFileSync } = require('node:child_process');
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
-const ROOT = path.resolve(__dirname, '../../../..');
+const REPO = path.resolve(__dirname, '../../..');
+const ROOT = path.dirname(REPO);
 const { chromium } = require(process.env.S2_PLAYWRIGHT_MODULE || path.join(ROOT, 'tools/node_modules/playwright'));
 const { createClient } = require('@supabase/supabase-js');
 const mode = process.argv[2] || 'e2e';
 const output = process.env.S2_EVIDENCE_DIR || path.join(ROOT, 'carryover', mode === 'inquiries' ? 'B6-artifacts' : 'B5-artifacts');
 fs.mkdirSync(output, { recursive: true });
 const url = 'http://127.0.0.1:3000';
-const values = JSON.parse(execFileSync(path.join(ROOT, 'tools/node_modules/@supabase/cli-windows-x64/bin/supabase.exe'), ['status', '-o', 'json'], { cwd: path.join(ROOT, 'repo'), stdio: ['ignore', 'pipe', 'ignore'] }));
+const values = JSON.parse(execFileSync(process.env.S2_SUPABASE_CLI || 'supabase', ['status', '-o', 'json', '--workdir', process.env.S2_SUPABASE_WORKDIR || REPO], { cwd: REPO, stdio: ['ignore', 'pipe', 'ignore'] }));
 assert.equal(values.API_URL, 'http://127.0.0.1:54321');
-const passwords = JSON.parse(fs.readFileSync(path.join(ROOT, 'secrets/s2-local-passwords.json'), 'utf8'));
+const passwords = JSON.parse(fs.readFileSync(process.env.S2_PASSWORD_FILE || path.join(ROOT, 'secrets/s2-local-passwords.json'), 'utf8'));
 const results = [];
 const remoteRequests = [];
 const pageErrors = [];
@@ -54,6 +55,12 @@ async function stopServer() {
 async function context() {
   const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 }, acceptDownloads: true });
   ctx.on('page', page => page.on('pageerror', error => pageErrors.push(error.message)));
+  ctx.on('response', async response => {
+    if (response.ok() || new URL(response.url()).pathname !== '/api/project-invite') return;
+    const data = await response.json().catch(() => null);
+    const code = typeof data?.error === 'string' && /^[a-z_]{2,60}$/.test(data.error) ? data.error : 'request_failed';
+    console.error(`Invite HTTP ${response.status()} (${code})`);
+  });
   ctx.on('request', request => {
     const target = new URL(request.url());
     if (target.pathname.endsWith('/project-invite')) {
@@ -249,7 +256,7 @@ async function inquirySuite(buyer) {
 }
 async function main() {
   await startServer();
-  browser = await chromium.launch({ executablePath: process.env.S2_BROWSER_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true });
+  browser = await chromium.launch({ executablePath: process.env.S2_BROWSER_PATH || (process.platform === 'win32' ? 'C:/Program Files/Google/Chrome/Application/chrome.exe' : '/usr/bin/chromium'), headless: true });
   const buyerContext = await context();
   const buyer = await buyerContext.newPage();
   if (mode === 'baseline') {
@@ -261,6 +268,16 @@ async function main() {
     return;
   }
   await check('Buyer signs in with seeded email/password through UI', () => login(buyer, 's2-buyer@s2-test.invalid', passwords.S2_BUYER_PASSWORD));
+  if (mode === 'recovery') {
+    const stamp = 's2-cloud-recovery-' + Date.now(), email = stamp + '@s2-test.invalid';
+    const oldPassword = crypto.randomBytes(24).toString('hex');
+    const admin = createClient(values.API_URL, values.SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+    assert.ifError((await admin.auth.admin.createUser({ email, password: oldPassword, email_confirm: true })).error);
+    const anon = createClient(values.API_URL, values.ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+    await require('./s2-recovery-review.cjs')({ context, check, url, values, output, signedIn, anon, remoteRequests, pageErrors, email, oldPassword, stamp });
+    return;
+  }
+  if (mode === 'export') { await require('./s2-export-review.cjs')({ buyer, check, signedIn, values, passwords, output, createClient }); return; }
   if (mode === 'inquiries') { await inquirySuite(buyer); return; }
   if (mode === 'review') { await require('./s2-prelaunch-review.cjs')({ buyer, context, check, login, signedIn, fixtures, values, passwords, output, url, createClient, remoteRequests, pageErrors }); return; }
   if (mode === 'ui') {

@@ -14,9 +14,9 @@ class Relationships(BaseModel):
 class GameState(BaseModel):
     turn: int = 1
     timeline: str = "1920-01"
-    protagonist: str = "林镇�?
+    protagonist: str = "林镇"
     stats: GameStats = GameStats()
-    assets: List[str] = ["吉隆坡祖�?]
+    assets: List[str] = ["吉隆坡祖业"]
     relationships: Relationships = Relationships()
     flags: List[str] = []
 

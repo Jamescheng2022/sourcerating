@@ -1,11 +1,16 @@
 import { supabase } from "./supabase";
 
+export interface ProposalPayload extends Record<string, unknown> {
+  confidence?: number | null;
+  provider?: string | null;
+}
+
 export interface StagingProposal {
   id: string;
   room_id: string;
   source_event_id: string | null;
   proposal_type: string;
-  payload: any;
+  payload: ProposalPayload;
   confidence: number | null;
   provider: string | null;
   status: "pending" | "accepted" | "dismissed" | string;
@@ -31,7 +36,7 @@ export interface CanonicalObject {
   id: string;
   room_id: string;
   object_type: string;
-  payload: any;
+  payload: ProposalPayload;
   source_event_id: string | null;
   accepted_proposal_id: string | null;
   version_no: number;
@@ -55,7 +60,7 @@ export interface ExtractedValueItem {
 /**
  * Extract human-readable summary from arbitrary proposal or canonical payload
  */
-export function extractProposalSummary(payload: any): string {
+export function extractProposalSummary(payload: Record<string, unknown>): string {
   if (!payload || typeof payload !== "object") return "Proposal update";
 
   if (typeof payload.summary === "string" && payload.summary.trim()) {
@@ -89,7 +94,7 @@ export function extractProposalSummary(payload: any): string {
 /**
  * Extract structured changes and key-value attributes from payload
  */
-export function extractChangesAndValues(payload: any): ExtractedValueItem[] {
+export function extractChangesAndValues(payload: Record<string, unknown>): ExtractedValueItem[] {
   if (!payload || typeof payload !== "object") return [];
   const items: ExtractedValueItem[] = [];
 
@@ -188,7 +193,7 @@ export function extractChangesAndValues(payload: any): ExtractedValueItem[] {
 /**
  * Extract evidence quote snippet from payload
  */
-export function extractEvidenceQuote(payload: any): string | null {
+export function extractEvidenceQuote(payload: Record<string, unknown>): string | null {
   if (!payload || typeof payload !== "object") return null;
 
   if (typeof payload.evidenceQuote === "string" && payload.evidenceQuote.trim()) {
@@ -298,11 +303,11 @@ export async function loadProjectRoomState(
         canonicalObjects: (canonicalRes.data as CanonicalObject[]) || [],
       },
     };
-  } catch (err: any) {
+  } catch (err) {
     console.warn("Exception loading project room state:", err);
     return {
       ok: false,
-      error: err?.message || "Failed to query project state",
+      error: (err instanceof Error ? err.message : null) || "Failed to query project state",
     };
   }
 }
@@ -315,8 +320,8 @@ export async function executeReviewStagingProposal(params: {
   proposalId: string;
   action: "accept" | "dismiss";
   actorOrganizationId?: string | null;
-  payloadOverride?: any;
-}): Promise<{ ok: boolean; data?: any; error?: string }> {
+  payloadOverride?: Record<string, unknown>;
+}): Promise<{ ok: boolean; data?: unknown; error?: string }> {
   try {
     const { data, error } = await supabase.rpc("review_staging_proposal", {
       p_proposal_id: params.proposalId,
@@ -330,10 +335,10 @@ export async function executeReviewStagingProposal(params: {
     }
 
     return { ok: true, data };
-  } catch (err: any) {
+  } catch (err) {
     return {
       ok: false,
-      error: err?.message || `Failed to ${params.action} proposal`,
+      error: (err instanceof Error ? err.message : null) || `Failed to ${params.action} proposal`,
     };
   }
 }
