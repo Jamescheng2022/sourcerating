@@ -1,0 +1,57 @@
+{
+  "runtime": {
+    "checked_at": "2026-10-23 10:53:20 UTC",
+    "environment_id": "ccarenv_b64_Y2NhcmVudl85MDlhZmM5Nzk5ZDg4MTkxYjM4MjkyZDhkN2Y0MDkzMA",
+    "source_config_id": "e5a3129b-cb2c-41e3-825a-f0bf281a1a29~cecfg_6adaeab0e5f0819b97d9ae373485ac81",
+    "source_config_version_id": "e5a3129b-cb2c-41e3-825a-f0bf281a1a29~cecfgver_6adaee215c48819bbfb3e6250b23fe47",
+    "spec_revision": "2",
+    "observed_spec_revision": "2",
+    "observations_current": true,
+    "observed_phase": "running",
+    "connectivity": "connected",
+    "network_policy": {
+      "mode": "restricted",
+      "state": "unknown",
+      "allowed_hosts": [
+        "fonts.googleapis.com",
+        "fonts.gstatic.com"
+      ]
+    },
+    "secret_count": 0,
+    "runtime_variable_count": 0,
+    "outbound_identity_count": 0
+  },
+  "draft": {
+    "checked_at": "2026-10-23 10:53:56 UTC",
+    "name": "lushupai-v2",
+    "draft_id": "e5a3129b-cb2c-41e3-825a-f0bf281a1a29~cecfgdraft_6adaf828aaa0819b85dab2efc29f0707",
+    "revision": 3,
+    "base_version_id": "e5a3129b-cb2c-41e3-825a-f0bf281a1a29~cecfgver_6adaee215c48819bbfb3e6250b23fe47",
+    "allowed_hosts": [
+      "fonts.googleapis.com",
+      "fonts.gstatic.com",
+      "kong"
+    ],
+    "repositories": [
+      {
+        "repository_id": "Jamescheng2022/lushupai-v2",
+        "ref": "535fa8b6f9012d7fed8b4c1c2c58f6fd2e27319a",
+        "mount_path": "lushupai-v2",
+        "depth": null
+      },
+      {
+        "repository_id": "Jamescheng2022/sourcerating",
+        "ref": "2b7d52f497e4c23f0f17762c700c51b43d4a01d7",
+        "mount_path": "sourcerating",
+        "depth": null
+      }
+    ],
+    "other_pending_changes": [
+      "install_script",
+      "start_skill"
+    ],
+    "changed_by_this_turn": false
+  },
+  "decision": "No relevant applied policy change. No historical Domain forbidden retry, network mutation, credential mutation or draft publish.",
+  "minimum_review": "Environment lushupai-v2: restricted network.allowed_domains retain fonts.googleapis.com/fonts.gstatic.com and add hostname kong only. Do not bulk-apply old repository pins or scripts. This enables a later check, not proof of access or public-preview configuration."
+}
