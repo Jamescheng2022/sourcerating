@@ -1,0 +1,29 @@
+# SourceRating App preview configuration and delivery gate
+
+2026-10-23 continuation on `codex/cloud-launch-20261023`, app root **apps/web** in **Jamescheng2022/sourcerating**. This is the project-room App, not sourcerating-website. User's updated target is a real accessible release with synthetic new-user acceptance and final handoff. Hosting/account/credential/network/migration/cost gates still require their necessary approval. No hosted change or deployment was performed by this fix.
+
+## Observed failure and change
+
+User independently verified Vercel deployment `EcYb8bneBHCnZLx3Kk2iMDDRxpeC` for commit `c6d9eab3a92ff52ae72b4b81df2b26632c16ed4a`: compile and TypeScript passed, then page-data collection for `/api/project-room/analyze` failed at supabase-config.ts because URL and/or public key was absent. This report is external evidence; this session cannot inspect Vercel variables or logs. GitHub deployments read requests returned Forbidden and were stopped. No credential was uploaded or substituted.
+
+The original module guard correctly prevented accidental live-backend fallback. The shared validator now runs in next.config.ts **before compilation** as well as in browser/server config. Missing values remain a failed build, with actionable names. Malformed URL, embedded credentials, service-role/secret key shapes, conflicting aliases and the existing excluded production hostname fail closed. Vercel builds additionally reject loopback. Public-key shape checks do not verify signatures, ownership, RLS or connectivity.
+
+## Exact setup to review in the existing hosting project
+
+1. Verify the Vercel project belongs to repository Jamescheng2022/sourcerating, Root Directory `apps/web`, Framework Next.js, Build Command `npm run build`. Confirm its linked branch/deployment source is `codex/cloud-launch-20261023` and it is the **App**, not the website. Do not repoint an existing customer deployment or production branch.
+2. In that project's Settings → Environment Variables, select **Preview**, and check for branch-specific overrides for this branch. Set `NEXT_PUBLIC_SUPABASE_URL` to the authorized **isolated hosted HTTPS Supabase origin**; set exactly one of `NEXT_PUBLIC_SUPABASE_ANON_KEY` or `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` to that same isolated project's public key. Do not use service-role, `sb_secret_`, production customer project values, or invented placeholders. Configuring those values remains an owner action until the target and authorization are established.
+3. These NEXT_PUBLIC values are compiled into browser JS. Saving runtime variables alone cannot fix an existing artifact; rebuild the preview after the approved settings are present. Using `npx next build` also executes the config guard. Never bypass the check to make a preview green. Local `.env.local` belongs in apps/web and is ignored; it is not uploaded to Vercel. Cloud shell variables are not Vercel build settings.
+4. `http://127.0.0.1:54321` and Docker `kong` are local-stack targets, not hosted preview backends. Adding `kong` to this cloud network policy cannot configure Vercel/Supabase or make the browser reach the private stack. Do not expose that gateway, copy synthetic service credentials, or loosen network policy as a workaround.
+5. Before any migration on the isolated hosted backend, inventory existing schema/data, review pending migrations and rollback/backup risk, and obtain the necessary migration approval. Preserve RLS, JWT checks, signed relay, allowed redirect origins and file gateway. AI and invite relay require their separately authorized server-only settings; a compiling frontend does not prove them configured. Do not fill missing credentials from another project.
+
+## Reproducible acceptance and remaining gates
+
+- `npm run test:config`: no-secret isolated tests, including an actual Next build with missing public settings. It must exit nonzero before compiling/collecting page data. The actual config is copied into a disposable root without operator .env files; no backend calls.
+- `npm run build` with the existing local stack's real public URL/key, then lint and existing local HTTP/browser acceptance. These prove the local synthetic environment only. No real network credential appears in committed evidence.
+- On an authorized public preview, record URL, hosting project/environment, exact deployment SHA and backend isolation. In clean browser profiles test two-account signup/login, verification/recovery (only approved test mail recipients), invite/join/accept/removal, chat persistence/relogin, file upload and gateway byte verification/export, proposal confirm/reject/audit, 390px layout, explicit error fallback and denied cross-account access.
+- Current kong policy blocks the local invitation/file chain. Retain BLOCKED until a supported policy change is current/enforced and actual chain succeeds. No retry on an unchanged policy. Real hosted attachment acceptance is separately required.
+- Archive API is bounded and current-room only; existing UI index is not a complete file archive. Deletion is design-only pending ownership/retention approval; no irreversible purge is authorized by this delivery goal.
+
+## Cost and rollback
+
+No hosting plan, usage quota or price is observable through available tools. Do not claim free operation or provision a paid plan. Request existing hosting/backend plan limits and any incremental costs before purchase. Payment acceptance uses sandbox only. Roll back application code to the prior accepted preview artifact in the confirmed **same App project**, preserving environment separation; do not auto-rollback database migrations or discard customer data. Record the prior deployment ID before publishing. Production release remains unverified until target, rollback and new-user evidence are recorded.

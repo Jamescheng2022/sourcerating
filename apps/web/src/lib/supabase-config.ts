@@ -1,14 +1,11 @@
-// NEXT_PUBLIC values are supplied at build time; never fall back to a live backend.
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const publicKey =
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+import { publicSupabaseSettings } from './public-supabase-settings.mjs';
 
-if (!url || !publicKey) {
-  throw new Error("Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY (or PUBLISHABLE_KEY) before building.");
-}
-
-export const SUPABASE_URL = url;
-if (new URL(url).hostname === "qnozpurjtgkmwtvsrjoi.supabase.co") {
-  throw new Error("The existing production backend is excluded from pilot builds.");
-}
-export const SUPABASE_ANON_KEY = publicKey;
+// Literal references are required for Next's build-time browser substitution.
+// No fallback, service key, or module-time network request.
+const config = publicSupabaseSettings(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+);
+export const SUPABASE_URL: string = config.url;
+export const SUPABASE_ANON_KEY: string = config.publicKey;
