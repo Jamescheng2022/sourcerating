@@ -268,6 +268,7 @@ async function main() {
     return;
   }
   await check('Buyer signs in with seeded email/password through UI', () => login(buyer, 's2-buyer@s2-test.invalid', passwords.S2_BUYER_PASSWORD));
+  if (mode === 'archive') { await require('./s2-archive-review.cjs')({ check, signedIn, values, passwords, createClient, url }); return; }
   if (mode === 'recovery') {
     const stamp = 's2-cloud-recovery-' + Date.now(), email = stamp + '@s2-test.invalid';
     const oldPassword = crypto.randomBytes(24).toString('hex');
