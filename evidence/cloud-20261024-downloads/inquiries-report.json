@@ -1,0 +1,95 @@
+{
+  "mode": "inquiries",
+  "results": [
+    {
+      "label": "Buyer signs in with seeded email/password through UI",
+      "pass": true
+    },
+    {
+      "label": "Two submitters in the SAME supplier organization sign in through UI",
+      "pass": true
+    },
+    {
+      "label": "First UI form persists inquiry with authenticated submitter and exact room",
+      "pass": true
+    },
+    {
+      "label": "Second UI form persists a distinct inquiry",
+      "pass": true
+    },
+    {
+      "label": "Buyer collection and existing Needs You both show the two saved inquiries",
+      "pass": true
+    },
+    {
+      "label": "First submitter UI shows own inquiry and never the same-org colleague inquiry",
+      "pass": true
+    },
+    {
+      "label": "Second submitter UI shows own inquiry and never first submitter inquiry",
+      "pass": true
+    },
+    {
+      "label": "first submitter direct API cannot read another populated inquiry",
+      "pass": true
+    },
+    {
+      "label": "second submitter direct API cannot read another populated inquiry",
+      "pass": true
+    },
+    {
+      "label": "Submitters cannot read buyer-only inquiry Needs You rows",
+      "pass": true
+    },
+    {
+      "label": "Anon cannot read inquiry collection",
+      "pass": true
+    },
+    {
+      "label": "anon cannot submit an inquiry (42501)",
+      "pass": true
+    },
+    {
+      "label": "supplier internal room cannot submit an inquiry (42501)",
+      "pass": true
+    },
+    {
+      "label": "Authenticated non-member cannot read or submit inquiry",
+      "pass": true
+    },
+    {
+      "label": "Direct INSERT cannot spoof the buyer as submitter",
+      "pass": true
+    },
+    {
+      "label": "Direct UPDATE/DELETE of real inquiries are denied even to owner submitter",
+      "pass": true
+    },
+    {
+      "label": "Concurrent retry of the original request creates no duplicate inquiry or buyer task",
+      "pass": true
+    },
+    {
+      "label": "Reusing request ID with changed content is rejected without changing saved data",
+      "pass": true
+    },
+    {
+      "label": "Server-side empty/oversized content validation rejects direct RPC bypass",
+      "pass": true
+    },
+    {
+      "label": "Inquiries persist across refresh and production server restart",
+      "pass": true
+    },
+    {
+      "label": "Inquiry form is reachable at mobile width",
+      "pass": true
+    },
+    {
+      "label": "Inquiry flow has zero outbound browser requests or uncaught page errors",
+      "pass": true
+    }
+  ],
+  "remoteRequests": [],
+  "pageErrors": []
+}

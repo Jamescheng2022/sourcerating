@@ -1,0 +1,69 @@
+{
+  "observed_at_utc": "2026-10-24 00:08:05 UTC",
+  "environment_name": "lushupai-v2",
+  "environment_id": "ccarenv_b64_Y2NhcmVudl85MDlhZmM5Nzk5ZDg4MTkxYjM4MjkyZDhkN2Y0MDkzMA",
+  "source_config_id": "e5a3129b-cb2c-41e3-825a-f0bf281a1a29~cecfg_6adaeab0e5f0819b97d9ae373485ac81",
+  "published_version_id": "e5a3129b-cb2c-41e3-825a-f0bf281a1a29~cecfgver_6adaee215c48819bbfb3e6250b23fe47",
+  "desired_revision": "2",
+  "observed_revision": "2",
+  "observations_current": true,
+  "observed_phase": "running",
+  "connectivity": "connected",
+  "network": {
+    "mode": "restricted",
+    "state": "unknown",
+    "custom_allowed_hosts": [
+      "fonts.googleapis.com",
+      "fonts.gstatic.com"
+    ],
+    "presets": [
+      "package_managers"
+    ],
+    "kong_in_effective_hosts": false
+  },
+  "existing_draft": {
+    "id": "e5a3129b-cb2c-41e3-825a-f0bf281a1a29~cecfgdraft_6adaf828aaa0819b85dab2efc29f0707",
+    "revision": 3,
+    "base_version_id": "e5a3129b-cb2c-41e3-825a-f0bf281a1a29~cecfgver_6adaee215c48819bbfb3e6250b23fe47",
+    "unchanged_during_this_turn": true,
+    "custom_allowed_hosts": [
+      "fonts.googleapis.com",
+      "fonts.gstatic.com",
+      "kong"
+    ],
+    "repository_pins": [
+      {
+        "repository_id": "Jamescheng2022/lushupai-v2",
+        "ref": "535fa8b6f9012d7fed8b4c1c2c58f6fd2e27319a",
+        "mount_path": "lushupai-v2",
+        "depth": null
+      },
+      {
+        "repository_id": "Jamescheng2022/sourcerating",
+        "ref": "2b7d52f497e4c23f0f17762c700c51b43d4a01d7",
+        "mount_path": "sourcerating",
+        "depth": null
+      }
+    ],
+    "contains_install_script": true,
+    "contains_start_instructions": true
+  },
+  "authorized_minimum_change": {
+    "field": "network.allowed_domains",
+    "before": [
+      "fonts.googleapis.com",
+      "fonts.gstatic.com"
+    ],
+    "after": [
+      "fonts.googleapis.com",
+      "fonts.gstatic.com",
+      "kong"
+    ],
+    "preserve": "All other fields, package_managers preset, repository references, scripts, credentials, and existing unpublished edits."
+  },
+  "tool_capability_gap": "Available tools read runtime/read draft/update the bound draft. No apply/publish or separate clean draft API. Nothing applied or mutated in this turn.",
+  "required_operator_action": "Work > saved environment lushupai-v2 > Environment settings > Network / Internet access > restricted custom allowed domains: apply only kong against the current published version. UI labels are a navigation guide, not a verified screenshot. If the UI only publishes the whole mixed revision 3, stop and use platform support for a network-only publish; do not publish revision 3.",
+  "full_draft_risk": "Revision 3 contains old pinned repository SHAs plus install/start instructions, beyond kong. Published scripts/repository fields are not exposed by runtime status, so a complete field-by-field published-to-draft diff cannot be verified. Preserve the draft; do not reconstruct or overwrite it.",
+  "gateway_retries_this_turn": 0,
+  "denied_github_deployment_record_reads_this_turn": 0
+}

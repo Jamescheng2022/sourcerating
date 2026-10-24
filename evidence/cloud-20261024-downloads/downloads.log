@@ -1,0 +1,16 @@
+PASS Buyer signs in with seeded email/password through UI
+PASS Real local empty-room archive downloads through desktop UI with caller Auth/RLS
+PASS Real local archive downloads at 390px with scope/size limits and no horizontal overflow
+PASS Isolated unavailable-service response gives retry, no partial download or automatic index fallback
+PASS Isolated quota refusal clearly distinguishes optional metadata index from full archive
+PASS Isolated partial and cross-room success-shaped responses are refused without download
+PASS Isolated file-bearing UI fixture preserves downloaded bytes; this does not test the gateway
+PASS Isolated oversized response is bounded and never saved as a successful archive
+PASS Cancel stops an in-flight archive and a late response cannot trigger download
+PASS A stalled archive times out, recovers controls, and refuses a late successful response
+PASS Changing rooms cancels an in-flight archive and clears the prior room status
+PASS Failed remote sign-out clears local private UI but does not claim server session revocation
+PASS Sign-out prevents an in-flight private archive from downloading after logout
+PASS Cross-tab sign-out clears private page state and cancels an in-flight archive
+PASS Download acceptance remains local and has no uncaught page errors
+{"checks":15,"passed":15,"remoteRequests":0}

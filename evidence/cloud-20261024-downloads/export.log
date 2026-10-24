@@ -1,0 +1,7 @@
+PASS Buyer signs in with seeded email/password through UI
+PASS Room evidence export is a server-persisted snapshot with no credential URLs
+PASS Supplier cannot export buyer internal room; anonymous export is denied
+PASS Removed member cannot export with a still valid session
+PASS Room evidence index downloads as parseable JSON through the real UI
+PASS Evidence export is reachable at 390px without horizontal overflow
+{"checks":6,"passed":6,"remoteRequests":0}

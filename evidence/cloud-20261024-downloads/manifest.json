@@ -1,0 +1,142 @@
+{
+  "recorded_at_utc": "2026-10-24T00:09:47.770942+00:00",
+  "repository": "Jamescheng2022/sourcerating",
+  "path": "/workspace/sourcerating",
+  "branch": "codex/cloud-launch-20261023",
+  "baseline_commit": "a8b14f91c95256ee0e91ef4017b9dc30363aa033",
+  "implementation_commit": "8cd64821a856fd9806bb8357ed5fec84e1061908",
+  "model_receipt": "Codex based on GPT-6 is exposed; specific variant/effort and an in-place model switch are unavailable. Astra Max cannot be confirmed. No second executor.",
+  "execution": "One writer, existing managed cloud only. Reused existing local Supabase and synthetic accounts; no hosted backend, real email, migration, new paid resource or deployment.",
+  "source_inputs_sha256": {
+    "apps/web/scripts/README-s2.md": "b6f6831a938d93382ec5c2c4f500529fc3c4a5a1bfa4b9ce27b4171e67d696eb",
+    "apps/web/scripts/s2-download-review.cjs": "e5f6b7a6c86bf7c276b7c29202199ed866cc23c6fbf534f419ed491355bc8704",
+    "apps/web/scripts/s2-web-e2e.cjs": "5bc0af204ed2fcf5efea5b32b5775345d847c1767d5ac2e6fc95770cb14770a4",
+    "apps/web/src/app/project-room/evidence-downloads.tsx": "ebd8b5703e4ee7be839dd8b8f9b3d6ed63808c89f1da6d7cbf6ad1849ababa9c",
+    "apps/web/src/app/project-room/page.tsx": "5595ff7767e24c270789f344805b024876a52e877284ceac8aea0893ba952e18",
+    "apps/web/src/lib/demo-session.ts": "b0aa7ceb4116f48a47b6a922f48ad7a450f2d2b4d96470d50b430b56c96c9e10",
+    "docs/ROOM_ARCHIVE_AND_DELETION.md": "198f00b7ffce9e8f9440ae6e9119d35763638b463eb1b3f34a883f4f24ab67a8"
+  },
+  "timing": "Final lint/build/new downloads suite executed on identical source bytes immediately before implementation commit. Existing regression and Deno/config suites completed with that commit. No source changes after successful final checks.",
+  "checks": {
+    "lint": {
+      "exit_code": 0,
+      "command": "npm run lint --prefix apps/web"
+    },
+    "build": {
+      "exit_code": 0,
+      "command": "python /workspace/tools/run-sr.py build",
+      "scope": "Next production build + TypeScript, local public Supabase settings only"
+    },
+    "browser_api": {
+      "downloads": {
+        "checks": 15,
+        "passed": 15,
+        "external_browser_requests": 0,
+        "page_errors": 0,
+        "report": "downloads-report.json",
+        "exit_code": 0
+      },
+      "export": {
+        "checks": 6,
+        "passed": 6,
+        "external_browser_requests": 0,
+        "page_errors": 0,
+        "report": "export-report.json",
+        "exit_code": 0
+      },
+      "archive": {
+        "checks": 6,
+        "passed": 6,
+        "external_browser_requests": 0,
+        "page_errors": 0,
+        "report": "archive-report.json",
+        "exit_code": 0
+      },
+      "inquiries": {
+        "checks": 22,
+        "passed": 22,
+        "external_browser_requests": 0,
+        "page_errors": 0,
+        "report": "inquiries-report.json",
+        "exit_code": 0
+      },
+      "recovery": {
+        "checks": 8,
+        "passed": 8,
+        "external_browser_requests": 0,
+        "page_errors": 0,
+        "report": "recovery-report.json",
+        "exit_code": 0
+      }
+    },
+    "deno": {
+      "exit_code": 0,
+      "passed": 60,
+      "failed": 0,
+      "suites": [
+        "running 2 tests from ./supabase/scripts/target_guard_test.ts",
+        "running 18 tests from ./supabase/functions/tests/invite_relay_test.ts",
+        "running 12 tests from ./supabase/functions/tests/relay_server_test.ts",
+        "running 12 tests from ./supabase/functions/tests/room_archive_test.ts",
+        "running 16 tests from ./supabase/functions/tests/shared_test.ts"
+      ]
+    },
+    "public_configuration": {
+      "exit_code": 0,
+      "passed": 6,
+      "failed": 0,
+      "command": "npm run test:config --prefix apps/web"
+    }
+  },
+  "browser_reproduction": "With the existing isolated stack and passwords outside Git, run python /workspace/tools/run-sr.py MODE for downloads, export, archive, inquiries, recovery sequentially. Repository portable runner: apps/web/scripts/s2-web-e2e.cjs (see README-s2.md).",
+  "scope_separation": {
+    "real_local": "Auth/RLS, empty room archive, metadata export, inquiry isolation/idempotency and restart persistence, local Mailpit password recovery, real cross-tab sign-out. All accounts/data synthetic.",
+    "isolated_browser_fixtures": "503, 413, malformed/cross-room, file-bearing success shape, oversized body, stalled/late response and failed remote logout. Fixture bytes do not establish gateway correctness.",
+    "not_run": "New actual uploaded-file archive assertion in e2e awaits applied kong policy. No invitation/file gateway retry in this turn.",
+    "not_accepted": "Hosted preview, production, real provider email, complete invitation+attachment+archive chain."
+  },
+  "discarded_runs": "Early development failures informed busy-state/logout fixes. A local server port collision during overlapping validation was discarded. Only final serial results are included here.",
+  "public_preview": {
+    "created": false,
+    "verified_url": null,
+    "target_project": "sourcerating",
+    "team": "jamescheng2022s-projects",
+    "project_id": "prj_Ra2cBP9kmKANgMm5xIFEXlV2c5IS",
+    "root": "apps/web",
+    "excluded_project": "sourcerating-website",
+    "backend_candidate_only": "fzrberkeoizarduwuisp"
+  },
+  "network_status": "network-status.json",
+  "artifacts_sha256": {
+    "README.md": "ac0d450a5e0719672670504a74c40799608036dbdc2f9b5c8b6f01dd9ead5879",
+    "archive-mobile-390.png": "e72fe30bdf5ed04da38dfe938d4d8837330e75feb8630dcad22624c60c1d1c4e",
+    "archive-report.json": "7a95988e8f34be6ac3f7e08d2531949271b3a446e03f73128df41994fec53fdc",
+    "archive-unavailable-390.png": "55b39f594f5c3decfeed48452d6154e21c7f53ccba08b2bdf973f3f1deb3e739",
+    "archive.log": "a3481401790d4c6336ca94c78ee93e40bc9eec3ae20430b8381a8b3a22798078",
+    "build.log": "e31ec4a2469dbfe15117178723fe6b3006e9b642eb1a50547c6871805abccb3b",
+    "config.log": "aba5762a04d21808d8eb89d1870ab5984c5de00083743c054fbb1a2e03d2249a",
+    "deno.log": "b801f021b4070c0bd89e3a1bf89f7959902594c898a8d4fae779a80d9a7ec9e3",
+    "downloads-report.json": "d4f872382d87d03ba537c441b6af3383c343ac74b2792bd1509ed1d9ec98059a",
+    "downloads.log": "3d56fa26402b287997e03e22d8d25b489a7c76662d2cbb9f3c89127b511c5878",
+    "export-report.json": "bb0602a65cc7578026d4b36451c048ceecf95579a5750f262b13a16344e0add1",
+    "export.log": "bd4ccf272cd82f6c04d19f9e641445580c3feac20a228c0577f190f9f8cbf8cc",
+    "inquiries-report.json": "7c044e9a960068aba4b561fc44a2ee98ef4d8aa37c8ad9add011d60fcd350af1",
+    "inquiries.log": "8f03a49a4ae06184b1fe8295e29544e871f7f69d706f8faac67a6435c7c1d0c9",
+    "lint.log": "6f49f69ee34a4b644f451710c2f4a9d8dad1166ee7948f2ddd8b4c5096acca51",
+    "network-status.json": "8524cd15bd9c73df76f2d3dfab718aff3ff3d0a014b3cc3e988743098c32d63c",
+    "recovery-report.json": "2706c29e0fbaeceafcfb63c69b93bbcb8c0034cd488890a5be4147aebf922fe7",
+    "recovery.log": "b70a3732e1bbe3fccfa5d1cf9807236f36275c873b2e54eb4867a8969e5f7c3f"
+  },
+  "original_log_bytes_sha256": {
+    "deno.log": "6d0b5ba71840558e62c306ce1a62842ea5f44b30f09d6d91a23eac9890b37c28",
+    "build.log": "62b2a4708d9e6f23aba67c9ee5125373ae4e1a65af190e56c0281e0054f5a136",
+    "export.log": "bd4ccf272cd82f6c04d19f9e641445580c3feac20a228c0577f190f9f8cbf8cc",
+    "downloads.log": "3d56fa26402b287997e03e22d8d25b489a7c76662d2cbb9f3c89127b511c5878",
+    "lint.log": "6f49f69ee34a4b644f451710c2f4a9d8dad1166ee7948f2ddd8b4c5096acca51",
+    "config.log": "aba5762a04d21808d8eb89d1870ab5984c5de00083743c054fbb1a2e03d2249a",
+    "inquiries.log": "8f03a49a4ae06184b1fe8295e29544e871f7f69d706f8faac67a6435c7c1d0c9",
+    "archive.log": "a3481401790d4c6336ca94c78ee93e40bc9eec3ae20430b8381a8b3a22798078",
+    "recovery.log": "b70a3732e1bbe3fccfa5d1cf9807236f36275c873b2e54eb4867a8969e5f7c3f"
+  },
+  "log_normalization": "Terminal carriage returns and trailing whitespace normalized for Git; no substantive test result lines changed. Original raw log hashes retained above."
+}
