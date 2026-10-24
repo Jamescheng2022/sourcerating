@@ -1,5 +1,7 @@
 # SourceRating App preview configuration and delivery gate
 
+2026-10-24: [current minimum release checklist](DELIVERY_GATES_20261024.md) distinguishes missing public build settings, the INACTIVE historical backend, the unapplied kong-only policy and the relay's still-pinned `l1/stage2-continuation` hosted branch. No hosted metadata was re-read or configuration changed for that update.
+
 2026-10-23 continuation on `codex/cloud-launch-20261023`, app root **apps/web** in **Jamescheng2022/sourcerating**. This is the project-room App, not sourcerating-website. User's updated target is a real accessible release with synthetic new-user acceptance and final handoff. Hosting/account/credential/network/migration/cost gates still require their necessary approval. No hosted change or deployment was performed by this fix.
 
 ## Observed failure and change

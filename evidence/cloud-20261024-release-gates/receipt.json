@@ -1,0 +1,29 @@
+{
+  "observedAt": "2026-10-24T03:05:13.059643+00:00",
+  "checkout": "/workspace/sourcerating",
+  "branch": "codex/cloud-launch-20261023",
+  "applicationBase": "70d3192a9c0affd9bf18a17aa5562cc20466b247",
+  "scope": "Read-only source inspection; documentation and this receipt only",
+  "applicationFilesChanged": false,
+  "newTests": "None: application code unchanged",
+  "hostedBuildFailure": "Parent-provided dpl_7tckox7NuPqb7FmsXKsxRsUsTk9m / 70d3192a missing public Supabase URL/key; not re-read",
+  "backendStatus": "Parent-provided INACTIVE fzrberkeoizarduwuisp; not queried/resumed",
+  "kong": "Parent reports approved but unapplied; gateway not retried; denied metadata not refreshed",
+  "hostingProject": "prj_Ra2cBP9kmKANgMm5xIFEXlV2c5IS (App, apps/web)",
+  "inspectedSourceHashes": {
+    "apps/web/src/lib/public-supabase-settings.mjs": "9971bdcd3241424d16ebc55496fc1d3866ca04abf81ccbfad61d9d189da60ac1",
+    "apps/web/src/lib/supabase-config.ts": "824f5ddc20f4ab91df019a973835b60ddd8c6f0e0cccbee79253bbbfb73287ee",
+    "apps/web/src/lib/invite-relay-server.ts": "061656e9fe6c77f6bc5ed60d15abc4197801de4a5f292b15b0bd85351d19c8c9",
+    "apps/web/src/app/forgot-password/page.tsx": "9a8a13a5aa2febb4bef0728ca344cdf76d5d6cdf2dcaf4c88b062fd781038f42",
+    "supabase/functions/_shared/invite-relay.ts": "2a91109ac06c272205d236efb9c65001447e8fbe53d5ab4d25c7e7e63ffda446"
+  },
+  "relayBindingFinding": {
+    "project": "fzrberkeoizarduwuisp",
+    "branch": "l1/stage2-continuation",
+    "authorizedDevelopmentBranch": "codex/cloud-launch-20261023",
+    "guardChanged": false
+  },
+  "realMailSent": false,
+  "credentialsConfigured": false,
+  "newPaidResources": false
+}
