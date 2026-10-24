@@ -11,6 +11,7 @@ export type RoomAnalysisResponse = {
     deepAnalysisAvailable?: boolean;
   };
   error?: string;
+  sourceEventId?: string;
 };
 
 export async function analyzeRoomEvent(
@@ -52,8 +53,7 @@ export async function analyzeRoomEvent(
     },
     body: JSON.stringify({
       roomId,
-      latestMessage,
-      recentContext: [],
+      eventId,
     }),
   });
 

@@ -16,6 +16,7 @@ import {
   extractEventText,
 } from "@/lib/demo-session";
 import { analyzeRoomEvent } from "@/lib/staging";
+import { savePendingMessage, readPendingMessage, removePendingMessage, clearPendingMessages } from "@/lib/pending-message";
 import {
   createRoomFileSignedUrl,
   formatFileSize,
@@ -55,6 +56,8 @@ export default function ProjectRoomPage() {
   const [inputText, setInputText] = useState("");
   const [isComposing, setIsComposing] = useState(false);
   const [pendingDraft, setPendingDraft] = useState<PendingDraft | null>(null);
+  const [messageStorageError, setMessageStorageError] = useState<string | null>(null);
+  const sendingMessageRef = useRef(false);
   const [aiStatus, setAiStatus] = useState<string | null>(null);
   const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
   const [fileUploading, setFileUploading] = useState(false);
@@ -116,6 +119,13 @@ export default function ProjectRoomPage() {
   const activeRoomIdRef = useRef<string>("");
   const analyzedEventIdsRef = useRef<Set<string>>(new Set());
   activeRoomIdRef.current = activeRoomId;
+  const currentUserIdRef = useRef(currentUserId);
+  currentUserIdRef.current = currentUserId;
+  useEffect(() => {
+    setInputText('');setMessageStorageError(null);
+    try {setPendingDraft(currentUserId && activeRoomId ? readPendingMessage(localStorage,currentUserId,activeRoomId) : null);}
+    catch(e) {setPendingDraft(null);setMessageStorageError((e as Error).message);}
+  },[activeRoomId,currentUserId]);
 
   // Auto-scroll and container anchors
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -245,6 +255,8 @@ export default function ProjectRoomPage() {
           (event === 'SIGNED_OUT' || (session?.user.id && session.user.id !== currentUserId))) {
         // A different tab changed identity. Drop this document's private memory and
         // pending requests, then restore the actual session through the existing path.
+        try { clearPendingMessages(localStorage,currentUserId); }
+        catch { /* Reload still removes private UI when browser storage is unavailable. */ }
         window.location.reload();
       }
     });
@@ -258,7 +270,10 @@ export default function ProjectRoomPage() {
     setSigningOut(true); setSignOutError(null);
     try {
       const result = await resetDemoIdentity();
-      setAuthError(result.serverRevocationConfirmed ? null : 'Signed out on this browser. Server sign-out could not be confirmed; other sessions may remain active. Sign in again to retry.');
+      let storageWarning: string | null = null;
+      try { if(currentUserId)clearPendingMessages(localStorage,currentUserId); }
+      catch { storageWarning = 'Signed out. This browser could not clear pending message drafts. Clear its site data before sharing this device.'; }
+      setAuthError(storageWarning || (result.serverRevocationConfirmed ? null : 'Signed out on this browser. Server sign-out could not be confirmed; other sessions may remain active. Sign in again to retry.'));
       setRole(null);
       setActingOrgId(null);
       setCurrentUserId(null);
@@ -349,6 +364,7 @@ export default function ProjectRoomPage() {
       }
 
       if (newEvents && newEvents.length > 0) {
+        if (activeRoomIdRef.current !== roomId) return;
         setEvents((prev) => {
           const merged = dedupeAndSortEvents(prev, newEvents);
           lastSeqRef.current = getMaxSeq(merged);
@@ -596,115 +612,49 @@ export default function ProjectRoomPage() {
     }
   }, [events, pendingDraft, scrollToBottom]);
 
-  // Send message flow
-  const handleSend = async () => {
-    const textToSend = inputText.trim();
-    if (!textToSend || !activeRoomId || !role) return;
-    if (pendingDraft && pendingDraft.status === "sending") return;
-
-    const clientMsgId = crypto.randomUUID();
-    const newDraft: PendingDraft = {
-      client_msg_id: clientMsgId,
-      room_id: activeRoomId,
-      text: textToSend,
-      status: "sending",
-      created_at: new Date().toISOString(),
-    };
-
-    setInputText("");
-    setPendingDraft(newDraft);
-
-    // When the user explicitly sends, force scroll to bottom
-    isNearBottomRef.current = true;
-    scrollToBottom("smooth");
-
+  // Save the exact request before network I/O, then explicitly retry the same ID.
+  const deliverMessage = async (draft: PendingDraft, clearInput = false) => {
+    const userId = currentUserId;
+    if (!userId || !role || draft.room_id !== activeRoomId || sendingMessageRef.current || messageStorageError) return;
+    sendingMessageRef.current = true;
+    const stillHere = () => currentUserIdRef.current === userId && activeRoomIdRef.current === draft.room_id;
+    const sending: PendingDraft = { ...draft, status: 'sending', error: undefined };
     try {
-      const { data: rpcData, error: rpcError } = await supabase.rpc("append_room_event", {
-        p_room_id: activeRoomId,
-        p_client_msg_id: clientMsgId,
-        p_actor_organization_id: actingOrgId || null,
-        p_event_type: "message.posted",
-        p_payload: { text: textToSend },
-      });
-
-      if (rpcError) {
-        console.error("append_room_event RPC error:", rpcError);
-        setPendingDraft({
-          ...newDraft,
-          status: "failed",
-          error: rpcError.message || "Failed to persist message",
-        });
-      } else {
-        setPendingDraft(null);
-
-        if (rpcData && typeof rpcData === "object") {
-          const canonicalEvent = rpcData as RoomEvent;
-          setEvents((prev) => {
-            const merged = dedupeAndSortEvents(prev, [canonicalEvent]);
-            lastSeqRef.current = getMaxSeq(merged);
-            return merged;
-          });
-          void maybeAnalyzeEvent(canonicalEvent);
-        }
-
-        await runGapFill(activeRoomId);
+      try { savePendingMessage(localStorage,userId,sending); }
+      catch { setMessageStorageError('Could not keep this message for retry. Copy the text before closing; no request was sent.');return; }
+      if(clearInput)setInputText('');
+      setPendingDraft(sending);isNearBottomRef.current = true;scrollToBottom('smooth');
+      const {data,error} = await supabase.rpc('append_room_event',{
+        p_room_id:draft.room_id,p_client_msg_id:draft.client_msg_id,
+        p_actor_organization_id:actingOrgId || null,p_event_type:'message.posted',p_payload:{text:draft.text},
+      }).abortSignal(AbortSignal.timeout(15000));
+      if(error)throw error;
+      const canonicalEvent = data as RoomEvent;
+      if(!canonicalEvent?.id || canonicalEvent.room_id!==draft.room_id || canonicalEvent.client_msg_id!==draft.client_msg_id)throw Error('Message acknowledgement could not be verified. Retry the original message.');
+      removePendingMessage(localStorage,userId,draft);
+      if(stillHere()) {
+        setPendingDraft(readPendingMessage(localStorage,userId,draft.room_id));
+        setEvents(prev=>{const merged=dedupeAndSortEvents(prev,[canonicalEvent]);lastSeqRef.current=getMaxSeq(merged);return merged;});
+        void maybeAnalyzeEvent(canonicalEvent);await runGapFill(draft.room_id);
       }
-    } catch (err: unknown) {
-      console.error("Send message exception:", err);
-      setPendingDraft({
-        ...newDraft,
-        status: "failed",
-        error: err instanceof Error ? err.message : "Network exception sending message",
-      });
-    }
+    } catch(e) {
+      if(stillHere())setPendingDraft({...draft,status:'failed',error:e instanceof Error?e.message:'Delivery unconfirmed. Retry when connected.'});
+    } finally {sendingMessageRef.current=false;}
   };
-
-  // Retry sending failed draft with the SAME client_msg_id
-  const handleRetry = async () => {
-    if (!pendingDraft || !activeRoomId) return;
-
-    const retryDraft: PendingDraft = {
-      ...pendingDraft,
-      status: "sending",
-      error: undefined,
-    };
-    setPendingDraft(retryDraft);
-
+  const handleSend = async () => {
+    const text=inputText.trim();
+    if(!text || !activeRoomId || pendingDraft || messageStorageError)return;
+    await deliverMessage({client_msg_id:crypto.randomUUID(),room_id:activeRoomId,text,status:'sending',created_at:new Date().toISOString()},true);
+  };
+  const handleRetry = async () => {if(pendingDraft && pendingDraft.room_id===activeRoomId)await deliverMessage(pendingDraft);};
+  const dismissPending = (edit:boolean) => {
+    if(!pendingDraft || !currentUserId || pendingDraft.room_id!==activeRoomId || sendingMessageRef.current)return;
+    if(!window.confirm(edit?'Delivery may already have succeeded. Edit as a new message?':'Discard this pending message? Any delivered copy will remain.'))return;
     try {
-      const { data: rpcData, error: rpcError } = await supabase.rpc("append_room_event", {
-        p_room_id: retryDraft.room_id,
-        p_client_msg_id: retryDraft.client_msg_id,
-        p_actor_organization_id: actingOrgId || null,
-        p_event_type: "message.posted",
-        p_payload: { text: retryDraft.text },
-      });
-
-      if (rpcError) {
-        setPendingDraft({
-          ...retryDraft,
-          status: "failed",
-          error: rpcError.message || "Retry failed",
-        });
-      } else {
-        setPendingDraft(null);
-        if (rpcData && typeof rpcData === "object") {
-          const canonicalEvent = rpcData as RoomEvent;
-          setEvents((prev) => {
-            const merged = dedupeAndSortEvents(prev, [canonicalEvent]);
-            lastSeqRef.current = getMaxSeq(merged);
-            return merged;
-          });
-          void maybeAnalyzeEvent(canonicalEvent);
-        }
-        await runGapFill(retryDraft.room_id);
-      }
-    } catch (err: unknown) {
-      setPendingDraft({
-        ...retryDraft,
-        status: "failed",
-        error: err instanceof Error ? err.message : "Network exception during retry",
-      });
-    }
+      removePendingMessage(localStorage,currentUserId,pendingDraft);
+      if(edit)setInputText(pendingDraft.text);
+      setPendingDraft(readPendingMessage(localStorage,currentUserId,activeRoomId));
+    } catch {setMessageStorageError('Could not update pending storage. Keep a copy before closing.');}
   };
 
   const handleFileSelected = async (file: File | null) => {
@@ -1427,7 +1377,7 @@ export default function ProjectRoomPage() {
               })}
 
               {/* Pending Draft: Sending State (Subtle IM Feel) */}
-              {pendingDraft && pendingDraft.status === "sending" && (
+              {pendingDraft?.room_id === activeRoomId && pendingDraft.status === "sending" && (
                 <div className="flex flex-col items-end space-y-1">
                   <div className="flex items-baseline gap-1.5 text-[10px] flex-row-reverse">
                     <span className="font-bold text-slate-800">You · 你</span>
@@ -1448,11 +1398,11 @@ export default function ProjectRoomPage() {
               )}
 
               {/* Pending Draft: Failed State with Subtle Retry (using identical client_msg_id) */}
-              {pendingDraft && pendingDraft.status === "failed" && (
+              {pendingDraft?.room_id === activeRoomId && pendingDraft.status === "failed" && (
                 <div className="flex flex-col items-end space-y-1.5">
                   <div className="flex items-baseline gap-1.5 text-[10px] flex-row-reverse">
                     <span className="font-bold text-slate-800">You · 你</span>
-                    <span className="text-rose-600 font-medium">⚠️ Delivery failed · 发送失败</span>
+                    <span className="text-rose-600 font-medium">⚠️ Delivery unconfirmed · 发送状态待确认</span>
                   </div>
 
                   <div className="max-w-[88%] sm:max-w-[80%] rounded-2xl rounded-br-xs p-3 text-[13px] leading-relaxed shadow-xs bg-rose-50 border border-rose-200 text-slate-900">
@@ -1470,16 +1420,13 @@ export default function ProjectRoomPage() {
                       Retry · 重试
                     </button>
                     <button
-                      onClick={() => {
-                        setInputText(pendingDraft.text);
-                        setPendingDraft(null);
-                      }}
+                      onClick={() => dismissPending(true)}
                       className="rounded border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700 hover:bg-slate-50 transition"
                     >
                       Edit · 编辑
                     </button>
                     <button
-                      onClick={() => setPendingDraft(null)}
+                      onClick={() => dismissPending(false)}
                       className="rounded px-2 py-1 text-[11px] text-slate-500 hover:text-slate-800 transition"
                     >
                       Discard · 放弃
@@ -1504,6 +1451,7 @@ export default function ProjectRoomPage() {
           )}
 
           {/* INPUT BAR (IME Composition Safe & Mobile First) */}
+          {messageStorageError && <p role="alert" className="px-3 text-sm text-rose-700">{messageStorageError}</p>}
           <div className="shrink-0 border-t border-slate-200 bg-white p-2.5 sm:p-3 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
             <div className="mx-auto max-w-3xl rounded-xl border border-slate-300 focus-within:border-sky-500 focus-within:ring-1 focus-within:ring-sky-500 bg-white transition">
               {/* Recipient explicit reminder */}
@@ -1617,7 +1565,7 @@ export default function ProjectRoomPage() {
                   onClick={handleSend}
                   disabled={
                     !inputText.trim() ||
-                    pendingDraft?.status === "sending" ||
+                    !!pendingDraft || !!messageStorageError ||
                     fileUploading
                   }
                   className="rounded-lg bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-40 transition flex items-center gap-1.5"

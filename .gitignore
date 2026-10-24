@@ -25,3 +25,6 @@ jointech-precast/
 
 # Local link metadata; provider credentials never live here.
 /.vercel/
+
+# Local synthetic browser traces can contain short-lived authentication material.
+/.data/
