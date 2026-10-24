@@ -1,0 +1,26 @@
+{
+  "rawDirectory": "/workspace/sourcerating-baseline-canary/.data/journey-traces/63f578ae-d8d4-4931-857d-386ac0cbd0b4",
+  "syntheticOnly": true,
+  "needsCredentialScrub": true,
+  "shareableTraces": [
+    {
+      "file": "trace-0.zip",
+      "rawSHA256": "a2254a76e2fbe4b2be44ec554ad890058253c21c4f41c49a01613c3b620a9206",
+      "shareableSHA256": "14794814c4578a21987cf15aa0db6d054fd744f41204f0ebb3cafa2acca52be2",
+      "bytes": 4565670,
+      "changedTextMembers": 8,
+      "redactionOccurrences": 198,
+      "omittedJavaScriptResources": 0
+    },
+    {
+      "file": "trace-1.zip",
+      "rawSHA256": "c0b4ebaf98c6b91ebfad3fb2213289d4e0f7835873114e2ca639b8c43c2d7fbf",
+      "shareableSHA256": "dd8e31829811b6e252db0e6b8360d83aa05947679fe21608fd3104ed6e114945",
+      "bytes": 1687419,
+      "changedTextMembers": 8,
+      "redactionOccurrences": 189,
+      "omittedJavaScriptResources": 0
+    }
+  ],
+  "sanitization": "Credentials/OAuth grants removed; executable bundles replaced; DOM, CSS, screenshots, actions and network outcomes retained. Raw archives remain private and unchanged."
+}

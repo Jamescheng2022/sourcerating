@@ -1,0 +1,95 @@
+[
+  {
+    "id": "SR-01",
+    "sourceSHA": "c7d00a767b46e4a2d4041f27d93cd66f782ee43d",
+    "target": "http://127.0.0.1:3000",
+    "tenant": "[S2-TEST] fixed local project 52000000-0000-4000-8000-0000000000d1",
+    "dependencies": "actual local Auth/Postgres/RLS; provider keys removed; Edge requests prohibited",
+    "steps": [
+      "Authenticated buyer opens invite form",
+      "Enter synthetic company/email and Cancel",
+      "Check no create RPC; retain invite-only",
+      "Full join intentionally blocked before gateway"
+    ],
+    "status": "NOT_RUN",
+    "actual": "Excluded by explicit focused test filter"
+  },
+  {
+    "id": "SR-02",
+    "sourceSHA": "c7d00a767b46e4a2d4041f27d93cd66f782ee43d",
+    "target": "http://127.0.0.1:3000",
+    "tenant": "[S2-TEST] fixed local project 52000000-0000-4000-8000-0000000000d1",
+    "dependencies": "actual local Auth/Postgres/RLS; provider keys removed; Edge requests prohibited",
+    "steps": [
+      "Mobile supplier sends Chinese IME text safely",
+      "Commit message and lose ACK",
+      "Refresh then Retry exact client_msg_id",
+      "Check exactly one persisted event; refresh and re-login"
+    ],
+    "status": "NOT_RUN",
+    "actual": "Excluded by explicit focused test filter"
+  },
+  {
+    "id": "SR-03",
+    "sourceSHA": "c7d00a767b46e4a2d4041f27d93cd66f782ee43d",
+    "target": "http://127.0.0.1:3000",
+    "tenant": "[S2-TEST] fixed local project 52000000-0000-4000-8000-0000000000d1",
+    "dependencies": "actual local Auth/Postgres/RLS; provider keys removed; Edge requests prohibited",
+    "steps": [
+      "Mobile supplier submits inquiry by double click",
+      "Buyer sees exact persisted inquiry/task",
+      "Refresh and exact-key replay do not duplicate"
+    ],
+    "status": "NOT_RUN",
+    "actual": "Excluded by explicit focused test filter"
+  },
+  {
+    "id": "SR-04",
+    "sourceSHA": "c7d00a767b46e4a2d4041f27d93cd66f782ee43d",
+    "target": "http://127.0.0.1:3000",
+    "tenant": "[S2-TEST] fixed local project 52000000-0000-4000-8000-0000000000d1",
+    "dependencies": "actual local Auth/Postgres/RLS; provider keys removed; Edge requests prohibited",
+    "steps": [
+      "Supplier queries buyer internal room/events",
+      "Attempt cross-room append and forged actor org",
+      "Compare before/after row count and server identity"
+    ],
+    "status": "NOT_RUN",
+    "actual": "Excluded by explicit focused test filter"
+  },
+  {
+    "id": "SR-05",
+    "sourceSHA": "c7d00a767b46e4a2d4041f27d93cd66f782ee43d",
+    "target": "http://127.0.0.1:3000",
+    "tenant": "[S2-TEST] fixed local project 52000000-0000-4000-8000-0000000000d1",
+    "dependencies": "actual local Auth/Postgres/RLS; provider keys removed; Edge requests prohibited",
+    "steps": [
+      "Export actual evidence index through browser",
+      "Verify room identity, current inquiry/message content",
+      "Full attachment archive kept blocked before network"
+    ],
+    "status": "NOT_RUN",
+    "actual": "Excluded by explicit focused test filter"
+  },
+  {
+    "id": "SR-06",
+    "sourceSHA": "c7d00a767b46e4a2d4041f27d93cd66f782ee43d",
+    "target": "http://127.0.0.1:3000",
+    "tenant": "[S2-TEST] fixed local project 52000000-0000-4000-8000-0000000000d1",
+    "dependencies": "actual local Auth/Postgres/RLS; provider keys removed; Edge requests prohibited",
+    "steps": [
+      "Signed-in buyer opens expired/missing recovery",
+      "Check no change form and unchanged main session",
+      "Provision synthetic local recovery account; generate Auth grant without sending email",
+      "Recover account in browser; old password rejected, new password works",
+      "Main project identity unchanged; consumed-link replay rejected"
+    ],
+    "status": "PASS",
+    "actual": "Assertions on real UI, persisted RPC data and side effects passed",
+    "screenshots": [
+      "SR-06-desktop.png",
+      "SR-06-mobile.png"
+    ],
+    "trace": "trace-0.zip"
+  }
+]

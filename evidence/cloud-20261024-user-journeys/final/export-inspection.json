@@ -1,0 +1,35 @@
+{
+  "scope": "Inspection of actual browser-downloaded JSON, not a fabricated expected file",
+  "indexSHA256": "b7b9b98fd943b66f0e76f9b4b99cac8f2fa507b05a77fffc4a29bf3fe653caef",
+  "events": [
+    {
+      "operation": "lost acknowledgement",
+      "events": 1,
+      "id": "6b54c1a5-df12-47b7-b35f-6144bb238517",
+      "seq": 5,
+      "clientMsgId": "c9b2d4c4-977a-49df-b1ba-cc265bba3ad0"
+    },
+    {
+      "operation": "offline",
+      "events": 1,
+      "id": "d2d49637-6bfc-4976-bda7-9326a978da3e",
+      "seq": 6,
+      "clientMsgId": "0a58d26c-fdd4-453a-9738-cbc54928e7cf"
+    },
+    {
+      "operation": "delayed room ACK",
+      "events": 1,
+      "id": "82b4723a-7175-494b-b15a-60a6a9f09a3b",
+      "seq": 7,
+      "clientMsgId": "40bb37ab-4b09-4620-9337-182e79221a47"
+    }
+  ],
+  "linkedInquiryTask": {
+    "id": "b66c0336-142f-44e1-a5af-867254cd8a79",
+    "inquiry_id": "3a44b267-c20d-4683-a804-1c1e8313ccf2",
+    "status": "open",
+    "exactDetailPresent": true
+  },
+  "attachmentBytesInspected": false,
+  "result": "PASS"
+}

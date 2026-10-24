@@ -1,0 +1,37 @@
+[
+  {
+    "id": "SR-01",
+    "sourceSHA": "bb840a8f2cc76f0fe2d682862097f268c6c5a164",
+    "target": "http://127.0.0.1:3000",
+    "tenant": "[S2-TEST] fixed local project 52000000-0000-4000-8000-0000000000d1",
+    "dependencies": "actual local Auth/Postgres/RLS; provider keys removed; Edge requests prohibited",
+    "steps": [
+      "Authenticated buyer opens invite form",
+      "Enter synthetic company/email and Cancel",
+      "Check no create RPC; retain invite-only",
+      "Full join intentionally blocked before gateway"
+    ],
+    "status": "NOT_RUN",
+    "actual": "Excluded by explicit focused test filter"
+  },
+  {
+    "id": "SR-02",
+    "sourceSHA": "bb840a8f2cc76f0fe2d682862097f268c6c5a164",
+    "target": "http://127.0.0.1:3000",
+    "tenant": "[S2-TEST] fixed local project 52000000-0000-4000-8000-0000000000d1",
+    "dependencies": "actual local Auth/Postgres/RLS; provider keys removed; Edge requests prohibited",
+    "steps": [
+      "Mobile supplier sends Chinese IME text safely",
+      "Commit message and lose ACK",
+      "Refresh then Retry exact client_msg_id",
+      "Check exactly one persisted event; refresh and re-login"
+    ],
+    "status": "FAIL",
+    "actual": "locator.waitFor: Timeout 30000ms exceeded.\n",
+    "screenshots": [
+      "SR-02-desktop.png",
+      "SR-02-mobile.png"
+    ],
+    "trace": "trace-0.zip"
+  }
+]

@@ -1,0 +1,345 @@
+{
+  "scope": "One cloud Codex writer; real Chromium browser, synthetic identities/data. No independent Lead or real model verdict yet. No public acceptance inferred.",
+  "rows": [
+    {
+      "id": "SR-01",
+      "sourceSHA": "c7d00a767b46e4a2d4041f27d93cd66f782ee43d",
+      "target": "http://127.0.0.1:3000",
+      "tenant": "[S2-TEST] fixed local project 52000000-0000-4000-8000-0000000000d1",
+      "dependencies": "actual local Auth/Postgres/RLS; provider keys removed; Edge requests prohibited",
+      "steps": [
+        "Authenticated buyer opens invite form",
+        "Enter synthetic company/email and Cancel",
+        "Check no create RPC; retain invite-only",
+        "Full join intentionally blocked before gateway"
+      ],
+      "status": "BLOCKED",
+      "actual": "Cancel has zero create RPC; real seeded UI login passed. Full invite join not attempted: known Edge→kong refusal remains unapplied.",
+      "screenshots": [
+        "SR-01-desktop.png",
+        "SR-01-mobile.png"
+      ],
+      "trace": "trace-0.zip",
+      "repository": "Jamescheng2022/sourcerating",
+      "expected": "Invite-only retained. Cancel has no mutation; full email-bound invitation must reach authorized isolation gateway.",
+      "fixSHA": null,
+      "publicAcceptance": "BLOCKED",
+      "modelEvidence": false,
+      "evidencePaths": [
+        "evidence/cloud-20261024-user-journeys/final/journeys.json",
+        "evidence/cloud-20261024-user-journeys/final/trace-receipt.json"
+      ]
+    },
+    {
+      "id": "SR-02",
+      "sourceSHA": "c7d00a767b46e4a2d4041f27d93cd66f782ee43d",
+      "target": "http://127.0.0.1:3000",
+      "tenant": "[S2-TEST] fixed local project 52000000-0000-4000-8000-0000000000d1",
+      "dependencies": "actual local Auth/Postgres/RLS; provider keys removed; Edge requests prohibited",
+      "steps": [
+        "Mobile supplier sends Chinese IME text safely",
+        "Commit message and lose ACK",
+        "Refresh then Retry exact client_msg_id",
+        "Check exactly one persisted event; refresh and re-login"
+      ],
+      "status": "PASS",
+      "actual": "PASS in final/: committed/lost ACK, reload same ID, exactly one row, sign-out/login readback; true browser offline then reload and double Retry; delayed ACK while buyer switched to internal room did not leak shared content.",
+      "screenshots": [
+        "SR-02-desktop.png",
+        "SR-02-mobile.png"
+      ],
+      "trace": "trace-0.zip",
+      "repository": "Jamescheng2022/sourcerating",
+      "expected": "Chinese composition preserves text. Lost ACK/offline reload retains original ID; one event, re-login readback; late ACK never appears in another room.",
+      "fixSHA": "c7d00a767b46e4a2d4041f27d93cd66f782ee43d",
+      "publicAcceptance": "BLOCKED",
+      "modelEvidence": false,
+      "evidencePaths": [
+        "evidence/cloud-20261024-user-journeys/final/journeys.json",
+        "evidence/cloud-20261024-user-journeys/final/trace-receipt.json"
+      ]
+    },
+    {
+      "id": "SR-03",
+      "sourceSHA": "c7d00a767b46e4a2d4041f27d93cd66f782ee43d",
+      "target": "http://127.0.0.1:3000",
+      "tenant": "[S2-TEST] fixed local project 52000000-0000-4000-8000-0000000000d1",
+      "dependencies": "actual local Auth/Postgres/RLS; provider keys removed; Edge requests prohibited",
+      "steps": [
+        "Mobile supplier submits inquiry by double click",
+        "Buyer sees exact persisted inquiry/task",
+        "Refresh and exact-key replay do not duplicate"
+      ],
+      "status": "PASS",
+      "actual": "PASS: actual submit_project_inquiry plus two concurrent exact-key replays returned one inquiry; actual DB subject/detail and both buyer/supplier UI readback verified.",
+      "screenshots": [
+        "SR-03-desktop.png",
+        "SR-03-mobile.png"
+      ],
+      "trace": "trace-0.zip",
+      "repository": "Jamescheng2022/sourcerating",
+      "expected": "Double-click inquiry persists once, exact replay stays one record; buyer reads identical content and supplier reload restores it.",
+      "fixSHA": null,
+      "publicAcceptance": "BLOCKED",
+      "modelEvidence": false,
+      "evidencePaths": [
+        "evidence/cloud-20261024-user-journeys/final/journeys.json",
+        "evidence/cloud-20261024-user-journeys/final/trace-receipt.json"
+      ]
+    },
+    {
+      "id": "SR-04",
+      "sourceSHA": "c7d00a767b46e4a2d4041f27d93cd66f782ee43d",
+      "target": "http://127.0.0.1:3000",
+      "tenant": "[S2-TEST] fixed local project 52000000-0000-4000-8000-0000000000d1",
+      "dependencies": "actual local Auth/Postgres/RLS; provider keys removed; Edge requests prohibited",
+      "steps": [
+        "Supplier queries buyer internal room/events",
+        "Attempt cross-room append and forged actor org",
+        "Compare before/after row count and server identity"
+      ],
+      "status": "PASS",
+      "actual": "PASS: actual RLS deny, forged actor 42501, analyze 400/404/403 and authorized greeting 200; provider=rules, all configured-provider flags false, deepAnalysis=null; full canonical/staging/needs_you rows unchanged.",
+      "screenshots": [
+        "SR-04-desktop.png",
+        "SR-04-mobile.png"
+      ],
+      "trace": "trace-0.zip",
+      "repository": "Jamescheng2022/sourcerating",
+      "expected": "Cross-room reads/writes denied. Actor cannot be forged. Analyze only visible saved event; no canonical/staging/task writes.",
+      "fixSHA": "c7d00a767b46e4a2d4041f27d93cd66f782ee43d",
+      "publicAcceptance": "BLOCKED",
+      "modelEvidence": false,
+      "evidencePaths": [
+        "evidence/cloud-20261024-user-journeys/final/journeys.json",
+        "evidence/cloud-20261024-user-journeys/final/trace-receipt.json"
+      ]
+    },
+    {
+      "id": "SR-05",
+      "sourceSHA": "c7d00a767b46e4a2d4041f27d93cd66f782ee43d",
+      "target": "http://127.0.0.1:3000",
+      "tenant": "[S2-TEST] fixed local project 52000000-0000-4000-8000-0000000000d1",
+      "dependencies": "actual local Auth/Postgres/RLS; provider keys removed; Edge requests prohibited",
+      "steps": [
+        "Export actual evidence index through browser",
+        "Verify room identity, current inquiry/message content",
+        "Full attachment archive kept blocked before network"
+      ],
+      "status": "BLOCKED",
+      "actual": "Actual evidence index inspected; full attachment-byte archive requires refused Edge gateway and was not requested.",
+      "screenshots": [
+        "SR-05-desktop.png",
+        "SR-05-mobile.png"
+      ],
+      "trace": "trace-0.zip",
+      "repository": "Jamescheng2022/sourcerating",
+      "expected": "Downloaded evidence contains real saved messages/inquiries, and complete archive must contain validated attachment bytes.",
+      "fixSHA": null,
+      "publicAcceptance": "BLOCKED",
+      "modelEvidence": false,
+      "evidencePaths": [
+        "evidence/cloud-20261024-user-journeys/final/journeys.json",
+        "evidence/cloud-20261024-user-journeys/final/trace-receipt.json"
+      ]
+    },
+    {
+      "id": "SR-06",
+      "sourceSHA": "c7d00a767b46e4a2d4041f27d93cd66f782ee43d",
+      "target": "http://127.0.0.1:3000",
+      "tenant": "[S2-TEST] fixed local project 52000000-0000-4000-8000-0000000000d1",
+      "dependencies": "actual local Auth/Postgres/RLS; provider keys removed; Edge requests prohibited",
+      "steps": [
+        "Signed-in buyer opens expired/missing recovery",
+        "Check no change form and unchanged main session",
+        "Provision synthetic local recovery account; generate Auth grant without sending email",
+        "Recover account in browser; old password rejected, new password works",
+        "Main project identity unchanged; consumed-link replay rejected"
+      ],
+      "status": "PASS",
+      "actual": "PASS in recovery/: synthetic local Auth account provisioned without public signup; generated recovery grant sent no mail; actual UI password reset and replay rejection; old password fails, new succeeds; buyer storage/identity unchanged.",
+      "screenshots": [
+        "SR-06-desktop.png",
+        "SR-06-mobile.png"
+      ],
+      "trace": "trace-0.zip",
+      "repository": "Jamescheng2022/sourcerating",
+      "expected": "Expired/consumed recovery cannot hijack project identity. Real local Auth password change invalidates old password; new login works without replacing main project session.",
+      "fixSHA": null,
+      "publicAcceptance": "BLOCKED",
+      "modelEvidence": false,
+      "evidencePaths": [
+        "evidence/cloud-20261024-user-journeys/recovery/journeys.json",
+        "evidence/cloud-20261024-user-journeys/recovery/trace-receipt.json"
+      ]
+    },
+    {
+      "id": "LUSH-01",
+      "steps": [
+        "Sign in as synthetic Alice through UI",
+        "Cancel fresh provider login",
+        "Sign out; protected read=401",
+        "Sign in again; same DB account"
+      ],
+      "sourceSHA": "67ca2d78279232ab73d3417d09c9b45b77109c37",
+      "target": "https://127.0.0.1:43893",
+      "dependencies": "actual production handler + PostgreSQL; synthetic signed OIDC; no provider/mail",
+      "status": "PASS",
+      "actual": "Assertions on browser interactions, API state and side effects passed",
+      "screenshot": "LUSH-01.png",
+      "seconds": 3.037,
+      "trace": "trace-0.zip",
+      "repository": "Jamescheng2022/lushupai-v2",
+      "expected": "OIDC callback preserves identity; Cancel causes no account switch, sign-out denies protected read; login returns same account.",
+      "fixSHA": null,
+      "publicAcceptance": "BLOCKED",
+      "modelEvidence": false,
+      "evidencePaths": [
+        "evidence/cloud-20261024-user-journeys/retest/journeys.json",
+        "evidence/cloud-20261024-user-journeys/retest/trace-receipt.json"
+      ]
+    },
+    {
+      "id": "LUSH-02",
+      "steps": [
+        "Open example and Cancel fork; compare DB document",
+        "Back to discovery",
+        "Create Tokyo then Bali half-day forks",
+        "Rain scenario keeps sourced places and pending notices"
+      ],
+      "sourceSHA": "67ca2d78279232ab73d3417d09c9b45b77109c37",
+      "target": "https://127.0.0.1:43893",
+      "dependencies": "actual production handler + PostgreSQL; synthetic signed OIDC; no provider/mail",
+      "status": "PASS",
+      "actual": "Assertions on browser interactions, API state and side effects passed",
+      "screenshot": "LUSH-02.png",
+      "seconds": 1.952,
+      "trace": "trace-0.zip",
+      "repository": "Jamescheng2022/lushupai-v2",
+      "expected": "Cancel does not persist fork. Tokyo/Bali half-day operations preserve source/unknown labels. No fabricated real weather or validated route.",
+      "fixSHA": null,
+      "publicAcceptance": "BLOCKED",
+      "modelEvidence": false,
+      "evidencePaths": [
+        "evidence/cloud-20261024-user-journeys/retest/journeys.json",
+        "evidence/cloud-20261024-user-journeys/retest/trace-receipt.json"
+      ]
+    },
+    {
+      "id": "LUSH-03",
+      "steps": [
+        "Refresh Bali trip",
+        "Restore previous Tokyo trip",
+        "Sign out and sign in",
+        "Read same persisted document in new desktop browser context"
+      ],
+      "sourceSHA": "67ca2d78279232ab73d3417d09c9b45b77109c37",
+      "target": "https://127.0.0.1:43893",
+      "dependencies": "actual production handler + PostgreSQL; synthetic signed OIDC; no provider/mail",
+      "status": "PASS",
+      "actual": "Assertions on browser interactions, API state and side effects passed",
+      "screenshot": "LUSH-03.png",
+      "seconds": 3.007,
+      "trace": "trace-0.zip",
+      "repository": "Jamescheng2022/lushupai-v2",
+      "expected": "Saved trip survives reload, previous-trip restore, logout/login and fresh browser context.",
+      "fixSHA": null,
+      "publicAcceptance": "BLOCKED",
+      "modelEvidence": false,
+      "evidencePaths": [
+        "evidence/cloud-20261024-user-journeys/retest/journeys.json",
+        "evidence/cloud-20261024-user-journeys/retest/trace-receipt.json"
+      ]
+    },
+    {
+      "id": "LUSH-04",
+      "steps": [
+        "Download actual account JSON and compare complete nodes/source metadata",
+        "Sign in as Bob",
+        "Cross-account read/write and Alice backup restore are denied; compare Bob state"
+      ],
+      "sourceSHA": "67ca2d78279232ab73d3417d09c9b45b77109c37",
+      "target": "https://127.0.0.1:43893",
+      "dependencies": "actual production handler + PostgreSQL; synthetic signed OIDC; no provider/mail",
+      "status": "PASS",
+      "actual": "Assertions on browser interactions, API state and side effects passed",
+      "screenshot": "LUSH-04.png",
+      "seconds": 3.25,
+      "trace": "trace-0.zip",
+      "repository": "Jamescheng2022/lushupai-v2",
+      "expected": "Export contains actual complete account document. Second account cannot read/write/restore first-account backup and remains unchanged.",
+      "fixSHA": null,
+      "publicAcceptance": "BLOCKED",
+      "modelEvidence": false,
+      "evidencePaths": [
+        "evidence/cloud-20261024-user-journeys/retest/journeys.json",
+        "evidence/cloud-20261024-user-journeys/retest/trace-receipt.json"
+      ],
+      "testHarnessCorrection": "Use actual persistence-status error region; retain unchanged-account assertions."
+    },
+    {
+      "id": "LUSH-05",
+      "steps": [
+        "Commit a save then lose ACK",
+        "Refresh; cancel discard",
+        "Double-click Retry; check one DB revision",
+        "Go offline, mutate, reconnect and reload; retry preserved queue"
+      ],
+      "sourceSHA": "67ca2d78279232ab73d3417d09c9b45b77109c37",
+      "target": "https://127.0.0.1:43893",
+      "dependencies": "actual production handler + PostgreSQL; synthetic signed OIDC; no provider/mail",
+      "status": "PASS",
+      "actual": "PASS in retest/ and timeout-clean/: actual PG revision increments once after lost ACK/retry; external requests=0; application timeout >=9.5s leaves revision unchanged then explicit retry commits exactly once.",
+      "screenshot": "LUSH-05.png",
+      "seconds": 1.938,
+      "trace": "trace-0.zip",
+      "repository": "Jamescheng2022/lushupai-v2",
+      "expected": "Lost ACK/double-click retries one key without duplicate revision. Offline queue survives reload. Real 10-second timeout leaves DB unchanged then explicit retry saves once.",
+      "fixSHA": null,
+      "publicAcceptance": "BLOCKED",
+      "modelEvidence": false,
+      "evidencePaths": [
+        "evidence/cloud-20261024-user-journeys/retest/journeys.json",
+        "evidence/cloud-20261024-user-journeys/retest/trace-receipt.json",
+        "evidence/cloud-20261024-user-journeys/timeout-clean/journeys.json"
+      ],
+      "additionalTarget": "https://127.0.0.1:36269"
+    },
+    {
+      "id": "LUSH-06",
+      "steps": [
+        "Keep Alice old device and pending login; Bob remains signed in",
+        "Open recovery UI; fresh Alice OIDC sign-in",
+        "Old session and pending login denied; Bob and saved trip survive"
+      ],
+      "sourceSHA": "67ca2d78279232ab73d3417d09c9b45b77109c37",
+      "target": "https://127.0.0.1:43893",
+      "dependencies": "actual production handler + PostgreSQL; synthetic signed OIDC; no provider/mail",
+      "status": "PASS",
+      "actual": "PASS: absent browser email SDK settings no longer hide usable server OIDC recovery; actual DB revocation makes old session and pending callback unauthorized; Bob still reads 200 and saved trip nodes unchanged.",
+      "screenshot": "LUSH-06.png",
+      "seconds": 2.222,
+      "trace": "trace-0.zip",
+      "repository": "Jamescheng2022/lushupai-v2",
+      "expected": "Fresh OIDC recovery revokes old app sessions and earlier pending login; another account and saved trip remain valid.",
+      "fixSHA": "67ca2d78279232ab73d3417d09c9b45b77109c37",
+      "publicAcceptance": "BLOCKED",
+      "modelEvidence": false,
+      "evidencePaths": [
+        "evidence/cloud-20261024-user-journeys/retest/journeys.json",
+        "evidence/cloud-20261024-user-journeys/retest/trace-receipt.json"
+      ]
+    }
+  ],
+  "canaryCounts": {
+    "BLOCKED": 2,
+    "PASS": 10
+  },
+  "original89RiskCounts": {
+    "NOT_RUN": 38,
+    "BLOCKED": 49,
+    "PASS": 2
+  },
+  "externalMessagesSent": 0,
+  "realModelCalls": 0
+}

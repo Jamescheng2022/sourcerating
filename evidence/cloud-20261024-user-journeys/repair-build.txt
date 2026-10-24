@@ -1,0 +1,42 @@
+
+> web@0.1.0 build
+> next build
+
+▲ Next.js 16.3.6 (Turbopack)
+✓ Running next.config.ts took 40ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 1644ms
+  Running TypeScript ...
+  Finished TypeScript in 3.1s ...
+  Collecting page data using 4 workers ...
+  Generating static pages using 4 workers (0/13) ...
+  Generating static pages using 4 workers (3/13) 
+  Generating static pages using 4 workers (6/13) 
+  Generating static pages using 4 workers (9/13) 
+✓ Generating static pages using 4 workers (13/13) in 360ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /api/project-invite
+├ ƒ /api/project-room/analyze
+├ ƒ /api/project-room/archive
+├ ƒ /api/suppliers/search
+├ ○ /demo
+├ ○ /forgot-password
+├ ○ /game
+├ ○ /join
+├ ○ /project-room
+└ ○ /reset-password
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

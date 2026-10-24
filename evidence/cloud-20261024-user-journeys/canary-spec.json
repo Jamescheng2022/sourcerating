@@ -1,0 +1,90 @@
+{
+  "createdAt": "2026-10-24T08:37:35.065449+00:00",
+  "basis": "User goals, defined before reading archived scenario contents; one Codex writer, no multiagent blind-testing claim",
+  "canaries": [
+    {
+      "id": "SR-01",
+      "app": "SourceRating",
+      "goal": "Invite-only onboarding and login",
+      "expected": "Create form Cancel has no RPC; generated link is email-bound; new invitee joins only intended room. Known gateway dependency stays BLOCKED.",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "SR-02",
+      "app": "SourceRating",
+      "goal": "Message save, refresh and re-login with failure recovery",
+      "expected": "One durable message after double click/timeout/offline retry; Back/Cancel does not discard silently; refreshed/re-authenticated reader sees exact content.",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "SR-03",
+      "app": "SourceRating",
+      "goal": "Inquiry submission and buyer task readback",
+      "expected": "Supplier submits a unique request, buyer sees persisted task; refresh/re-login agree; repeated key never duplicates.",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "SR-04",
+      "app": "SourceRating",
+      "goal": "Two-account and cross-room isolation",
+      "expected": "Supplier cannot inspect buyer internal room, another submitter inquiry or unauthorized room export; no unauthorized write.",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "SR-05",
+      "app": "SourceRating",
+      "goal": "Evidence and attachment archive",
+      "expected": "Downloaded archive reflects actual room data, bytes and hashes; partial/missing attachment never claims complete. Actual gateway remains BLOCKED.",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "SR-06",
+      "app": "SourceRating",
+      "goal": "Account recovery boundary",
+      "expected": "Expired/missing/cancelled recovery does not change current account; valid synthetic recovery changes only named account; no external mail.",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "LUSH-01",
+      "app": "LUSHUPAI",
+      "goal": "Sign in, sign out and re-login",
+      "expected": "Synthetic signed OIDC to actual Postgres application; same account readback, separate account empty state; real provider/email remains BLOCKED.",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "LUSH-02",
+      "app": "LUSHUPAI",
+      "goal": "Discover, cancel, fork and half-day modification",
+      "expected": "Public example retains sources/pending status; Cancel has no committed fork; applied half-day route and timezone persist; unknown weather does not invent places.",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "LUSH-03",
+      "app": "LUSHUPAI",
+      "goal": "Save, refresh and second-session trip restoration",
+      "expected": "Chosen itinerary survives refresh/logout/re-login and prior-trip restoration; exact nodes and library read from actual isolated backend.",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "LUSH-04",
+      "app": "LUSHUPAI",
+      "goal": "Account and export isolation",
+      "expected": "Second user cannot read/update or restore first user data; export contains exact itinerary/source metadata without cross-account content.",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "LUSH-05",
+      "app": "LUSHUPAI",
+      "goal": "Double-click, timeout, offline and conflict recovery",
+      "expected": "Unknown-result save retries original key once; pending changes survive refresh; competing state cannot be silently overwritten.",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "LUSH-06",
+      "app": "LUSHUPAI",
+      "goal": "Recovery revokes earlier app sessions",
+      "expected": "Fresh synthetic OIDC recovery invalidates old sessions and pending login; unrelated account survives; provider-password/email service explicitly separate.",
+      "status": "NOT_RUN"
+    }
+  ]
+}

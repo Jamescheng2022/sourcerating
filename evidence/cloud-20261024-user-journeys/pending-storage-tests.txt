@@ -1,0 +1,12 @@
+✔ Reload retains immutable request identity and text, never silently replays (1.965002ms)
+✔ Other accounts/rooms cannot restore or clear this pending request (0.303117ms)
+✔ Acknowledging one tab request retains the other pending request (0.486953ms)
+✔ Unavailable or corrupt storage fails closed without losing the original (0.746515ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 493.677508

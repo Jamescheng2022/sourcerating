@@ -19,6 +19,8 @@ const results = [];
 const remoteRequests = [];
 const pageErrors = [];
 const inviteRequests = [];
+const contexts = [];
+const deniedCanaryRequests = [];
 let server, browser;
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function check(label, fn) {
@@ -29,13 +31,16 @@ async function check(label, fn) {
 async function startServer() {
   const env = { ...process.env };
   for (const key of Object.keys(env)) if (/API_KEY|SERVICE_ROLE|SECRET|PASSWORD|S2_ALLOW_REMOTE/i.test(key)) delete env[key];
+  if (mode === 'canary') for (const key of Object.keys(env)) if (/SOURCERATING_|VERCEL|SR_INVITE_RELAY/.test(key)) delete env[key];
   env.NEXT_PUBLIC_SUPABASE_URL = values.API_URL;
   env.NEXT_PUBLIC_SUPABASE_ANON_KEY = values.ANON_KEY;
   env.NEXT_TELEMETRY_DISABLED = '1';
   // Only the loopback acceptance server receives the dedicated relay secret.
   // Never inherit service-role/password/provider credentials into the server.
-  env.SR_INVITE_RELAY_SECRET = process.env.SR_INVITE_RELAY_SECRET;
-  env.SR_INVITE_RELAY_PROJECT_REF = 'sourcerating-l1-stage2';
+  if (mode !== 'canary') {
+    env.SR_INVITE_RELAY_SECRET = process.env.SR_INVITE_RELAY_SECRET;
+    env.SR_INVITE_RELAY_PROJECT_REF = 'sourcerating-l1-stage2';
+  }
   const log = fs.openSync(path.join(output, 'server.log'), 'a');
   server = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '--port', '3000'], { cwd: path.resolve(__dirname, '..'), env, windowsHide: true, stdio: ['ignore', log, log] });
   fs.closeSync(log);
@@ -54,6 +59,8 @@ async function stopServer() {
 }
 async function context() {
   const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 }, acceptDownloads: true });
+  contexts.push(ctx);
+  if (mode === 'canary') await ctx.tracing.start({ screenshots: true, snapshots: true, sources: false });
   ctx.on('page', page => page.on('pageerror', error => pageErrors.push(error.message)));
   ctx.on('response', async response => {
     if (response.ok() || new URL(response.url()).pathname !== '/api/project-invite') return;
@@ -72,6 +79,15 @@ async function context() {
   });
   await ctx.route('**/*', route => {
     const target = new URL(route.request().url());
+    if (mode === 'canary' && (target.pathname.startsWith('/functions/') || target.pathname === '/api/project-invite' || target.pathname === '/api/project-room/archive')) {
+      deniedCanaryRequests.push({method:route.request().method(),path:target.pathname});return route.abort();
+    }
+    if (mode === 'canary' && target.pathname.startsWith('/rest/v1/rpc/') && route.request().method()==='POST') {
+      const body=route.request().postDataJSON();
+      if (body?.p_room_id && !['52000000-0000-4000-8000-0000000000e1','52000000-0000-4000-8000-0000000000e2'].includes(body.p_room_id)) {
+        deniedCanaryRequests.push({method:'POST',path:target.pathname,reason:'outside fixed synthetic rooms'});return route.abort();
+      }
+    }
     if (['data:', 'about:'].includes(target.protocol) || (target.protocol === 'blob:' && target.origin === url)) return route.continue();
     // Chromium's built-in PDF viewer loads chrome: and chrome-extension: resources.
     // These are browser-internal schemes, not outbound network requests.
@@ -268,6 +284,7 @@ async function main() {
     return;
   }
   await check('Buyer signs in with seeded email/password through UI', () => login(buyer, 's2-buyer@s2-test.invalid', passwords.S2_BUYER_PASSWORD));
+  if (mode === 'canary') { await require('./s2-user-journeys.cjs')({ buyer, context, check, login, signedIn, chooseRoom, send, shown, values, passwords, output, url, createClient, remoteRequests, pageErrors, deniedCanaryRequests }); return; }
   if (mode === 'downloads') { await require('./s2-download-review.cjs')({ buyer, check, signedIn, values, passwords, output, login, remoteRequests, pageErrors }); return; }
   if (mode === 'recovery-boundary') { await require('./s2-recovery-boundary.cjs')({ buyer, context, check, url, values, output, signedIn, createClient, login, passwords, remoteRequests, pageErrors }); return; }
   if (mode === 'archive') { await require('./s2-archive-review.cjs')({ check, signedIn, values, passwords, createClient, url }); return; }
@@ -422,7 +439,7 @@ async function main() {
     await invited.screenshot({ path: path.join(output, '03-after-reconnect-restart.png') });
   });
   await check('AI keys are absent; rule analysis works and no browser requests leave localhost', async () => {
-    const response = await fetch(url + '/api/project-room/analyze', { method: 'POST', headers: { Authorization: 'Bearer ' + invitedActor.token, 'Content-Type': 'application/json' }, body: JSON.stringify({ roomId: inviteRoom, latestMessage: '[S2-TEST] Confirm 20 units' }) });
+    const response = await fetch(url + '/api/project-room/analyze', { method: 'POST', headers: { Authorization: 'Bearer ' + invitedActor.token, 'Content-Type': 'application/json' }, body: JSON.stringify({ roomId: inviteRoom, eventId: buyerEvent.id }) });
     assert.equal(response.status, 200); const data = await response.json(); assert.equal(data.ok, true);
     assert.equal(data.aiStatus.jevConfigured, false); assert.equal(data.aiStatus.openCodeGoConfigured, false); assert.equal(data.aiStatus.deepSeekConfigured, false); assert.equal(data.deepProvider, null);
     assert.equal(remoteRequests.length, 0);
@@ -433,6 +450,11 @@ main().catch(error => {
   results.push({ label: error.message, pass: false });
   console.error(error.message); process.exitCode = 1;
 }).finally(async () => {
+  if (mode === 'canary') {
+    const raw = path.join(REPO,'.data','journey-traces',crypto.randomUUID());fs.mkdirSync(raw,{recursive:true});
+    for (const [i,ctx] of contexts.entries()) await ctx.tracing.stop({path:path.join(raw,`trace-${i}.zip`)});
+    fs.writeFileSync(path.join(output,'trace-receipt.json'),JSON.stringify({rawDirectory:raw,syntheticOnly:true,needsCredentialScrub:true},null,2));
+  }
   if (browser) await browser.close();
   await stopServer();
   fs.writeFileSync(path.join(output, mode + '-report.json'), JSON.stringify({ mode, results, remoteRequests, pageErrors }, null, 2));
