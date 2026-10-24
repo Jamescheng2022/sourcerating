@@ -1,0 +1,8 @@
+{
+  "supabase/functions/_shared/invite-relay.ts": "2a91109ac06c272205d236efb9c65001447e8fbe53d5ab4d25c7e7e63ffda446",
+  "apps/web/src/lib/invite-relay-server.ts": "061656e9fe6c77f6bc5ed60d15abc4197801de4a5f292b15b0bd85351d19c8c9",
+  "supabase/functions/project-invite/index.ts": "46c52937694f0f4c0619a793aa42c9134f96a77afb19550d9a38c082a520ba8b",
+  "supabase/config.toml": "97e126a3cd37d1c1f7cb78487199738ec3d39b20a712582b33b7c3fecf5086b1",
+  "supabase/scripts/relay-branch-proposal.test.mjs": "3557280770d69d02e2b23f86e5b37cd3f1c9f4b4c20745b6dd6ecc6045596a72",
+  "docs/proposals/invite-relay-cloud-branch.patch": "a854001595ea56d7391cc4372a485556f85bc2a01a4c0c1aff91b0d54576d7ce"
+}

@@ -1,0 +1,14 @@
+{
+  "at": "2026-10-24T07:25:41.093958+00:00",
+  "reason": "Node harness moved outside Deno auto-discovery; no guard or assertion change.",
+  "command": [
+    "node",
+    "--test",
+    "supabase/scripts/relay-branch-proposal.test.mjs"
+  ],
+  "exitCode": 0,
+  "patchCheck": "initial-run.json: git apply --check exited 0; unchanged patch",
+  "networkRequests": 0,
+  "patchApplied": false,
+  "processEnvironmentChanged": false
+}

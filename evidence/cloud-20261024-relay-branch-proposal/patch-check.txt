@@ -1,0 +1,1 @@
+Patch applies cleanly; check only, not applied.
