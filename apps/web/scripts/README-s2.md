@@ -41,3 +41,7 @@ results. Run Web and emulator acceptance serially to avoid memory pressure.
 ## Archive download browser checks
 
 Run `node scripts/s2-web-e2e.cjs downloads` on the isolated local stack after build. It creates a synthetic empty room and exercises actual UI downloads plus clearly labelled response fixtures and cancellation/privacy checks. This mode does not call room-file-gateway. The `e2e` mode contains the actual uploaded-file archive assertion and must remain blocked until the previously denied network policy has changed and is confirmed applied. Never substitute the fixture pass for that live chain.
+
+## Password recovery account boundary
+
+Run `node scripts/s2-web-e2e.cjs recovery-boundary` serially with other browser modes. It uses a fresh synthetic local Auth account and local Mailpit, verifies an expired/reused link cannot fall back to an existing project login, and checks recovery-tab reload and a project account switch in another tab. Failed update/logout responses are explicit browser fixtures; password change and old/new-password checks use real local Auth. This mode never invokes the invitation or file gateway. The existing `recovery` mode remains the happy-path regression; neither mode proves hosted email delivery.

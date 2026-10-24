@@ -269,6 +269,7 @@ async function main() {
   }
   await check('Buyer signs in with seeded email/password through UI', () => login(buyer, 's2-buyer@s2-test.invalid', passwords.S2_BUYER_PASSWORD));
   if (mode === 'downloads') { await require('./s2-download-review.cjs')({ buyer, check, signedIn, values, passwords, output, login, remoteRequests, pageErrors }); return; }
+  if (mode === 'recovery-boundary') { await require('./s2-recovery-boundary.cjs')({ buyer, context, check, url, values, output, signedIn, createClient, login, passwords, remoteRequests, pageErrors }); return; }
   if (mode === 'archive') { await require('./s2-archive-review.cjs')({ check, signedIn, values, passwords, createClient, url }); return; }
   if (mode === 'recovery') {
     const stamp = 's2-cloud-recovery-' + Date.now(), email = stamp + '@s2-test.invalid';
