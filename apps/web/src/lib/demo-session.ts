@@ -84,17 +84,19 @@ export async function loginWithPassword(email: string, password: string) {
 /**
  * Sign out and clear all local storage identity keys
  */
-export async function resetDemoIdentity(): Promise<void> {
-  try {
-    await supabase.auth.signOut();
-  } catch (err) {
-    console.error('Error signing out:', err);
-  } finally {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem(STORAGE_KEY_ROLE);
-      localStorage.removeItem(STORAGE_KEY_ORG_ID);
-    }
+export async function resetDemoIdentity(): Promise<{ serverRevocationConfirmed: boolean }> {
+  const { error } = await supabase.auth.signOut();
+  // The installed SDK clears the local session even when remote revocation fails.
+  // Never restore old credentials or claim that other sessions were revoked.
+  if (error) {
+    const session = await supabase.auth.getSession();
+    if (session.error || session.data.session) throw new Error('Unable to confirm local sign-out. Please retry.');
   }
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem(STORAGE_KEY_ROLE);
+    localStorage.removeItem(STORAGE_KEY_ORG_ID);
+  }
+  return { serverRevocationConfirmed: !error };
 }
 
 /**

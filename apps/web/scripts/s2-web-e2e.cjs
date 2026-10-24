@@ -268,6 +268,7 @@ async function main() {
     return;
   }
   await check('Buyer signs in with seeded email/password through UI', () => login(buyer, 's2-buyer@s2-test.invalid', passwords.S2_BUYER_PASSWORD));
+  if (mode === 'downloads') { await require('./s2-download-review.cjs')({ buyer, check, signedIn, values, passwords, output, login, remoteRequests, pageErrors }); return; }
   if (mode === 'archive') { await require('./s2-archive-review.cjs')({ check, signedIn, values, passwords, createClient, url }); return; }
   if (mode === 'recovery') {
     const stamp = 's2-cloud-recovery-' + Date.now(), email = stamp + '@s2-test.invalid';
@@ -383,6 +384,19 @@ async function main() {
     const tiles = invited.getByRole('button').filter({ hasText: path.basename(files[0]) });
     await tiles.last().getByText('Byte checks passed', { exact: true }).waitFor();
     await tiles.first().getByText('Superseded', { exact: true }).waitFor();
+  });
+  await check('Real uploaded file versions export through archive UI with exact bytes and hashes', async () => {
+    const next = invited.waitForEvent('download');
+    await invited.getByRole('button', { name: 'Download room archive with files', exact: true }).click();
+    const archive = JSON.parse(fs.readFileSync(await (await next).path(), 'utf8'));
+    assert.equal(archive.complete, true); assert.equal(archive.evidenceIndex.room.id, inviteRoom);
+    assert.equal(archive.contents.length, archive.evidenceIndex.files.length);
+    for (const [index, file] of registered.entries()) {
+      const content = archive.contents.find(c => c.fileVersionId === file.id); assert(content);
+      const bytes = fs.readFileSync(files[index]);
+      assert.deepEqual(Buffer.from(content.content, 'base64'), bytes);
+      assert.equal(content.sha256, crypto.createHash('sha256').update(bytes).digest('hex'));
+    }
   });
   await invited.screenshot({ path: path.join(output, '01-supplier-messages-files.png') });
   await buyer.screenshot({ path: path.join(output, '02-buyer-rooms-files.png') });

@@ -37,3 +37,7 @@ synthetic seeded account, preserving the two existing seed passwords. Tokens,
 reset links and passwords stay out of reports. Set `S2_EVIDENCE_DIR` to a fresh
 outside-repo directory for each run. Reports include progress as well as final
 results. Run Web and emulator acceptance serially to avoid memory pressure.
+
+## Archive download browser checks
+
+Run `node scripts/s2-web-e2e.cjs downloads` on the isolated local stack after build. It creates a synthetic empty room and exercises actual UI downloads plus clearly labelled response fixtures and cancellation/privacy checks. This mode does not call room-file-gateway. The `e2e` mode contains the actual uploaded-file archive assertion and must remain blocked until the previously denied network policy has changed and is confirmed applied. Never substitute the fixture pass for that live chain.

@@ -23,6 +23,7 @@ import {
 } from "@/lib/room-files";
 import { ProjectStatePanel } from "./project-state-panel";
 import { InquiryPanel } from "./inquiry-panel";
+import { EvidenceDownloadControls, useRoomEvidenceDownloads } from "./evidence-downloads";
 import {
   executeReviewStagingProposal,
   loadProjectRoomState,
@@ -234,45 +235,46 @@ export default function ProjectRoomPage() {
     }
   };
 
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
+
+  const localSignOutRef = useRef(false);
+  useEffect(() => {
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      if (currentUserId && !localSignOutRef.current &&
+          (event === 'SIGNED_OUT' || (session?.user.id && session.user.id !== currentUserId))) {
+        // A different tab changed identity. Drop this document's private memory and
+        // pending requests, then restore the actual session through the existing path.
+        window.location.reload();
+      }
+    });
+    return () => data.subscription.unsubscribe();
+  }, [currentUserId]);
+
   // Sign out
   const handleResetIdentity = async () => {
-    if (!window.confirm("Sign out? Unsent message and inquiry drafts will be cleared.")) return;
-    await resetDemoIdentity();
-    setRole(null);
-    setActingOrgId(null);
-    setCurrentUserId(null);
-    setRooms([]);
-    setActiveRoomId("");
-    setEvents([]);
-    setPendingDraft(null);
-    setAiStatus(null);
-    analyzedEventIdsRef.current.clear();
-    setInputText("");
+    if (signingOut || !window.confirm("Sign out? Unsent message and inquiry drafts will be cleared.")) return;
+    localSignOutRef.current = true;
+    setSigningOut(true); setSignOutError(null);
+    try {
+      const result = await resetDemoIdentity();
+      setAuthError(result.serverRevocationConfirmed ? null : 'Signed out on this browser. Server sign-out could not be confirmed; other sessions may remain active. Sign in again to retry.');
+      setRole(null);
+      setActingOrgId(null);
+      setCurrentUserId(null);
+      setRooms([]);
+      setActiveRoomId("");
+      setEvents([]);
+      setPendingDraft(null);
+      setAiStatus(null);
+      analyzedEventIdsRef.current.clear();
+      setInputText("");
+    } catch {
+      setSignOutError('Unable to confirm local sign-out. Please retry.');
+    } finally { localSignOutRef.current = false; setSigningOut(false); }
   };
 
-  const [exportStatus, setExportStatus] = useState<string | null>(null);
-  const [exporting, setExporting] = useState(false);
-  const exportRoomEvidence = async () => {
-    if (!activeRoomId || exporting) return;
-    setExporting(true);
-    setExportStatus(null);
-    try {
-      const { data, error } = await supabase.rpc("export_room_evidence", { p_room_id: activeRoomId });
-      if (error) throw error;
-      if (data?.schema !== "sourcerating-room-evidence-v1") throw new Error("Invalid export response.");
-      const href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
-      const link = document.createElement("a");
-      link.href = href;
-      link.download = `room-${activeRoomId}-evidence.json`;
-      link.click();
-      setTimeout(() => URL.revokeObjectURL(href), 1000);
-      setExportStatus("Evidence index downloaded. File bytes are not included.");
-    } catch (error) {
-      setExportStatus(error instanceof Error ? error.message : "Evidence export failed. Please retry.");
-    } finally {
-      setExporting(false);
-    }
-  };
+  const evidenceDownloads = useRoomEvidenceDownloads(activeRoomId, currentUserId);
 
   const visibleRooms = rooms;
 
@@ -903,6 +905,7 @@ export default function ProjectRoomPage() {
       style={{ height: viewportHeight, minHeight: viewportHeight, maxHeight: viewportHeight }}
       className="overflow-hidden bg-slate-100 text-slate-900 flex flex-col w-full"
     >
+      {signOutError && <p role="alert" className="border-b border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">{signOutError}</p>}
       <nav aria-label="Mobile project views" className="flex shrink-0 gap-2 border-b border-slate-200 bg-white p-2 md:hidden">
         <button type="button" aria-controls="room-chat" aria-pressed={mobileView === "chat"} onClick={() => setMobileView("chat")} className="rounded border border-slate-300 px-3 py-2 text-sm font-semibold">Chat</button>
         <button type="button" aria-controls="room-context" aria-pressed={mobileView === "context"} onClick={() => setMobileView("context")} className="rounded border border-slate-300 px-3 py-2 text-sm font-semibold">Needs You ({projectState.needsYou.length}) · Specs</button>
@@ -936,9 +939,7 @@ export default function ProjectRoomPage() {
             </div>
             <div className="rounded-lg border border-slate-800 bg-slate-900 p-3">
               <div className="text-xs font-semibold text-white">{projectName}</div>
-              <button type="button" onClick={exportRoomEvidence} disabled={exporting || !activeRoomId}
-                className="mt-3 text-xs text-cyan-300 disabled:opacity-50">{exporting ? "Exporting…" : "Export room evidence index"}</button>
-              {exportStatus && <p role="status" className="mt-2 text-xs text-slate-300">{exportStatus}</p>}
+              <EvidenceDownloadControls actions={evidenceDownloads} dark />
               <div className="text-[10px] text-sky-400 mt-0.5 font-mono">
                 {projectCode || "SourceRating Project"}
               </div>
@@ -1007,6 +1008,7 @@ export default function ProjectRoomPage() {
 
             <button
               onClick={handleResetIdentity}
+              disabled={signingOut}
               className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800 hover:text-white transition"
             >
               Sign out · 退出
@@ -1073,6 +1075,7 @@ export default function ProjectRoomPage() {
 
                 <button
                   onClick={handleResetIdentity}
+                  disabled={signingOut}
                   title="Sign out of this session"
                   className="rounded border border-slate-200 px-2 py-0.5 text-[10px] font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition"
                 >
@@ -1636,9 +1639,7 @@ export default function ProjectRoomPage() {
         {/* RIGHT SIDEBAR: PROJECT STATE (Honest Live Information, No Fake Tabs or Affordances) */}
         <aside id="room-context" aria-label="Project context" className={`${mobileView === "context" ? "flex" : "hidden"} md:flex flex-col bg-white border-l border-slate-200 min-h-0`}>
           <div className="p-3 md:hidden">
-            <button type="button" onClick={exportRoomEvidence} disabled={exporting || !activeRoomId}
-              className="rounded border border-slate-300 px-3 py-2 text-sm disabled:opacity-50">{exporting ? "Exporting…" : "Export room evidence index"}</button>
-            {exportStatus && <p role="status" className="mt-2 text-xs text-slate-600">{exportStatus}</p>}
+            <EvidenceDownloadControls actions={evidenceDownloads} />
           </div>
           <div className="p-4 border-b border-slate-200">
             <div className="flex items-center justify-between">
