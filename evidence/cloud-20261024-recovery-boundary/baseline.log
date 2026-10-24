@@ -1,0 +1,6 @@
+PASS Buyer signs in with seeded email/password through UI
+existing project login must not authorize a recovery form
+
+1 !== 0
+
+{"checks":2,"passed":1,"remoteRequests":0}

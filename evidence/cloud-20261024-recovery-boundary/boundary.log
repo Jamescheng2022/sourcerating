@@ -1,0 +1,12 @@
+PASS Buyer signs in with seeded email/password through UI
+PASS An expired recovery link cannot offer to change the existing project account password
+PASS A normal project login and a missing recovery link never expose a password-change form
+PASS Real local recovery email opens the named recovery account without replacing the project login
+PASS A validated recovery survives reload in its tab without using the unrelated project session
+PASS Switching the project account in another tab cannot retarget the open recovery form
+PASS Reusing an actual consumed link invalidates an older recovery session without falling back to the project account
+PASS An isolated failed password update reports failure and leaves the actual old password valid
+PASS Real password update remains successful when isolated logout fails; only the named recovery account changes
+PASS Completed recovery clears its tab credentials while the unrelated project login still restores
+PASS Recovery boundary acceptance has no external browser requests or uncaught page errors
+{"checks":11,"passed":11,"remoteRequests":0}

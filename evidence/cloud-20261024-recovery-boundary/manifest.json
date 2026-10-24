@@ -1,0 +1,99 @@
+{
+  "recorded_at_utc": "2026-10-24T00:50:39.499453+00:00",
+  "repository": "Jamescheng2022/sourcerating",
+  "branch": "codex/cloud-launch-20261023",
+  "baseline_commit": "7373290ea857db950cfb1c9873a0a63dd4839a1b",
+  "implementation_commit": "6a23acb5688c75c496813f77a57ac0e121800b33",
+  "source_inputs_sha256": {
+    "apps/web/scripts/README-s2.md": "df3458c8376e574a8bcbf7aad95508faf1b940eba8aed29afb173d86361c97cd",
+    "apps/web/scripts/s2-recovery-boundary.cjs": "5d06080884d3934559a008ae0a7bbbde396500e547d1d66ecb6e55ff540e9a63",
+    "apps/web/scripts/s2-web-e2e.cjs": "c255dda67894bef52f3d2602f16c0608aded6a51382698fe30207ae49fb594c0",
+    "apps/web/src/app/reset-password/page.tsx": "11dd92151304b3455149842069e76a02b87344a2c081d08ef8fd126c8e7f597e",
+    "apps/web/src/lib/supabase.ts": "1e46ee256462c024046f1ebea908ec55f0371f34b01815b88038ae6f47750dc4",
+    "docs/RECOVERY_SESSION_BOUNDARY.md": "4c6508cf968e748950bc4829729a649bd4cdaea6ed48c5b6bff2d4e8d2943103"
+  },
+  "baseline_reproduction": {
+    "exit_code": 1,
+    "passed": 1,
+    "failed": 1,
+    "scope": "Existing project login plus expired recovery callback exposed one password field instead of none. Added assertion ran against the retained pre-fix production build on the unchanged application baseline.",
+    "log": "baseline.log"
+  },
+  "validation": {
+    "build": {
+      "exit_code": 0,
+      "command": "python /workspace/tools/run-sr.py build",
+      "scope": "Production Next build and TypeScript with local public backend settings"
+    },
+    "lint": {
+      "exit_code": 0,
+      "command": "npm run lint --prefix apps/web"
+    },
+    "browser_api": {
+      "recovery-boundary": {
+        "passed": 11,
+        "failed": 0,
+        "external_browser_requests": 0,
+        "page_errors": 0,
+        "exit_code": 0,
+        "report": "recovery-boundary-report.json"
+      },
+      "recovery": {
+        "passed": 8,
+        "failed": 0,
+        "external_browser_requests": 0,
+        "page_errors": 0,
+        "exit_code": 0,
+        "report": "recovery-report.json"
+      },
+      "downloads": {
+        "passed": 15,
+        "failed": 0,
+        "external_browser_requests": 0,
+        "page_errors": 0,
+        "exit_code": 0,
+        "report": "downloads-report.json"
+      }
+    },
+    "configuration": {
+      "passed": 6,
+      "failed": 0,
+      "exit_code": 0,
+      "command": "npm run test:config --prefix apps/web"
+    }
+  },
+  "reproduction": "With the existing isolated local Supabase stack and synthetic account inputs outside Git, run python /workspace/tools/run-sr.py recovery-boundary, then recovery, then downloads, serially. Portable runner documented in apps/web/scripts/README-s2.md.",
+  "timing": "Tests ran on the recorded source bytes before the implementation commit. Documentation and evidence do not change application behavior. The implementation preserves the prior 8cd64821 archive feature; no schema or server policy change.",
+  "boundaries": {
+    "real_local": "Supabase Auth token validation; local Mailpit capture; consumed-link refusal; tab reload; two project accounts plus a distinct recovery account; actual password change and old/new password login; existing recovery and download regressions. All accounts/data synthetic.",
+    "fixtures": "Password update and logout HTTP failures are isolated browser response fixtures. Existing download suite retains its explicitly labelled failure/serialization fixtures.",
+    "not_executed": "Previously denied invitation/file-gateway operations, hosted authentication, external real email, deployment records, production migration or deletion.",
+    "public_preview": "No public preview URL or hosted release was verified in this turn."
+  },
+  "original_log_bytes_sha256": {
+    "baseline.log": "dd6ae48720ffe6bff54ae4cbe6ed6f8eea247e7a40450f7d3b0a32858250577f",
+    "build.log": "e8efb628938c105afb5d0f9bd335524a7396110e0f4edf64e2e0de42ce1c5356",
+    "lint.log": "6f49f69ee34a4b644f451710c2f4a9d8dad1166ee7948f2ddd8b4c5096acca51",
+    "boundary.log": "451f1385674c3e4bf76ce367e52e281d8ceee7cb759d2efd941c888bd66cf546",
+    "recovery.log": "b70a3732e1bbe3fccfa5d1cf9807236f36275c873b2e54eb4867a8969e5f7c3f",
+    "downloads.log": "3d56fa26402b287997e03e22d8d25b489a7c76662d2cbb9f3c89127b511c5878",
+    "config.log": "8797c1da07458853913b17e1d76b7a2846ac0b31005c8a2525c186a83a708fc1"
+  },
+  "log_normalization": "Only terminal carriage returns and trailing whitespace normalized for Git; substantive result lines retained.",
+  "artifacts_sha256": {
+    "README.md": "c1796fa1cf625a07dc83395b0eab7f09b61df76c747f6452927b633f749cfd84",
+    "baseline.log": "dd6ae48720ffe6bff54ae4cbe6ed6f8eea247e7a40450f7d3b0a32858250577f",
+    "boundary.log": "451f1385674c3e4bf76ce367e52e281d8ceee7cb759d2efd941c888bd66cf546",
+    "build.log": "ac8759496096782529cb4ec84c430e3362414b7c8cbe5219f61660c00654af84",
+    "config.log": "8797c1da07458853913b17e1d76b7a2846ac0b31005c8a2525c186a83a708fc1",
+    "downloads-report.json": "d4f872382d87d03ba537c441b6af3383c343ac74b2792bd1509ed1d9ec98059a",
+    "downloads.log": "3d56fa26402b287997e03e22d8d25b489a7c76662d2cbb9f3c89127b511c5878",
+    "environment.json": "2fca356c809be3c71956139da32aab99fb152d52e3718f3b7e56af3f07abcc80",
+    "lint.log": "6f49f69ee34a4b644f451710c2f4a9d8dad1166ee7948f2ddd8b4c5096acca51",
+    "recovery-account-390.png": "38563dc6a6c892c7bfb36f7c2808efdfc5af128fb402f4a8cdabcf626fa1c5b3",
+    "recovery-boundary-report.json": "0b2bd7dfe769e77e78c61df67a6e009f2f23dfc72cba34de24b1385969044d0c",
+    "recovery-logout-warning-390.png": "b0ca7dac9502a2f7b9980896c5f6aa176c779160b07deebe54c126bcf1d7353e",
+    "recovery-report.json": "2706c29e0fbaeceafcfb63c69b93bbcb8c0034cd488890a5be4147aebf922fe7",
+    "recovery.log": "b70a3732e1bbe3fccfa5d1cf9807236f36275c873b2e54eb4867a8969e5f7c3f"
+  }
+}

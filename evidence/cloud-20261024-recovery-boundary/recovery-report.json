@@ -1,0 +1,39 @@
+{
+  "mode": "recovery",
+  "results": [
+    {
+      "label": "Buyer signs in with seeded email/password through UI",
+      "pass": true
+    },
+    {
+      "label": "L-4 seeded test account requests recovery through sign-in link at 390px",
+      "pass": true
+    },
+    {
+      "label": "L-4 local Mailpit captures Auth recovery with exact allowed redirect",
+      "pass": true
+    },
+    {
+      "label": "L-4 captured reset link changes password and signs out; old password denied",
+      "pass": true
+    },
+    {
+      "label": "L-4 absent account reset uses same neutral response",
+      "pass": true
+    },
+    {
+      "label": "L-4 missing/expired recovery has a fresh-link path without change form",
+      "pass": true
+    },
+    {
+      "label": "L-4 server enforces 10-character minimum for password updates",
+      "pass": true
+    },
+    {
+      "label": "B8 browser acceptance stays local with no page errors",
+      "pass": true
+    }
+  ],
+  "remoteRequests": [],
+  "pageErrors": []
+}
