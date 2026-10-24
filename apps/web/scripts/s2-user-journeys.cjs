@@ -2,11 +2,13 @@
 // Auth/Postgres/RLS. No Edge gateway call, external model, or hosted service.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const {execFileSync}=require('node:child_process');
+const {pathOnlyEnv}=require('./local-child-env.cjs');
 module.exports=async d=>{
  const {buyer,context,login,signedIn,chooseRoom,send,shown,values,passwords,output,url,createClient,remoteRequests,pageErrors,deniedCanaryRequests}=d;
  assert.equal(values.API_URL,'http://127.0.0.1:54321');assert.equal(url,'http://127.0.0.1:3000');
- const sha=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),rows=[],stamp='[S2-TEST] Canary '+Date.now();
- const selected=process.env.S2_CANARY_FILTER;if(selected)assert(['SR-02','SR-02-reload','SR-06'].includes(selected),'Unsupported focused test filter');
+ const sha=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8',env:pathOnlyEnv()}).trim(),rows=[],stamp='[S2-TEST] Canary '+Date.now();
+ const selected=process.env.S2_CANARY_FILTER?new Set(process.env.S2_CANARY_FILTER.split(',')):null;
+ if(selected)for(const id of selected)assert(['SR-02','SR-02-reload','SR-04','SR-06'].includes(id),'Unsupported focused test filter');
  const room='52000000-0000-4000-8000-0000000000e2',internal='52000000-0000-4000-8000-0000000000e1';
  const a=await signedIn('s2-buyer@s2-test.invalid',passwords.S2_BUYER_PASSWORD),b=await signedIn('s2-supplier@s2-test.invalid',passwords.S2_SUPPLIER_PASSWORD);
  // Check the fixed synthetic tenant before any canary mutation.
@@ -18,14 +20,14 @@ module.exports=async d=>{
  await chooseRoom(buyer,'[S2-TEST] Supplier Co - Shared');await chooseRoom(supplier,'[S2-TEST] Supplier Co - Shared');
  async function check(id,steps,fn){
   const row={id,sourceSHA:sha,target:url,tenant:'[S2-TEST] fixed local project '+target.data[0].project_id,dependencies:'actual local Auth/Postgres/RLS; provider keys removed; Edge requests prohibited',steps,status:'NOT_RUN'};
-  if(selected && id!==selected){row.actual='Excluded by explicit focused test filter';rows.push(row);return;}
+  if(selected && !selected.has(id)){row.actual='Excluded by explicit focused test filter';rows.push(row);return;}
   try{await fn(row);if(row.status==='NOT_RUN')row.status='PASS';row.actual??='Assertions on real UI, persisted RPC data and side effects passed';}
   catch(e){row.status='FAIL';row.actual=String(e.message).split('Call log:')[0].slice(0,1800);}
   try{await buyer.screenshot({path:path.join(output,id+'-desktop.png')});await supplier.screenshot({path:path.join(output,id+'-mobile.png')});}catch{}
   row.screenshots=[id+'-desktop.png',id+'-mobile.png'];row.trace='trace-0.zip';rows.push(row);
   fs.writeFileSync(path.join(output,'journeys.json'),JSON.stringify(rows,null,2));console.log(id,row.status);
  }
- if(selected==='SR-02-reload')await check('SR-02-reload',['Explicit fixed synthetic room','Commit and abort ACK; Retry becomes visible','Refresh same room; original retry identity must survive'],async()=>{
+ if(selected?.has('SR-02-reload'))await check('SR-02-reload',['Explicit fixed synthetic room','Commit and abort ACK; Retry becomes visible','Refresh same room; original retry identity must survive'],async()=>{
   let original;await supplier.route('**/rpc/append_room_event',async route=>{original=route.request().postDataJSON();assert.equal(original.p_room_id,room);const response=await route.fetch();assert.equal(response.status(),200);await route.abort();});
   await supplier.getByRole('textbox',{name:'Room message',exact:true}).fill(stamp+' reload-only');
   await supplier.getByRole('button',{name:'Send · 发送',exact:true}).click();await supplier.getByRole('button',{name:'Retry · 重试',exact:true}).waitFor();

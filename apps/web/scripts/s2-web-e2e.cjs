@@ -4,6 +4,7 @@ const path = require('node:path');
 const { spawn, execFileSync } = require('node:child_process');
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
+const { pathOnlyEnv, canaryServerEnv } = require('./local-child-env.cjs');
 const REPO = path.resolve(__dirname, '../../..');
 const ROOT = path.dirname(REPO);
 const { chromium } = require(process.env.S2_PLAYWRIGHT_MODULE || path.join(ROOT, 'tools/node_modules/playwright'));
@@ -12,7 +13,7 @@ const mode = process.argv[2] || 'e2e';
 const output = process.env.S2_EVIDENCE_DIR || path.join(ROOT, 'carryover', mode === 'inquiries' ? 'B6-artifacts' : 'B5-artifacts');
 fs.mkdirSync(output, { recursive: true });
 const url = 'http://127.0.0.1:3000';
-const values = JSON.parse(execFileSync(process.env.S2_SUPABASE_CLI || 'supabase', ['status', '-o', 'json', '--workdir', process.env.S2_SUPABASE_WORKDIR || REPO], { cwd: REPO, stdio: ['ignore', 'pipe', 'ignore'] }));
+const values = JSON.parse(execFileSync(process.env.S2_SUPABASE_CLI || 'supabase', ['status', '-o', 'json', '--workdir', process.env.S2_SUPABASE_WORKDIR || REPO], { cwd: REPO, env: { ...pathOnlyEnv(), DOCKER_HOST: 'unix:///var/run/docker.sock' }, stdio: ['ignore', 'pipe', 'ignore'] }));
 assert.equal(values.API_URL, 'http://127.0.0.1:54321');
 const passwords = JSON.parse(fs.readFileSync(process.env.S2_PASSWORD_FILE || path.join(ROOT, 'secrets/s2-local-passwords.json'), 'utf8'));
 const results = [];
@@ -29,12 +30,7 @@ async function check(label, fn) {
   fs.writeFileSync(path.join(output, 'progress.json'), JSON.stringify({ pending: null, results }, null, 2));
 }
 async function startServer() {
-  const env = { ...process.env };
-  for (const key of Object.keys(env)) if (/API_KEY|SERVICE_ROLE|SECRET|PASSWORD|S2_ALLOW_REMOTE/i.test(key)) delete env[key];
-  if (mode === 'canary') for (const key of Object.keys(env)) if (/SOURCERATING_|VERCEL|SR_INVITE_RELAY/.test(key)) delete env[key];
-  env.NEXT_PUBLIC_SUPABASE_URL = values.API_URL;
-  env.NEXT_PUBLIC_SUPABASE_ANON_KEY = values.ANON_KEY;
-  env.NEXT_TELEMETRY_DISABLED = '1';
+  const env = canaryServerEnv(values);
   // Only the loopback acceptance server receives the dedicated relay secret.
   // Never inherit service-role/password/provider credentials into the server.
   if (mode !== 'canary') {
@@ -42,7 +38,8 @@ async function startServer() {
     env.SR_INVITE_RELAY_PROJECT_REF = 'sourcerating-l1-stage2';
   }
   const log = fs.openSync(path.join(output, 'server.log'), 'a');
-  server = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '--port', '3000'], { cwd: path.resolve(__dirname, '..'), env, windowsHide: true, stdio: ['ignore', log, log] });
+  const guard = mode === 'canary' ? ['--require', path.join(__dirname, 'canary-env-guard.cjs')] : [];
+  server = spawn(process.execPath, [...guard, 'node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '--port', '3000'], { cwd: path.resolve(__dirname, '..'), env, windowsHide: true, stdio: ['ignore', log, log] });
   fs.closeSync(log);
   for (let i = 0; i < 120; i++) {
     if (server.exitCode !== null) throw new Error('Production server exited: ' + server.exitCode);
@@ -139,7 +136,7 @@ for i,obj in enumerate(objects,1):
  offsets.append(len(pdf));pdf+=str(i).encode()+b' 0 obj\\n'+obj+b'\\nendobj\\n'
 xref=len(pdf);pdf+=b'xref\\n0 5\\n0000000000 65535 f \\n'+b''.join(('%010d 00000 n \\n'%n).encode() for n in offsets[1:])+b'trailer\\n<< /Size 5 /Root 1 0 R >>\\nstartxref\\n'+str(xref).encode()+b'\\n%%EOF\\n'
 (p/(s+'.pdf')).write_bytes(pdf)
-`, dir, stamp]);
+`, dir, stamp], { env: pathOnlyEnv() });
   return ['pdf', 'xlsx', 'png'].map(ext => path.join(dir, stamp + '.' + ext));
 }
 async function inquirySuite(buyer) {
@@ -272,7 +269,7 @@ async function inquirySuite(buyer) {
 }
 async function main() {
   await startServer();
-  browser = await chromium.launch({ executablePath: process.env.S2_BROWSER_PATH || (process.platform === 'win32' ? 'C:/Program Files/Google/Chrome/Application/chrome.exe' : '/usr/bin/chromium'), headless: true });
+  browser = await chromium.launch({ executablePath: process.env.S2_BROWSER_PATH || (process.platform === 'win32' ? 'C:/Program Files/Google/Chrome/Application/chrome.exe' : '/usr/bin/chromium'), headless: true, env: pathOnlyEnv() });
   const buyerContext = await context();
   const buyer = await buyerContext.newPage();
   if (mode === 'baseline') {
