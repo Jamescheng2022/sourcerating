@@ -1,0 +1,16 @@
+{
+  "count": 11,
+  "files": [
+    "sr-baseline/SR-02-reload-desktop.png",
+    "sr-baseline/SR-02-reload-mobile.png",
+    "sr-fixed/SR-02-desktop.png",
+    "sr-fixed/SR-02-mobile.png",
+    "sr-fixed/SR-02-reload-desktop.png",
+    "sr-fixed/SR-02-reload-mobile.png",
+    "sr-fixed/SR-04-desktop.png",
+    "sr-fixed/SR-04-mobile.png",
+    "sr-fixed/SR-06-desktop.png",
+    "sr-fixed/SR-06-mobile.png",
+    "sr-fixed/local-password-recovery.png"
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "rawDirectory": "/workspace/sourcerating/.data/journey-traces/9e561ca6-696a-47ec-8dc1-04d914fb6c9f",
+  "syntheticOnly": true,
+  "needsCredentialScrub": true,
+  "shareableTraces": [
+    {
+      "file": "trace-0.zip",
+      "rawSHA256": "9638016de730552880f1b3e061a013c19fef5ea45ec557627eba302998ba9b12",
+      "shareableSHA256": "095d78fcbeac2e9f3fe8eb950d74a9e8f5bc2f408252546636e77c540b010ce3",
+      "bytes": 10958610,
+      "changedTextMembers": 18,
+      "redactionOccurrences": 311,
+      "omittedJavaScriptResources": 0
+    },
+    {
+      "file": "trace-1.zip",
+      "rawSHA256": "6f1d21571fab9f025465c5d78f5706a12f2d1d40c2d7e4824fd8abf6d03f1143",
+      "shareableSHA256": "7c8ba0bea298bd87f9d8b8dfedc13ae33b04c15e60e1a6745cf8fe0e1f19753b",
+      "bytes": 7097500,
+      "changedTextMembers": 22,
+      "redactionOccurrences": 361,
+      "omittedJavaScriptResources": 0
+    }
+  ],
+  "sanitization": "Credentials/OAuth grants removed; executable bundles replaced; DOM, CSS, screenshots, actions and network outcomes retained. Raw archives remain private and unchanged."
+}

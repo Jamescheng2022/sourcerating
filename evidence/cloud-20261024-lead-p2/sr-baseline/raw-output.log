@@ -1,0 +1,3 @@
+PASS Buyer signs in with seeded email/password through UI
+SR-02-reload FAIL
+{"checks":1,"passed":1,"remoteRequests":0}

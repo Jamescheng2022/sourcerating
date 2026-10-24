@@ -1,0 +1,12 @@
+✔ Only PATH is selected, without reading unrelated parent values (1.887754ms)
+✔ Real Node child excludes unknown credentials and startup hooks (139.532599ms)
+✔ Actual server startup guard accepts only explicit local fixture settings (99.966958ms)
+✔ Missing PATH and hosted targets fail before child launch (0.44508ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 344.690315

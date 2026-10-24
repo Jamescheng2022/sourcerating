@@ -1,0 +1,25 @@
+{
+  "reviewer": "Original cloud Codex; not Claude Lead",
+  "screenshotInventoryCount": 11,
+  "visuallySampled": [
+    {
+      "file": "sr-baseline/SR-02-reload-mobile.png",
+      "sha256": "01c119ea85c7396b27f4a7c351b2dffb7384902f494265dc55267ad32537b414"
+    },
+    {
+      "file": "sr-fixed/local-password-recovery.png",
+      "sha256": "6dba5f469c3083923a3dde457ea4e5056ca00119e8b5f694cab8d422967af893"
+    }
+  ],
+  "sampleCount": 2,
+  "traceArchiveCount": 4,
+  "metadataSelectedArchives": [
+    "sr-baseline/trace-1.zip",
+    "sr-fixed/trace-0.zip",
+    "sr-fixed/trace-1.zip"
+  ],
+  "coverageLimit": "Reviewed selected HTTP status/path/action summaries and 2 screenshots in this repository. Not every body, frame or pixel. Browser traces omit Node-side API probes. Automated credential pattern scans are rule-bounded, not full secret clearance.",
+  "notes": [
+    "Original baseline screenshot has the saved message but no pending Retry control; current local recovery screenshot confirms password update."
+  ]
+}
