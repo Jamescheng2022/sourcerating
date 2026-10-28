@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:config": "node --test scripts/public-supabase-settings.test.mjs"
+    "test:config": "node --test scripts/public-supabase-settings.test.mjs",
+    "test:ai:pilot": "node --test scripts/business-intent.test.mjs scripts/agent-staging.test.mjs scripts/synthetic-multi-role.test.mjs ../../supabase/scripts/invite-relay-pilot.test.mjs",
+    "test:ai:postgres": "node scripts/pglite-authorization-smoke.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
