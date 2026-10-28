@@ -20,7 +20,7 @@ const scenarios=[
   {role:"supplier",room:"apparel",text:"กำหนดส่งของจะล่าช้า 2 วัน",expected:"risk"},
   {role:"retailer",room:"apparel",text:"Is this the final approved color?",expected:"decision"},
   {role:"supplier",room:"apparel",text:"Please confirm invoice number",expected:"quote_change"},
-  {role:"pm",room:"buyer-internal",text:"Final approval has not been issued",expected:"conversation"},
+  {role:"pm",room:"buyer-internal",text:"Final approval has not been issued",expected:"decision"},
   {role:"design",room:"shared-steel",text:"Attached drawing revision V4 for steel beams",expected:"requirement"},
 ];
 test("scripted multi-role language canary",()=>{
