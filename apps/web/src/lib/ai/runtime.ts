@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { classifyBusinessIntent } from "./business-intent.mjs";
+import { classifyBusinessIntent } from "../../../../../supabase/functions/_shared/business-intent.mjs";
 
 export type DecisionIntent =
   | "conversation"
