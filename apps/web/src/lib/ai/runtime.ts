@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { classifyBusinessIntent } from "./business-intent.mjs";
 
 export type DecisionIntent =
   | "conversation"
@@ -73,30 +74,12 @@ function scoreIndex(answer: unknown): number {
 }
 
 export function classifyWithRules(message: string): DecisionResult {
-  const hasMoney = /(?:rmb|usd|thb|cny|price|quote|quotation|cost|payment|deposit|total)/i.test(message);
-  const hasDelivery = /(?:delivery|lead\s*time|shipment|calendar\s*days?)/i.test(message);
-  const hasRequirement = /(?:require|spec|specification|mm\b|kpa\b|r-value|panel|standard|thickness)/i.test(message);
-  const hasDecision = /(?:approved|approve|agreed|accept|confirmed|finalize|proceed)/i.test(message);
-  const hasQuestion = /\?|(?:can you|please confirm|could you)/i.test(message);
-  const hasFile = /(?:attached|attachment|quotation|drawing|pdf|xlsx|dwg|revision|version|v\d+)/i.test(message);
-  const hasRisk = /(?:risk|delay|late|fail|nonconform|issue|blocked)/i.test(message);
-
-  let intent: DecisionIntent = "conversation";
-  if (hasDecision) intent = "decision";
-  else if (hasMoney || hasDelivery) intent = "quote_change";
-  else if (hasRequirement) intent = "requirement";
-  else if (hasFile) intent = "file_update";
-  else if (hasRisk) intent = "risk";
-  else if (hasQuestion) intent = "question";
-
-  const highRisk = hasMoney || hasDelivery || hasDecision || hasRisk;
-  const needsDeep = intent !== "conversation";
-
+  const result = classifyBusinessIntent(message);
   return {
-    intent,
-    needsDeepAnalysisProbability: needsDeep ? 0.75 : 0.15,
-    highRiskProbability: highRisk ? 0.8 : 0.1,
-    urgency: hasRisk ? "high" : highRisk ? "normal" : "low",
+    intent: result.intent as DecisionIntent,
+    needsDeepAnalysisProbability: result.needsDeepAnalysisProbability,
+    highRiskProbability: result.highRiskProbability,
+    urgency: result.urgency as DecisionResult["urgency"],
     provider: "rules",
   };
 }
