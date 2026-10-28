@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { classifyBusinessIntent } from '../src/lib/ai/business-intent.mjs';
+import { classifyBusinessIntent } from '../../../supabase/functions/_shared/business-intent.mjs';
 
 const cases = [
   ['Hi everyone, thanks for the update', 'conversation'],
