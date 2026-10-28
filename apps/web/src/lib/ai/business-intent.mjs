@@ -8,7 +8,7 @@ const delivery = /(?:\b(?:delivery|lead\s*time|shipment|dispatch|late\s*delivery
 const requirement = /(?:\b(?:requirement|spec(?:ification)?|thickness|drawing|dimension|quantity|material|revision|scope|standard)\b|图纸|规格|材质|厚度|数量|标准|技术要求|变更|版本|修订|设计|แบบ|สเปก|จำนวน|แก้ไข|เปลี่ยนแปลง|วัสดุ|ข้อกำหนด)/iu;
 const decision = /(?:\b(?:approved|approval|agreed|accepted|finalized|sign\s*off|proceed)\b|确认订单|确认交期|批准|已经同意|正式同意|最终确定|就按这个|อนุมัติ|ตกลงราคา|ยืนยันการสั่งซื้อ|อนุมัติแล้ว)/iu;
 const question = /(?:[?？]|\b(?:could you|can you|please confirm|would you|what if)\b|是否|能否|请确认|什么时候|吗[？?]?|กรุณายืนยัน|ได้ไหม|หรือไม่|เมื่อไร)/iu;
-const risk = /(?:\b(?:risk|delay|late|blocked|failed|defect|nonconform|dispute|overdue|breach)\b|风险|延误|违约|缺陷|错误|不合格|未通过|索赔|异常|ปัญหา|ผิดพลาด|ไม่ผ่าน|ล่าช้า|เสี่ยง)/iu;
+const risk = /(?:\b(?:risk|delay(?:ed)?|late|blocked|failed|defect|nonconform(?:ity|ance)?|dispute|overdue|breach)\b|风险|延误|违约|缺陷|错误|不合格|未通过|索赔|异常|ปัญหา|ผิดพลาด|ไม่ผ่าน|ล่าช้า|เสี่ยง)/iu;
 const file = /(?:\b(?:attached|attachment|pdf|dwg|xlsx|file|document|version|v[0-9]+)\b|附件|已上传|上传文件|新版图纸|เอกสารแนบ|ไฟล์|แนบไฟล์|เวอร์ชัน)/iu;
 
 export function classifyBusinessIntent(input) {
