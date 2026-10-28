@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { normalizeStagingResult,reviewTargetOrg,sanitizedContext,normalizeKind,promptForRoomEvent } from "../../../supabase/functions/_shared/agent-staging.mjs";
-const roomId="a", event={actor_organization_id:"seller"};
+const event={actor_organization_id:"seller"};
 const room={kind:"supplier_shared",owner_organization_id:"buyer",counterpart_organization_id:"seller"};
 test("supplier response targets buyer, buyer response targets seller",()=>{
   assert.equal(reviewTargetOrg(room,event),"buyer");
