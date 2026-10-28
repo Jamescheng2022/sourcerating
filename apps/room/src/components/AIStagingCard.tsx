@@ -49,15 +49,15 @@ export const AIStagingCard: React.FC<AIStagingCardProps> = ({
           <IconCheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
           <div>
             <span className="font-semibold text-emerald-900">
-              Promoted to Canonical Project State
+              Confirmed in demonstration (not saved to server)
             </span>
             <span className="text-emerald-700 ml-1.5 font-normal">
-              Quote v3 (RMB 320,000, 45d, 100mm PU) is recorded in Canonical Project State after human confirmation.
+              This sample decision changes only the local preview. No business record was created.
             </span>
           </div>
         </div>
         <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-200 text-emerald-900 font-bold shrink-0">
-          CANONICAL
+          DEMO ONLY
         </span>
       </div>
     );
@@ -76,7 +76,7 @@ export const AIStagingCard: React.FC<AIStagingCardProps> = ({
           <span>AI Proposal • Staging Draft</span>
         </div>
         <div className="text-[10px] text-sky-700 font-mono">
-          Non-Canonical (Pending Human Confirmation)
+          Sample only · Pending demo confirmation
         </div>
       </div>
 
@@ -172,7 +172,7 @@ export const AIStagingCard: React.FC<AIStagingCardProps> = ({
             {/* Human Canonical Confirmation Bar */}
             <div className="mt-3 p-2.5 rounded-md bg-sky-950 text-white flex flex-col sm:flex-row items-center justify-between gap-2.5">
               <div className="text-[11px] text-slate-300">
-                <span className="font-semibold text-white">Human Confirmation Required:</span> AI state remains draft until you verify and record to Canonical State.
+                <span className="font-semibold text-white">Human confirmation demonstration:</span> The real product will require an authorized server-side record before changing Canonical State.
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <button
@@ -183,7 +183,7 @@ export const AIStagingCard: React.FC<AIStagingCardProps> = ({
                   className="px-3 py-1.5 rounded bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-xs transition-colors flex items-center gap-1.5 shadow-sm"
                 >
                   <IconCheckCircle2 className="w-3.5 h-3.5" />
-                  <span>Confirm to Canonical State</span>
+                  <span>Confirm in Demo</span>
                 </button>
               </div>
             </div>

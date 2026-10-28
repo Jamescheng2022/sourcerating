@@ -16,6 +16,7 @@ import {
 } from '@/components/icons';
 import {
   ACTIVE_PROJECT,
+  CURRENT_USER,
   BUYER_INTERNAL_EVENTS,
   BUYER_ORGANIZATION,
   EASTFRAME_ROOM_EVENTS,
@@ -27,7 +28,7 @@ import {
   SIAM_PANELS_EVENTS,
 } from '@/lib/domain/mockData';
 import { cn, formatRmb, formatTime } from '@/lib/utils';
-import type { FileEvent, RoomEvent } from '@/types/domain';
+import type { FileEvent, MessageEvent, RoomEvent } from '@/types/domain';
 
 type StateTab = 'requirements' | 'quotes' | 'files' | 'decisions' | 'actions';
 
@@ -264,13 +265,14 @@ export default function ProjectRoomPage() {
   const [stateTab, setStateTab] = useState<StateTab>('requirements');
   const [highlightedEvent, setHighlightedEvent] = useState<string | null>(null);
   const [message, setMessage] = useState('');
+  const [demoEventsByRoom, setDemoEventsByRoom] = useState<Record<string, MessageEvent[]>>({});
   const [isComposing, setIsComposing] = useState(false);
 
   const activeRoom = useMemo(
     () => MOCK_ROOMS.find((room) => room.id === activeRoomId) || MOCK_ROOMS[1],
     [activeRoomId]
   );
-  const events = eventSets[activeRoom.id] || [];
+  const events = [...(eventSets[activeRoom.id] || []), ...(demoEventsByRoom[activeRoom.id] || [])];
 
   const selectRoom = (roomId: string) => {
     setActiveRoomId(roomId);
@@ -288,7 +290,20 @@ export default function ProjectRoomPage() {
 
   const sendMessage = (event?: FormEvent) => {
     event?.preventDefault();
-    if (!message.trim()) return;
+    const text = message.trim();
+    if (!text) return;
+    const newMessage: MessageEvent = {
+      id: `demo-msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      roomId: activeRoom.id,
+      type: 'message',
+      actor: CURRENT_USER,
+      timestamp: new Date().toISOString(),
+      text,
+    };
+    setDemoEventsByRoom((previous) => ({
+      ...previous,
+      [activeRoom.id]: [...(previous[activeRoom.id] || []), newMessage],
+    }));
     setMessage('');
   };
 
@@ -323,6 +338,10 @@ export default function ProjectRoomPage() {
           onOpenMobileRooms={() => setMobileNavOpen(true)}
           onOpenMobileState={() => setMobileStateOpen(true)}
         />
+
+        <div role="status" className="border-b border-amber-200 bg-amber-50 px-3 py-2 text-center text-[11px] font-medium leading-4 text-amber-900">
+          Interactive demo · All companies and data are fictional · Messages and confirmations are local to this session, not sent to another person
+        </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50 px-3 py-4 sm:px-5">
           <div className="mx-auto max-w-[900px]">
@@ -371,9 +390,9 @@ export default function ProjectRoomPage() {
             />
             <div className="flex items-center justify-between px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
               <div className="flex items-center gap-1">
-                <button type="button" aria-label="Attach file" className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-800"><IconPaperclip className="h-4 w-4" /></button>
-                <button type="button" aria-label="Record voice message" className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-800"><IconMic className="h-4 w-4" /></button>
-                <button type="button" aria-label="Mention person or object" className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-800"><IconAtSign className="h-4 w-4" /></button>
+                <button type="button" disabled title="File upload is not active in this demo" aria-label="Attach file (demo only)" className="cursor-not-allowed rounded-md p-2 text-slate-300"><IconPaperclip className="h-4 w-4" /></button>
+                <button type="button" disabled title="Voice messaging is not active in this demo" aria-label="Record voice message (demo only)" className="cursor-not-allowed rounded-md p-2 text-slate-300"><IconMic className="h-4 w-4" /></button>
+                <button type="button" disabled title="Mentions are not active in this demo" aria-label="Mention person (demo only)" className="cursor-not-allowed rounded-md p-2 text-slate-300"><IconAtSign className="h-4 w-4" /></button>
               </div>
               <button
                 type="submit"
