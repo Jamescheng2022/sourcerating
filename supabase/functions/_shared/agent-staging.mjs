@@ -44,6 +44,9 @@ export function normalizeStagingResult(raw, sourceText, previousMessages=[]) {
   const openQuestions=Array.isArray(value.openQuestions)?value.openQuestions.slice(0,8).map(s=>clip(s,500)).filter(Boolean):[];
   const risks=Array.isArray(value.risks)?value.risks.slice(0,8).map(s=>clip(s,500)).filter(Boolean):[];
   if(!value.actionable && !requirementChanges.length && !quoteChanges.length && !pendingActions.length && !openQuestions.length && !risks.length) return null;
+  // Even an actionable-looking response cannot introduce a business fact if
+  // its claimed evidence is absent from the authorized messages.
+  if(!requirementChanges.length && !quoteChanges.length && !evidence(value.evidenceQuote)) return null;
   const summary=clip(value.summary,800)||clip(source,300);
   if(!summary)return null;
   const quote=evidence(value.evidenceQuote)||evidence(source.slice(0,Math.min(220,source.length)))||"";
