@@ -96,6 +96,13 @@ begin
     raise exception 'acting_org_not_bound_to_room' using errcode = '42501';
   end if;
 
+  if v_proposal.status <> 'pending' then
+    return jsonb_build_object(
+      'proposal', to_jsonb(v_proposal),
+      'idempotent', true
+    );
+  end if;
+
   select n.target_organization_id
   into v_target_organization_id
   from public.needs_you n
@@ -116,12 +123,9 @@ begin
       using errcode = '42501';
   end if;
 
-  if v_proposal.status <> 'pending' then
-    return jsonb_build_object(
-      'proposal', to_jsonb(v_proposal),
-      'idempotent', true
-    );
-  end if;
+
+  -- Idempotent readback does not reassign or alter an already reviewed proposal.
+
 
   if p_action = 'dismiss' then
     update public.staging_proposals
