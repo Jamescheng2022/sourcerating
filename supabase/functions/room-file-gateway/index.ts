@@ -54,6 +54,7 @@ function publicSignedUrl(signedUrl: string): string {
   const target = new URL(publicBase);
   internal.protocol = target.protocol;
   internal.host = target.host;
+  internal.port = target.port; // Clear the internal gateway port when public HTTPS uses its default port.
   return internal.toString();
 }
 
