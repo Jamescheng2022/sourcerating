@@ -21,6 +21,7 @@ async function main(){
   try {
     await db.exec(fixture);
     await db.exec(migration);
+    await db.exec(fs.readFileSync(path.resolve(__dirname,'../../../supabase/migrations/20261030000629_source_rating_modern_claim_role.sql'),'utf8'));
     console.log('MIGRATION_SQL_APPLIED');
     for (const uid of [ids.userA,ids.userB]) await db.query('insert into auth.users values ($1)',[uid]);
     for (const org of [ids.buyer,ids.supplier]) await db.query('insert into public.organizations values ($1)',[org]);
@@ -33,12 +34,13 @@ async function main(){
     for (const [room,event] of [[ids.roomA,ids.event1],[ids.roomB,ids.event2]]) {
       await db.query('insert into public.event_outbox(room_id,room_event_id) values($1,$2)',[room,event]);
     }
-    await db.query("select set_config('request.jwt.claim.role','anon',false)");
+    await db.query("select set_config('request.jwt.claim.role','service_role',false)");
+    await db.query("select set_config('request.jwt.claims',$1,false)", [JSON.stringify({role:'anon'})]);
     let denied=false;
     try {await db.query('select id from public.agent_claim_scoped_outbox(array[$1]::uuid[],5)',[ids.roomA]);}
     catch(e){denied=String(e.message).includes('service_role_required');}
-    assert.equal(denied,true,'anon cannot claim outbox');
-    await db.query("select set_config('request.jwt.claim.role','service_role',false)");
+    assert.equal(denied,true,'modern anon claims cannot claim even with a stale legacy service-role GUC');
+    await db.query("select set_config('request.jwt.claims',$1,false)", [JSON.stringify({role:'service_role'})]);
     const scoped=await db.query('select id,room_id from public.agent_claim_scoped_outbox(array[$1]::uuid[],5)',[ids.roomA]);
     assert.equal(scoped.rows.length,1);
     assert.equal(scoped.rows[0].room_id,ids.roomA);
