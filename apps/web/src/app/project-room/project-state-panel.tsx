@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import type { AIConnection } from "./ai-settings";
+import { Check, Circle, Sparkles } from "lucide-react";
 import {
   ProjectRoomState,
   extractChangesAndValues,
@@ -13,6 +15,7 @@ interface ProjectStatePanelProps {
   state: ProjectRoomState;
   stateStatus: "idle" | "active" | "unavailable";
   aiStatus: string | null;
+  aiConnection?: AIConnection | null;
   reviewingProposalId: string | null;
   actionError: string | null;
   onReview: (
@@ -28,6 +31,7 @@ export function ProjectStatePanel({
   state,
   stateStatus,
   aiStatus,
+  aiConnection,
   reviewingProposalId,
   actionError,
   onReview,
@@ -92,39 +96,120 @@ export function ProjectStatePanel({
 
   return (
     <div className={`space-y-4 ${isMobile ? "text-xs" : "text-xs"}`}>
-      {/* Saved database state does not establish AI availability. */}
-      <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 shadow-xs">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 font-semibold text-slate-800">
-            <span
-              className={`h-2 w-2 rounded-full shrink-0 ${
-                aiStatus?.startsWith("AI assistant active via ")
-                  ? "bg-emerald-500 animate-pulse"
-                  : stateStatus === "unavailable"
-                  ? "bg-amber-400"
-                  : "bg-slate-400"
-              }`}
-            />
-            <span className="text-[12px]">AI assistant</span>
-          </div>
-          <span
-            className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
-              aiStatus?.startsWith("AI assistant active via ")
-                ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                : "bg-amber-100 text-amber-800 border border-amber-200"
-            }`}
-          >
-            {aiStatus?.startsWith("AI assistant active via ") ? "Active" : "Unavailable"}
+      <div className="rounded-xl border border-indigo-100 bg-white p-4">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-semibold text-slate-700 flex items-center gap-2">
+            <Sparkles size={14} className="text-indigo-400" />
+            DeepSeek
+          </span>
+          <span className="text-[10px] text-slate-500">
+            {aiStatus?.startsWith("AI assistant active via ")
+              ? "最近分析成功"
+              : aiConnection?.configured
+                ? "密钥已配置"
+                : aiConnection
+                  ? "待配置"
+                  : "正在检查配置"}
           </span>
         </div>
-        <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
-          {aiStatus || "AI availability not confirmed; messaging continues normally."}
-        </p>
-        <p className="mt-1 text-[11px] text-slate-600">
-          Saved project state: {stateStatus === "active" ? "available" : stateStatus === "idle" ? "loading" : "unavailable"}
+        <p className="mt-2 text-[11px] leading-6 text-slate-500">
+          {aiStatus?.startsWith("AI assistant active via ")
+            ? "AI 已完成消息分析。新提议会出现在下方，等待人工确认。"
+            : aiStatus?.startsWith("AI assistant ready;")
+              ? "当前消息无需深度分析；新的业务变更会继续进入分析队列。"
+              : aiStatus
+                ? "最近一次手动分析未完成，聊天可继续使用。"
+                : aiConnection?.scope === "automatic"
+                  ? "当前聊天室已启用后台分析。新消息会进入分析队列，结果随后更新。"
+                  : "此聊天室未启用自动分析。可在设置中检查已保存消息的 AI 分析。"}
         </p>
       </div>
+      <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <h3 className="text-xs font-semibold text-slate-700">沟通里程碑</h3>
+        <p className="text-[10px] text-slate-400 mt-1 mb-4">
+          来自当前房间的实际记录 · 每 3 秒更新
+        </p>
+        {[
+          {
+            label: "AI 提议已生成",
+            detail: `${stagingProposals.length} 条待审核提议`,
+            done: stagingProposals.length > 0 || canonicalObjects.length > 0,
+          },
+          {
+            label: "人工审核",
+            detail:
+              needsYou.length > 0
+                ? `${needsYou.length} 项需要你处理`
+                : canonicalObjects.length > 0
+                  ? "已有提议通过审核"
+                  : "等待新的审核任务",
+            done: canonicalObjects.length > 0 && needsYou.length === 0,
+          },
+          {
+            label: "项目决议已确认",
+            detail: `${canonicalObjects.length} 条已确认记录`,
+            done: canonicalObjects.length > 0,
+          },
+        ].map((step, index) => (
+          <div key={step.label} className="relative flex gap-3 pb-5 last:pb-0">
+            {index < 2 && (
+              <span className="absolute left-[9px] top-6 bottom-1 w-px bg-slate-100" />
+            )}
+            <span
+              className={`relative flex h-5 w-5 items-center justify-center rounded-full ${step.done ? "bg-emerald-50 text-emerald-500" : "bg-slate-50 text-slate-300"}`}
+            >
+              {step.done ? <Check size={12} /> : <Circle size={9} />}
+            </span>
+            <div>
+              <p className="text-[11px] font-medium text-slate-600">
+                {step.label}
+              </p>
+              <p className="text-[10px] text-slate-400 mt-1">{step.detail}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+      {(canonicalObjects.length > 0 || stagingProposals.length > 0) && (
+        <div className="rounded-xl bg-indigo-50/50 border border-indigo-100/60 p-4">
+          <h3 className="text-xs font-semibold text-indigo-700 mb-3">
+            沟通摘要
+          </h3>
+          {[
+            ...canonicalObjects
+              .slice(0, 2)
+              .map((item) => ({ ...item, confirmed: true })),
+            ...stagingProposals
+              .slice(0, 2)
+              .map((item) => ({ ...item, confirmed: false })),
+          ].map((item) => (
+            <div key={item.id} className="mb-3 last:mb-0">
+              <span
+                className={`text-[9px] ${item.confirmed ? "text-emerald-600" : "text-amber-600"}`}
+              >
+                {item.confirmed ? "已确认" : "AI 草稿 · 待审核"}
+              </span>
+              <p className="mt-1 text-[11px] leading-6 text-slate-600">
+                {extractProposalSummary(item.payload)}
+              </p>
+              <button
+                onClick={() => onViewSource(item.source_event_id)}
+                className="text-[9px] text-indigo-400 mt-1"
+              >
+                查看原始消息 ↗
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
+      {stateStatus === "unavailable" && (
+        <p
+          role="status"
+          className="rounded-lg bg-amber-50 p-3 text-xs text-amber-700"
+        >
+          项目状态更新暂时中断，正在重试。下方可能是先前保存的记录。
+        </p>
+      )}
       {actionError && (
         <div className="rounded-xl border border-rose-200 bg-rose-50 p-2.5 text-[11px] text-rose-700">
           ⚠️ {actionError}
@@ -162,25 +247,40 @@ export function ProjectStatePanel({
           ) : (
             needsYou.map((item) => {
               if (item.inquiry_id) {
-                return <article key={item.id} className="rounded-lg border border-slate-200 bg-white p-3 space-y-2">
-                  <h3 className="font-semibold text-slate-900 text-xs">{item.title}</h3>
-                  <p className="whitespace-pre-wrap break-words text-[11px] text-slate-600">{item.detail}</p>
-                  <p className="text-[10px] text-slate-500">Saved in the buyer inquiry collection.</p>
-                  <button type="button" disabled={reviewingProposalId === item.id}
-                    onClick={() => void onReview(null, "dismiss", item.id)}
-                    className="rounded bg-sky-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">
-                    {reviewingProposalId === item.id ? "Acknowledging..." : "Acknowledge inquiry"}
-                  </button>
-                </article>;
+                return (
+                  <article
+                    key={item.id}
+                    className="rounded-lg border border-slate-200 bg-white p-3 space-y-2"
+                  >
+                    <h3 className="font-semibold text-slate-900 text-xs">
+                      {item.title}
+                    </h3>
+                    <p className="whitespace-pre-wrap break-words text-[11px] text-slate-600">
+                      {item.detail}
+                    </p>
+                    <p className="text-[10px] text-slate-500">
+                      Saved in the buyer inquiry collection.
+                    </p>
+                    <button
+                      type="button"
+                      disabled={reviewingProposalId === item.id}
+                      onClick={() => void onReview(null, "dismiss", item.id)}
+                      className="rounded bg-sky-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                    >
+                      {reviewingProposalId === item.id
+                        ? "Acknowledging..."
+                        : "Acknowledge inquiry"}
+                    </button>
+                  </article>
+                );
               }
               const associatedProposal = item.proposal_id
                 ? stagingProposals.find((p) => p.id === item.proposal_id)
                 : null;
               const proposalPayload = associatedProposal?.payload;
-              const summary =
-                proposalPayload
-                  ? extractProposalSummary(proposalPayload)
-                  : item.detail || item.title;
+              const summary = proposalPayload
+                ? extractProposalSummary(proposalPayload)
+                : item.detail || item.title;
               const extracted = proposalPayload
                 ? extractChangesAndValues(proposalPayload)
                 : [];
@@ -193,10 +293,11 @@ export function ProjectStatePanel({
               const provider =
                 associatedProposal?.provider || proposalPayload?.provider;
               const isExpanded = expandedProposalIds.has(item.id);
-              const proposalIdToReview = item.proposal_id || associatedProposal?.id;
+              const proposalIdToReview =
+                item.proposal_id || associatedProposal?.id;
               const isReviewing = Boolean(
                 proposalIdToReview &&
-                  reviewingProposalId === proposalIdToReview,
+                reviewingProposalId === proposalIdToReview,
               );
               const sourceEventId =
                 item.source_event_id || associatedProposal?.source_event_id;
@@ -240,7 +341,8 @@ export function ProjectStatePanel({
                           key={idx}
                           className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-700"
                         >
-                          <b className="font-semibold">{val.key}:</b> {val.value}
+                          <b className="font-semibold">{val.key}:</b>{" "}
+                          {val.value}
                         </span>
                       ))}
                       {extracted.length > 2 && (
@@ -345,7 +447,11 @@ export function ProjectStatePanel({
                               type="button"
                               disabled={isReviewing}
                               onClick={() =>
-                                void onReview(proposalIdToReview, "accept", item.id)
+                                void onReview(
+                                  proposalIdToReview,
+                                  "accept",
+                                  item.id,
+                                )
                               }
                               className="flex-1 rounded-md bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 transition shadow-xs flex items-center justify-center gap-1"
                             >
@@ -359,7 +465,11 @@ export function ProjectStatePanel({
                               type="button"
                               disabled={isReviewing}
                               onClick={() =>
-                                void onReview(proposalIdToReview, "dismiss", item.id)
+                                void onReview(
+                                  proposalIdToReview,
+                                  "dismiss",
+                                  item.id,
+                                )
                               }
                               className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-rose-600 disabled:opacity-50 transition"
                             >
@@ -370,7 +480,9 @@ export function ProjectStatePanel({
                           <button
                             type="button"
                             disabled={isReviewing}
-                            onClick={() => void onReview(null, "dismiss", item.id)}
+                            onClick={() =>
+                              void onReview(null, "dismiss", item.id)
+                            }
                             className="flex-1 rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition"
                           >
                             Dismiss · 忽略
@@ -438,7 +550,9 @@ export function ProjectStatePanel({
       <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-xs">
         <div className="border-b border-slate-200 bg-slate-50/90 px-3.5 py-2.5 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-900 text-xs">Staging Drafts</span>
+            <span className="font-bold text-slate-900 text-xs">
+              AI 待审核草稿
+            </span>
             <span className="flex h-4 min-w-[18px] items-center justify-center rounded-full bg-slate-200 px-1.5 text-[10px] font-bold text-slate-700">
               {unrepresentedDrafts.length}
             </span>
@@ -508,7 +622,8 @@ export function ProjectStatePanel({
                           key={idx}
                           className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-700"
                         >
-                          <b className="font-semibold">{val.key}:</b> {val.value}
+                          <b className="font-semibold">{val.key}:</b>{" "}
+                          {val.value}
                         </span>
                       ))}
                       {extracted.length > 2 && (
@@ -558,7 +673,9 @@ export function ProjectStatePanel({
                         <div>
                           {provider && <span>Provider: {provider}</span>}
                           {confidence && (
-                            <span className="ml-2">Confidence: {confidence}</span>
+                            <span className="ml-2">
+                              Confidence: {confidence}
+                            </span>
                           )}
                         </div>
                         {draft.source_event_id && (
@@ -648,12 +765,14 @@ export function ProjectStatePanel({
       <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-xs">
         <div className="border-b border-slate-200 bg-slate-50/90 px-3.5 py-2.5 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-900 text-xs">Canonical State</span>
+            <span className="font-bold text-slate-900 text-xs">已确认决议</span>
             <span className="flex h-4 min-w-[18px] items-center justify-center rounded-full bg-emerald-100 text-emerald-800 px-1.5 text-[10px] font-bold">
               {canonicalObjects.length}
             </span>
           </div>
-          <span className="text-[10px] text-emerald-700 font-semibold">Committed</span>
+          <span className="text-[10px] text-emerald-700 font-semibold">
+            Committed
+          </span>
         </div>
 
         <div className="p-3 space-y-3">
@@ -663,7 +782,8 @@ export function ProjectStatePanel({
                 No canonical state established yet
               </div>
               <div className="text-[10px] text-slate-600 mt-0.5">
-                Accepted proposals will establish immutable canonical project specifications.
+                Accepted proposals will establish immutable canonical project
+                specifications.
               </div>
             </div>
           ) : (

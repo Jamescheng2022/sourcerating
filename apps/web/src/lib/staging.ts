@@ -9,6 +9,7 @@ export type RoomAnalysisResponse = {
     openCodeGoConfigured?: boolean;
     deepSeekConfigured?: boolean;
     deepAnalysisAvailable?: boolean;
+    deepAnalysisRequested?: boolean;
   };
   error?: string;
   sourceEventId?: string;
