@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { classifyBusinessIntent } from "../../../../../supabase/functions/_shared/business-intent.mjs";
+import { normalizeStagingResult, promptForRoomEvent } from "../../../../../supabase/functions/_shared/agent-staging.mjs";
 
 export type DecisionIntent =
   | "conversation"
@@ -168,6 +169,7 @@ async function callOpenAICompatibleJson(input: {
   apiKey: string;
   model: string;
   prompt: string;
+  sourceText: string;
   timeoutMs: number;
 }): Promise<StagingAnalysis | null> {
   const controller = new AbortController();
@@ -203,7 +205,8 @@ async function callOpenAICompatibleJson(input: {
     const json = await response.json();
     const content = json?.choices?.[0]?.message?.content;
     if (typeof content !== "string" || !content.trim()) return null;
-    return stagingSchema.parse(JSON.parse(content));
+    const normalized = normalizeStagingResult(content, input.sourceText, []);
+    return normalized ? stagingSchema.parse(normalized) : null;
   } catch {
     return null;
   } finally {
@@ -212,18 +215,7 @@ async function callOpenAICompatibleJson(input: {
 }
 
 function buildStagingPrompt(state: string): string {
-  return [
-    "Return valid JSON only.",
-    "This is SourceRating staging analysis, never canonical state.",
-    "Do not invent missing facts.",
-    "Preserve exact money, quantities, dates, scope, and technical values.",
-    "Use short evidenceQuote text from the supplied message when possible.",
-    "Empty arrays are preferred over guessing.",
-    "Any money, scope, delivery, payment, compliance, quality or acceptance change requires human review.",
-    "Required JSON keys: classification, summary, actionable, requirementChanges, quoteChanges, openQuestions, pendingActions, risks, confidence.",
-    "Project context:",
-    state,
-  ].join("\n");
+  return promptForRoomEvent(state, []);
 }
 
 export async function generateWithOpenCodeGo(
@@ -241,6 +233,7 @@ export async function generateWithOpenCodeGo(
       process.env.SOURCERATING_OPENCODE_GO_MODEL ||
       "deepseek-v4.1-flash",
     prompt: buildStagingPrompt(state),
+    sourceText: state,
     timeoutMs: 15000,
   });
 }
@@ -258,6 +251,7 @@ export async function generateWithDeepSeekDirect(
     apiKey,
     model: process.env.SOURCERATING_DEEPSEEK_MODEL || "deepseek-flash",
     prompt: buildStagingPrompt(state),
+    sourceText: state,
     timeoutMs: 15000,
   });
 }
