@@ -428,3 +428,9 @@ verify_jwt = false
 
 [functions.room-file-gateway]
 verify_jwt = true
+
+# Internal scheduled worker authenticates its own HMAC header against the
+# database-stored secret, not a browser JWT. The SQL claim enforces service role
+# and an explicit synthetic-room allowlist. Never expose the worker publicly.
+[functions.source-rating-agent-worker]
+verify_jwt = false

@@ -3,7 +3,7 @@
 export const RELAY_PROJECT = "fzrberkeoizarduwuisp";
 export const LOCAL_RELAY_PROJECT = "sourcerating-l1-stage2";
 export const RELAY_PATH = "/functions/v1/project-invite";
-export const RELAY_BRANCH = "l1/stage2-continuation";
+export const RELAY_BRANCH = "pilot/real-ai-acceptance-20261028";
 export const RELAY_MAX_BYTES = 8192;
 export const RELAY_MAX_AGE_SECONDS = 60;
 const HEX64 = /^[0-9a-f]{64}$/;

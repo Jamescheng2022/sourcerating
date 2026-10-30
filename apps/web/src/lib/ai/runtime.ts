@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { classifyBusinessIntent } from "../../../../../supabase/functions/_shared/business-intent.mjs";
+import { normalizeStagingResult, promptForRoomEvent } from "../../../../../supabase/functions/_shared/agent-staging.mjs";
 
 export type DecisionIntent =
   | "conversation"
@@ -73,30 +75,12 @@ function scoreIndex(answer: unknown): number {
 }
 
 export function classifyWithRules(message: string): DecisionResult {
-  const hasMoney = /(?:rmb|usd|thb|cny|price|quote|quotation|cost|payment|deposit|total)/i.test(message);
-  const hasDelivery = /(?:delivery|lead\s*time|shipment|calendar\s*days?)/i.test(message);
-  const hasRequirement = /(?:require|spec|specification|mm\b|kpa\b|r-value|panel|standard|thickness)/i.test(message);
-  const hasDecision = /(?:approved|approve|agreed|accept|confirmed|finalize|proceed)/i.test(message);
-  const hasQuestion = /\?|(?:can you|please confirm|could you)/i.test(message);
-  const hasFile = /(?:attached|attachment|quotation|drawing|pdf|xlsx|dwg|revision|version|v\d+)/i.test(message);
-  const hasRisk = /(?:risk|delay|late|fail|nonconform|issue|blocked)/i.test(message);
-
-  let intent: DecisionIntent = "conversation";
-  if (hasDecision) intent = "decision";
-  else if (hasMoney || hasDelivery) intent = "quote_change";
-  else if (hasRequirement) intent = "requirement";
-  else if (hasFile) intent = "file_update";
-  else if (hasRisk) intent = "risk";
-  else if (hasQuestion) intent = "question";
-
-  const highRisk = hasMoney || hasDelivery || hasDecision || hasRisk;
-  const needsDeep = intent !== "conversation";
-
+  const result = classifyBusinessIntent(message);
   return {
-    intent,
-    needsDeepAnalysisProbability: needsDeep ? 0.75 : 0.15,
-    highRiskProbability: highRisk ? 0.8 : 0.1,
-    urgency: hasRisk ? "high" : highRisk ? "normal" : "low",
+    intent: result.intent as DecisionIntent,
+    needsDeepAnalysisProbability: result.needsDeepAnalysisProbability,
+    highRiskProbability: result.highRiskProbability,
+    urgency: result.urgency as DecisionResult["urgency"],
     provider: "rules",
   };
 }
@@ -185,6 +169,7 @@ async function callOpenAICompatibleJson(input: {
   apiKey: string;
   model: string;
   prompt: string;
+  sourceText: string;
   timeoutMs: number;
 }): Promise<StagingAnalysis | null> {
   const controller = new AbortController();
@@ -220,7 +205,8 @@ async function callOpenAICompatibleJson(input: {
     const json = await response.json();
     const content = json?.choices?.[0]?.message?.content;
     if (typeof content !== "string" || !content.trim()) return null;
-    return stagingSchema.parse(JSON.parse(content));
+    const normalized = normalizeStagingResult(content, input.sourceText, []);
+    return normalized ? stagingSchema.parse(normalized) : null;
   } catch {
     return null;
   } finally {
@@ -229,18 +215,7 @@ async function callOpenAICompatibleJson(input: {
 }
 
 function buildStagingPrompt(state: string): string {
-  return [
-    "Return valid JSON only.",
-    "This is SourceRating staging analysis, never canonical state.",
-    "Do not invent missing facts.",
-    "Preserve exact money, quantities, dates, scope, and technical values.",
-    "Use short evidenceQuote text from the supplied message when possible.",
-    "Empty arrays are preferred over guessing.",
-    "Any money, scope, delivery, payment, compliance, quality or acceptance change requires human review.",
-    "Required JSON keys: classification, summary, actionable, requirementChanges, quoteChanges, openQuestions, pendingActions, risks, confidence.",
-    "Project context:",
-    state,
-  ].join("\n");
+  return promptForRoomEvent(state, []);
 }
 
 export async function generateWithOpenCodeGo(
@@ -258,6 +233,7 @@ export async function generateWithOpenCodeGo(
       process.env.SOURCERATING_OPENCODE_GO_MODEL ||
       "deepseek-v4.1-flash",
     prompt: buildStagingPrompt(state),
+    sourceText: state,
     timeoutMs: 15000,
   });
 }
@@ -275,6 +251,7 @@ export async function generateWithDeepSeekDirect(
     apiKey,
     model: process.env.SOURCERATING_DEEPSEEK_MODEL || "deepseek-flash",
     prompt: buildStagingPrompt(state),
+    sourceText: state,
     timeoutMs: 15000,
   });
 }

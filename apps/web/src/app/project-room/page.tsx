@@ -1,6 +1,23 @@
 "use client";
 
 import Link from "next/link";
+import * as Dialog from "@radix-ui/react-dialog";
+import { Message, MessageSeparator } from "@chatscope/chat-ui-kit-react";
+import "@chatscope/chat-ui-kit-styles/dist/default/styles.min.css";
+import {
+  Hash,
+  LockKeyhole,
+  Menu,
+  PanelRightClose,
+  PanelRightOpen,
+  Search,
+  Settings2,
+  Sparkles,
+  X,
+} from "lucide-react";
+import { WorkspaceNav } from "./workspace-nav";
+import { AISettings, type AIConnection } from "./ai-settings";
+import styles from "./workspace.module.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
@@ -16,7 +33,12 @@ import {
   extractEventText,
 } from "@/lib/demo-session";
 import { analyzeRoomEvent } from "@/lib/staging";
-import { savePendingMessage, readPendingMessage, removePendingMessage, clearPendingMessages } from "@/lib/pending-message";
+import {
+  savePendingMessage,
+  readPendingMessage,
+  removePendingMessage,
+  clearPendingMessages,
+} from "@/lib/pending-message";
 import {
   createRoomFileSignedUrl,
   formatFileSize,
@@ -24,7 +46,10 @@ import {
 } from "@/lib/room-files";
 import { ProjectStatePanel } from "./project-state-panel";
 import { InquiryPanel } from "./inquiry-panel";
-import { EvidenceDownloadControls, useRoomEvidenceDownloads } from "./evidence-downloads";
+import {
+  EvidenceDownloadControls,
+  useRoomEvidenceDownloads,
+} from "./evidence-downloads";
 import {
   executeReviewStagingProposal,
   loadProjectRoomState,
@@ -47,8 +72,9 @@ export default function ProjectRoomPage() {
 
   // Rooms state (loaded strictly through RLS)
   const [rooms, setRooms] = useState<Room[]>([]);
+  const [roomActivity, setRoomActivity] = useState<Record<string, number>>({});
   const [activeRoomId, setActiveRoomId] = useState<string>("");
-  const [roomsLoading, setRoomsLoading] = useState(false);
+  const [, setRoomsLoading] = useState(false);
 
   // Events & Messaging state
   const [events, setEvents] = useState<RoomEvent[]>([]);
@@ -56,7 +82,9 @@ export default function ProjectRoomPage() {
   const [inputText, setInputText] = useState("");
   const [isComposing, setIsComposing] = useState(false);
   const [pendingDraft, setPendingDraft] = useState<PendingDraft | null>(null);
-  const [messageStorageError, setMessageStorageError] = useState<string | null>(null);
+  const [messageStorageError, setMessageStorageError] = useState<string | null>(
+    null,
+  );
   const sendingMessageRef = useRef(false);
   const [aiStatus, setAiStatus] = useState<string | null>(null);
   const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
@@ -70,10 +98,36 @@ export default function ProjectRoomPage() {
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteCreating, setInviteCreating] = useState(false);
   const [copyNotice, setCopyNotice] = useState<string | null>(null);
-  const [mobileView, setMobileView] = useState<"chat" | "context">("chat");
-  useEffect(() => { setCopyNotice(null); }, [inviteUrl, activeRoomId]);
+  const [leftCollapsed, setLeftCollapsed] = useState(false);
+  const [rightCollapsed, setRightCollapsed] = useState(false);
+  const [drawer, setDrawer] = useState<"rooms" | "context" | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [roomQuery, setRoomQuery] = useState("");
+  const [messageQuery, setMessageQuery] = useState("");
+  const [showMessageSearch, setShowMessageSearch] = useState(false);
+  const [aiConnection, setAIConnection] = useState<AIConnection | null>(null);
+  const [syncStatus, setSyncStatus] = useState("正在连接");
+  useEffect(() => {
+    try {
+      setLeftCollapsed(localStorage.getItem("sr-left-collapsed") === "true");
+      setRightCollapsed(localStorage.getItem("sr-right-collapsed") === "true");
+    } catch {
+      /* Preferences are optional. */
+    }
+  }, []);
+  useEffect(() => {
+    try {
+      localStorage.setItem("sr-left-collapsed", String(leftCollapsed));
+      localStorage.setItem("sr-right-collapsed", String(rightCollapsed));
+    } catch {
+      /* Preferences are optional. */
+    }
+  }, [leftCollapsed, rightCollapsed]);
+  useEffect(() => {
+    setCopyNotice(null);
+  }, [inviteUrl, activeRoomId]);
   const [projectName, setProjectName] = useState("Project");
-  const [projectCode, setProjectCode] = useState("");
+  const [, setProjectCode] = useState("");
   const [projectState, setProjectState] = useState<ProjectRoomState>({
     stagingProposals: [],
     needsYou: [],
@@ -108,10 +162,19 @@ export default function ProjectRoomPage() {
   useEffect(() => {
     if (!activeRoomId || !currentUserId) return;
     let current = true;
-    void supabase.from("room_members").select("acting_organization_id")
-      .eq("room_id", activeRoomId).eq("user_id", currentUserId).is("removed_at", null)
-      .then(({ data }) => { if (current && data?.[0]) setActingOrgId(data[0].acting_organization_id); });
-    return () => { current = false; };
+    void supabase
+      .from("room_members")
+      .select("acting_organization_id")
+      .eq("room_id", activeRoomId)
+      .eq("user_id", currentUserId)
+      .is("removed_at", null)
+      .then(({ data }) => {
+        if (current && data?.[0])
+          setActingOrgId(data[0].acting_organization_id);
+      });
+    return () => {
+      current = false;
+    };
   }, [activeRoomId, currentUserId]);
 
   // Track max seq for gap filling
@@ -122,10 +185,19 @@ export default function ProjectRoomPage() {
   const currentUserIdRef = useRef(currentUserId);
   currentUserIdRef.current = currentUserId;
   useEffect(() => {
-    setInputText('');setMessageStorageError(null);
-    try {setPendingDraft(currentUserId && activeRoomId ? readPendingMessage(localStorage,currentUserId,activeRoomId) : null);}
-    catch(e) {setPendingDraft(null);setMessageStorageError((e as Error).message);}
-  },[activeRoomId,currentUserId]);
+    setInputText("");
+    setMessageStorageError(null);
+    try {
+      setPendingDraft(
+        currentUserId && activeRoomId
+          ? readPendingMessage(localStorage, currentUserId, activeRoomId)
+          : null,
+      );
+    } catch (e) {
+      setPendingDraft(null);
+      setMessageStorageError((e as Error).message);
+    }
+  }, [activeRoomId, currentUserId]);
 
   // Auto-scroll and container anchors
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -172,7 +244,9 @@ export default function ProjectRoomPage() {
           setCurrentUserId(identity.userId);
         }
       } catch (err) {
-        setAuthError(err instanceof Error ? err.message : "Unable to restore session.");
+        setAuthError(
+          err instanceof Error ? err.message : "Unable to restore session.",
+        );
       } finally {
         if (isMounted) {
           setIsInitializing(false);
@@ -191,7 +265,9 @@ export default function ProjectRoomPage() {
   const loadRooms = useCallback(async () => {
     setRoomsLoading(true);
     try {
-      const { data: rlsRooms, error } = await supabase.from("rooms").select("*");
+      const { data: rlsRooms, error } = await supabase
+        .from("rooms")
+        .select("*");
       if (error) {
         console.error("Error fetching rooms:", error);
         return;
@@ -206,9 +282,13 @@ export default function ProjectRoomPage() {
           if (prev && filteredRooms.some((r) => r.id === prev)) {
             return prev;
           }
-          return filteredRooms[0]?.id || "";
+          return (
+            filteredRooms.find((r) => /Live AI Project Room/i.test(r.name))
+              ?.id ||
+            filteredRooms[0]?.id ||
+            ""
+          );
         });
-
       } else {
         setRooms([]);
         setActiveRoomId("");
@@ -226,6 +306,42 @@ export default function ProjectRoomPage() {
     }
   }, [role, loadRooms, actingOrgId]);
 
+  useEffect(() => {
+    if (!currentUserId || !rooms.length) return;
+    const allowed = new Set(rooms.map((room) => room.id));
+    const channel = supabase
+      .channel(`room_activity:${currentUserId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "room_events" },
+        (payload) => {
+          const event = payload.new as RoomEvent;
+          if (
+            allowed.has(event.room_id) &&
+            event.room_id !== activeRoomIdRef.current &&
+            event.actor_user_id !== currentUserId
+          ) {
+            setRoomActivity((previous) => ({
+              ...previous,
+              [event.room_id]: (previous[event.room_id] || 0) + 1,
+            }));
+          }
+        },
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [currentUserId, rooms]);
+  useEffect(() => {
+    setRoomActivity((previous) => {
+      if (!previous[activeRoomId]) return previous;
+      const next = { ...previous };
+      delete next[activeRoomId];
+      return next;
+    });
+  }, [activeRoomId]);
+
   // Sign in to existing accounts; project membership supplies the UI identity.
   const handleSignIn = async () => {
     setAuthLoading(true);
@@ -238,7 +354,11 @@ export default function ProjectRoomPage() {
       await loadRooms();
     } catch (err: unknown) {
       console.error("Sign-in failed:", err);
-      setAuthError(err instanceof Error ? err.message : "Unable to sign in. Please try again.");
+      setAuthError(
+        err instanceof Error
+          ? err.message
+          : "Unable to sign in. Please try again.",
+      );
     } finally {
       setAuthLoading(false);
       setPassword("");
@@ -251,12 +371,19 @@ export default function ProjectRoomPage() {
   const localSignOutRef = useRef(false);
   useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
-      if (currentUserId && !localSignOutRef.current &&
-          (event === 'SIGNED_OUT' || (session?.user.id && session.user.id !== currentUserId))) {
+      if (
+        currentUserId &&
+        !localSignOutRef.current &&
+        (event === "SIGNED_OUT" ||
+          (session?.user.id && session.user.id !== currentUserId))
+      ) {
         // A different tab changed identity. Drop this document's private memory and
         // pending requests, then restore the actual session through the existing path.
-        try { clearPendingMessages(localStorage,currentUserId); }
-        catch { /* Reload still removes private UI when browser storage is unavailable. */ }
+        try {
+          clearPendingMessages(localStorage, currentUserId);
+        } catch {
+          /* Reload still removes private UI when browser storage is unavailable. */
+        }
         window.location.reload();
       }
     });
@@ -265,19 +392,36 @@ export default function ProjectRoomPage() {
 
   // Sign out
   const handleResetIdentity = async () => {
-    if (signingOut || !window.confirm("Sign out? Unsent message and inquiry drafts will be cleared.")) return;
+    if (
+      signingOut ||
+      !window.confirm(
+        "Sign out? Unsent message and inquiry drafts will be cleared.",
+      )
+    )
+      return;
     localSignOutRef.current = true;
-    setSigningOut(true); setSignOutError(null);
+    setSigningOut(true);
+    setSignOutError(null);
     try {
       const result = await resetDemoIdentity();
       let storageWarning: string | null = null;
-      try { if(currentUserId)clearPendingMessages(localStorage,currentUserId); }
-      catch { storageWarning = 'Signed out. This browser could not clear pending message drafts. Clear its site data before sharing this device.'; }
-      setAuthError(storageWarning || (result.serverRevocationConfirmed ? null : 'Signed out on this browser. Server sign-out could not be confirmed; other sessions may remain active. Sign in again to retry.'));
+      try {
+        if (currentUserId) clearPendingMessages(localStorage, currentUserId);
+      } catch {
+        storageWarning =
+          "Signed out. This browser could not clear pending message drafts. Clear its site data before sharing this device.";
+      }
+      setAuthError(
+        storageWarning ||
+          (result.serverRevocationConfirmed
+            ? null
+            : "Signed out on this browser. Server sign-out could not be confirmed; other sessions may remain active. Sign in again to retry."),
+      );
       setRole(null);
       setActingOrgId(null);
       setCurrentUserId(null);
       setRooms([]);
+      setRoomActivity({});
       setActiveRoomId("");
       setEvents([]);
       setPendingDraft(null);
@@ -285,11 +429,17 @@ export default function ProjectRoomPage() {
       analyzedEventIdsRef.current.clear();
       setInputText("");
     } catch {
-      setSignOutError('Unable to confirm local sign-out. Please retry.');
-    } finally { localSignOutRef.current = false; setSigningOut(false); }
+      setSignOutError("Unable to confirm local sign-out. Please retry.");
+    } finally {
+      localSignOutRef.current = false;
+      setSigningOut(false);
+    }
   };
 
-  const evidenceDownloads = useRoomEvidenceDownloads(activeRoomId, currentUserId);
+  const evidenceDownloads = useRoomEvidenceDownloads(
+    activeRoomId,
+    currentUserId,
+  );
 
   const visibleRooms = rooms;
 
@@ -308,7 +458,10 @@ export default function ProjectRoomPage() {
 
   // Select a room returned by RLS.
   useEffect(() => {
-    if (visibleRooms.length > 0 && !visibleRooms.some((r) => r.id === activeRoomId)) {
+    if (
+      visibleRooms.length > 0 &&
+      !visibleRooms.some((r) => r.id === activeRoomId)
+    ) {
       setActiveRoomId(visibleRooms[0].id);
     }
   }, [visibleRooms, activeRoomId]);
@@ -376,68 +529,71 @@ export default function ProjectRoomPage() {
     }
   }, []);
 
-  const refreshFileVerification = useCallback(async (sourceEvents: RoomEvent[]) => {
-    const fileVersionIds = Array.from(
-      new Set(
-        sourceEvents
-          .filter(
-            (event) =>
-              event.event_type === "file.attached" &&
-              typeof event.payload?.file_version_id === "string",
-          )
-          .map((event) => event.payload.file_version_id as string),
-      ),
-    );
+  const refreshFileVerification = useCallback(
+    async (sourceEvents: RoomEvent[]) => {
+      const fileVersionIds = Array.from(
+        new Set(
+          sourceEvents
+            .filter(
+              (event) =>
+                event.event_type === "file.attached" &&
+                typeof event.payload?.file_version_id === "string",
+            )
+            .map((event) => event.payload.file_version_id as string),
+        ),
+      );
 
-    if (fileVersionIds.length === 0) {
-      setFileVerification({});
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("room_file_versions")
-      .select(
-        "id,verification_status,server_sha256,detected_mime_type,verification_error",
-      )
-      .in("id", fileVersionIds);
-
-    if (error) {
-      console.error("File verification status query failed:", error);
-      return;
-    }
-
-    const next: Record<
-      string,
-      {
-        status:
-          | "pending"
-          | "verified"
-          | "quarantined"
-          | "hash_mismatch"
-          | "verification_failed";
-        serverSha256?: string | null;
-        detectedMimeType?: string | null;
-        verificationError?: string | null;
+      if (fileVersionIds.length === 0) {
+        setFileVerification({});
+        return;
       }
-    > = {};
 
-    for (const row of data || []) {
-      next[row.id] = {
-        status:
-          row.verification_status === "verified" ||
-          row.verification_status === "quarantined" ||
-          row.verification_status === "hash_mismatch" ||
-          row.verification_status === "verification_failed"
-            ? row.verification_status
-            : "pending",
-        serverSha256: row.server_sha256,
-        detectedMimeType: row.detected_mime_type,
-        verificationError: row.verification_error,
-      };
-    }
+      const { data, error } = await supabase
+        .from("room_file_versions")
+        .select(
+          "id,verification_status,server_sha256,detected_mime_type,verification_error",
+        )
+        .in("id", fileVersionIds);
 
-    setFileVerification(next);
-  }, []);
+      if (error) {
+        console.error("File verification status query failed:", error);
+        return;
+      }
+
+      const next: Record<
+        string,
+        {
+          status:
+            | "pending"
+            | "verified"
+            | "quarantined"
+            | "hash_mismatch"
+            | "verification_failed";
+          serverSha256?: string | null;
+          detectedMimeType?: string | null;
+          verificationError?: string | null;
+        }
+      > = {};
+
+      for (const row of data || []) {
+        next[row.id] = {
+          status:
+            row.verification_status === "verified" ||
+            row.verification_status === "quarantined" ||
+            row.verification_status === "hash_mismatch" ||
+            row.verification_status === "verification_failed"
+              ? row.verification_status
+              : "pending",
+          serverSha256: row.server_sha256,
+          detectedMimeType: row.detected_mime_type,
+          verificationError: row.verification_error,
+        };
+      }
+
+      setFileVerification(next);
+    },
+    [],
+  );
 
   useEffect(() => {
     void refreshFileVerification(events);
@@ -455,6 +611,7 @@ export default function ProjectRoomPage() {
     }
 
     const result = await loadProjectRoomState(roomId);
+    if (activeRoomIdRef.current !== roomId) return;
     if (!result.ok || !result.data) {
       setProjectStateStatus("unavailable");
       return;
@@ -466,6 +623,12 @@ export default function ProjectRoomPage() {
 
   useEffect(() => {
     if (!activeRoomId) return;
+    setProjectState({
+      stagingProposals: [],
+      needsYou: [],
+      canonicalObjects: [],
+    });
+    setAiStatus(null);
     void refreshProjectState(activeRoomId);
     const timer = window.setInterval(() => {
       void refreshProjectState(activeRoomId);
@@ -503,20 +666,27 @@ export default function ProjectRoomPage() {
 
       try {
         const result = await analyzeRoomEvent(event.room_id, event.id);
+        if (activeRoomIdRef.current !== event.room_id) return;
         if (!result?.ok) {
-          setAiStatus("AI assistant is temporarily unavailable; live project messaging continues normally.");
+          setAiStatus(
+            "AI assistant is temporarily unavailable; live project messaging continues normally.",
+          );
           return;
         }
         setAiStatus(
           result.deepProvider
             ? `AI assistant active via ${result.deepProvider}; live project messaging continues normally.`
-            : "AI assistant is temporarily unavailable; live project messaging continues normally."
+            : result.aiStatus?.deepAnalysisRequested === false
+              ? "AI assistant ready; this message does not require deep analysis."
+              : "AI assistant is temporarily unavailable; live project messaging continues normally.",
         );
       } catch {
-        setAiStatus("AI assistant is temporarily unavailable; live project messaging continues normally.");
+        setAiStatus(
+          "AI assistant is temporarily unavailable; live project messaging continues normally.",
+        );
       }
     },
-    [actingOrgId]
+    [actingOrgId],
   );
 
   // Load room events & subscribe to Realtime publication
@@ -572,16 +742,30 @@ export default function ProjectRoomPage() {
               const newRow = payload.new as RoomEvent;
               setEvents((prev) => {
                 const merged = dedupeAndSortEvents(prev, [newRow]);
-                lastSeqRef.current = Math.max(lastSeqRef.current, getMaxSeq(merged));
+                lastSeqRef.current = Math.max(
+                  lastSeqRef.current,
+                  getMaxSeq(merged),
+                );
                 return merged;
               });
               void maybeAnalyzeEvent(newRow);
             }
             await runGapFill(activeRoomId);
           }
-        }
+        },
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (isSubscribed)
+          setSyncStatus(
+            status === "SUBSCRIBED"
+              ? "实时同步"
+              : status === "CHANNEL_ERROR" ||
+                  status === "TIMED_OUT" ||
+                  status === "CLOSED"
+                ? "连接恢复中"
+                : "正在连接",
+          );
+      });
 
     return () => {
       isSubscribed = false;
@@ -615,46 +799,127 @@ export default function ProjectRoomPage() {
   // Save the exact request before network I/O, then explicitly retry the same ID.
   const deliverMessage = async (draft: PendingDraft, clearInput = false) => {
     const userId = currentUserId;
-    if (!userId || !role || draft.room_id !== activeRoomId || sendingMessageRef.current || messageStorageError) return;
+    if (
+      !userId ||
+      !role ||
+      draft.room_id !== activeRoomId ||
+      sendingMessageRef.current ||
+      messageStorageError
+    )
+      return;
     sendingMessageRef.current = true;
-    const stillHere = () => currentUserIdRef.current === userId && activeRoomIdRef.current === draft.room_id;
-    const sending: PendingDraft = { ...draft, status: 'sending', error: undefined };
+    const stillHere = () =>
+      currentUserIdRef.current === userId &&
+      activeRoomIdRef.current === draft.room_id;
+    const sending: PendingDraft = {
+      ...draft,
+      status: "sending",
+      error: undefined,
+    };
     try {
-      try { savePendingMessage(localStorage,userId,sending); }
-      catch { setMessageStorageError('Could not keep this message for retry. Copy the text before closing; no request was sent.');return; }
-      if(clearInput)setInputText('');
-      setPendingDraft(sending);isNearBottomRef.current = true;scrollToBottom('smooth');
-      const {data,error} = await supabase.rpc('append_room_event',{
-        p_room_id:draft.room_id,p_client_msg_id:draft.client_msg_id,
-        p_actor_organization_id:actingOrgId || null,p_event_type:'message.posted',p_payload:{text:draft.text},
-      }).abortSignal(AbortSignal.timeout(15000));
-      if(error)throw error;
-      const canonicalEvent = data as RoomEvent;
-      if(!canonicalEvent?.id || canonicalEvent.room_id!==draft.room_id || canonicalEvent.client_msg_id!==draft.client_msg_id)throw Error('Message acknowledgement could not be verified. Retry the original message.');
-      removePendingMessage(localStorage,userId,draft);
-      if(stillHere()) {
-        setPendingDraft(readPendingMessage(localStorage,userId,draft.room_id));
-        setEvents(prev=>{const merged=dedupeAndSortEvents(prev,[canonicalEvent]);lastSeqRef.current=getMaxSeq(merged);return merged;});
-        void maybeAnalyzeEvent(canonicalEvent);await runGapFill(draft.room_id);
+      try {
+        savePendingMessage(localStorage, userId, sending);
+      } catch {
+        setMessageStorageError(
+          "Could not keep this message for retry. Copy the text before closing; no request was sent.",
+        );
+        return;
       }
-    } catch(e) {
-      if(stillHere())setPendingDraft({...draft,status:'failed',error:e instanceof Error?e.message:'Delivery unconfirmed. Retry when connected.'});
-    } finally {sendingMessageRef.current=false;}
+      if (clearInput) setInputText("");
+      setPendingDraft(sending);
+      isNearBottomRef.current = true;
+      scrollToBottom("smooth");
+      const { data, error } = await supabase
+        .rpc("append_room_event", {
+          p_room_id: draft.room_id,
+          p_client_msg_id: draft.client_msg_id,
+          p_actor_organization_id: actingOrgId || null,
+          p_event_type: "message.posted",
+          p_payload: { text: draft.text },
+        })
+        .abortSignal(AbortSignal.timeout(15000));
+      if (error) throw error;
+      const canonicalEvent = data as RoomEvent;
+      if (
+        !canonicalEvent?.id ||
+        canonicalEvent.room_id !== draft.room_id ||
+        canonicalEvent.client_msg_id !== draft.client_msg_id
+      )
+        throw Error(
+          "Message acknowledgement could not be verified. Retry the original message.",
+        );
+      removePendingMessage(localStorage, userId, draft);
+      if (stillHere()) {
+        setPendingDraft(
+          readPendingMessage(localStorage, userId, draft.room_id),
+        );
+        setEvents((prev) => {
+          const merged = dedupeAndSortEvents(prev, [canonicalEvent]);
+          lastSeqRef.current = getMaxSeq(merged);
+          return merged;
+        });
+        void maybeAnalyzeEvent(canonicalEvent);
+        await runGapFill(draft.room_id);
+      }
+    } catch (e) {
+      if (stillHere())
+        setPendingDraft({
+          ...draft,
+          status: "failed",
+          error:
+            e instanceof Error
+              ? e.message
+              : "Delivery unconfirmed. Retry when connected.",
+        });
+    } finally {
+      sendingMessageRef.current = false;
+    }
   };
   const handleSend = async () => {
-    const text=inputText.trim();
-    if(!text || !activeRoomId || pendingDraft || messageStorageError)return;
-    await deliverMessage({client_msg_id:crypto.randomUUID(),room_id:activeRoomId,text,status:'sending',created_at:new Date().toISOString()},true);
+    const text = inputText.trim();
+    if (!text || !activeRoomId || pendingDraft || messageStorageError) return;
+    await deliverMessage(
+      {
+        client_msg_id: crypto.randomUUID(),
+        room_id: activeRoomId,
+        text,
+        status: "sending",
+        created_at: new Date().toISOString(),
+      },
+      true,
+    );
   };
-  const handleRetry = async () => {if(pendingDraft && pendingDraft.room_id===activeRoomId)await deliverMessage(pendingDraft);};
-  const dismissPending = (edit:boolean) => {
-    if(!pendingDraft || !currentUserId || pendingDraft.room_id!==activeRoomId || sendingMessageRef.current)return;
-    if(!window.confirm(edit?'Delivery may already have succeeded. Edit as a new message?':'Discard this pending message? Any delivered copy will remain.'))return;
+  const handleRetry = async () => {
+    if (pendingDraft && pendingDraft.room_id === activeRoomId)
+      await deliverMessage(pendingDraft);
+  };
+  const dismissPending = (edit: boolean) => {
+    if (
+      !pendingDraft ||
+      !currentUserId ||
+      pendingDraft.room_id !== activeRoomId ||
+      sendingMessageRef.current
+    )
+      return;
+    if (
+      !window.confirm(
+        edit
+          ? "Delivery may already have succeeded. Edit as a new message?"
+          : "Discard this pending message? Any delivered copy will remain.",
+      )
+    )
+      return;
     try {
-      removePendingMessage(localStorage,currentUserId,pendingDraft);
-      if(edit)setInputText(pendingDraft.text);
-      setPendingDraft(readPendingMessage(localStorage,currentUserId,activeRoomId));
-    } catch {setMessageStorageError('Could not update pending storage. Keep a copy before closing.');}
+      removePendingMessage(localStorage, currentUserId, pendingDraft);
+      if (edit) setInputText(pendingDraft.text);
+      setPendingDraft(
+        readPendingMessage(localStorage, currentUserId, activeRoomId),
+      );
+    } catch {
+      setMessageStorageError(
+        "Could not update pending storage. Keep a copy before closing.",
+      );
+    }
   };
 
   const handleFileSelected = async (file: File | null) => {
@@ -713,7 +978,8 @@ export default function ProjectRoomPage() {
       const signedUrl = await createRoomFileSignedUrl(fileVersionId);
       window.open(signedUrl, "_blank", "noopener,noreferrer");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unable to open file.";
+      const message =
+        error instanceof Error ? error.message : "Unable to open file.";
       setFileError(message);
     }
   };
@@ -732,8 +998,11 @@ export default function ProjectRoomPage() {
     setProjectStateError(null);
     try {
       if (!proposalId && needsYouId) {
-        const { error } = await supabase.rpc("acknowledge_project_inquiry", { p_needs_you_id: needsYouId });
-        if (error) throw new Error("Unable to acknowledge inquiry. Please try again.");
+        const { error } = await supabase.rpc("acknowledge_project_inquiry", {
+          p_needs_you_id: needsYouId,
+        });
+        if (error)
+          throw new Error("Unable to acknowledge inquiry. Please try again.");
         await refreshProjectState(activeRoomId);
         return;
       }
@@ -757,17 +1026,21 @@ export default function ProjectRoomPage() {
 
   const handleViewSourceEvent = (sourceEventId: string | null | undefined) => {
     if (!sourceEventId) return;
-    setMobileView("chat");
-    requestAnimationFrame(() => document
-      .getElementById(`event-${sourceEventId}`)
-      ?.scrollIntoView({ behavior: "smooth", block: "center" }));
+    setDrawer(null);
+    setMessageQuery("");
+    requestAnimationFrame(() =>
+      document
+        .getElementById(`event-${sourceEventId}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" }),
+    );
   };
 
   const handleCreateSupplierInvite = async () => {
     if (
       role !== "buyer" ||
       !activeRoom?.project_id ||
-      !inviteCompany.trim() || !inviteEmail.trim()
+      !inviteCompany.trim() ||
+      !inviteEmail.trim()
     ) {
       return;
     }
@@ -791,7 +1064,10 @@ export default function ProjectRoomPage() {
         throw new Error(error?.message || "Unable to create invitation.");
       }
 
-      const url = window.location.origin + "/join?token=" + encodeURIComponent(String(data.token));
+      const url =
+        window.location.origin +
+        "/join?token=" +
+        encodeURIComponent(String(data.token));
       setInviteUrl(url);
       await loadRooms();
     } catch (error) {
@@ -807,8 +1083,13 @@ export default function ProjectRoomPage() {
   const getEventAuthorInfo = (ev: RoomEvent) => {
     const isMe = currentUserId && ev.actor_user_id === currentUserId;
     return {
-      who: isMe ? "You" : ev.actor_display_name || `Member ${String(ev.actor_user_id || "unknown").slice(0, 8)}`,
-      org: ev.actor_organization_name || `Organization ${String(ev.actor_organization_id || "unknown").slice(0, 8)}`,
+      who: isMe
+        ? "You"
+        : ev.actor_display_name ||
+          `Member ${String(ev.actor_user_id || "unknown").slice(0, 8)}`,
+      org:
+        ev.actor_organization_name ||
+        `Organization ${String(ev.actor_organization_id || "unknown").slice(0, 8)}`,
     };
   };
 
@@ -818,7 +1099,9 @@ export default function ProjectRoomPage() {
       <main className="h-[100dvh] flex items-center justify-center bg-slate-950 text-slate-200">
         <div className="flex flex-col items-center gap-3">
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-sky-400 border-t-transparent"></div>
-          <div className="text-xs text-slate-400">Restoring your project session...</div>
+          <div className="text-xs text-slate-400">
+            Restoring your project session...
+          </div>
         </div>
       </main>
     );
@@ -827,21 +1110,55 @@ export default function ProjectRoomPage() {
   if (!role) {
     return (
       <main className="min-h-[100dvh] flex items-center justify-center bg-slate-950 p-4 text-slate-100">
-        <form className="w-full max-w-md space-y-4 rounded-2xl border border-slate-800 bg-slate-900 p-6"
-          onSubmit={(event) => { event.preventDefault(); void handleSignIn(); }}>
+        <form
+          className="w-full max-w-md space-y-4 rounded-2xl border border-slate-800 bg-slate-900 p-6"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void handleSignIn();
+          }}
+        >
           <h1 className="text-xl font-bold">SourceRating Project Room</h1>
-          <p className="text-sm text-slate-400">Sign in to your invited project rooms.</p>
-          <Link href="/forgot-password" className="text-sm text-sky-300 underline">Forgot password?</Link>
-          <label className="block text-sm">Email
-            <input type="email" autoComplete="username" required value={email} onChange={e => setEmail(e.target.value)}
-              className="mt-1 w-full rounded border border-slate-700 bg-slate-950 p-2" />
+          <p className="text-sm text-slate-400">
+            Sign in to your invited project rooms.
+          </p>
+          <Link
+            href="/forgot-password"
+            className="text-sm text-sky-300 underline"
+          >
+            Forgot password?
+          </Link>
+          <label className="block text-sm">
+            Email
+            <input
+              type="email"
+              autoComplete="username"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="mt-1 w-full rounded border border-slate-700 bg-slate-950 p-2"
+            />
           </label>
-          <label className="block text-sm">Password
-            <input type="password" autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)}
-              className="mt-1 w-full rounded border border-slate-700 bg-slate-950 p-2" />
+          <label className="block text-sm">
+            Password
+            <input
+              type="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="mt-1 w-full rounded border border-slate-700 bg-slate-950 p-2"
+            />
           </label>
-          {authError && <p role="alert" className="text-sm text-rose-300">{authError}</p>}
-          <button type="submit" disabled={authLoading} className="w-full rounded bg-sky-500 p-2 font-semibold text-slate-950 disabled:opacity-50">
+          {authError && (
+            <p role="alert" className="text-sm text-rose-300">
+              {authError}
+            </p>
+          )}
+          <button
+            type="submit"
+            disabled={authLoading}
+            className="w-full rounded bg-sky-500 p-2 font-semibold text-slate-950 disabled:opacity-50"
+          >
             {authLoading ? "Signing in..." : "Sign in"}
           </button>
         </form>
@@ -849,260 +1166,361 @@ export default function ProjectRoomPage() {
     );
   }
 
-  // 3. Active session view
-  return (
-    <main
-      style={{ height: viewportHeight, minHeight: viewportHeight, maxHeight: viewportHeight }}
-      className="overflow-hidden bg-slate-100 text-slate-900 flex flex-col w-full"
-    >
-      {signOutError && <p role="alert" className="border-b border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">{signOutError}</p>}
-      <nav aria-label="Mobile project views" className="flex shrink-0 gap-2 border-b border-slate-200 bg-white p-2 md:hidden">
-        <button type="button" aria-controls="room-chat" aria-pressed={mobileView === "chat"} onClick={() => setMobileView("chat")} className="rounded border border-slate-300 px-3 py-2 text-sm font-semibold">Chat</button>
-        <button type="button" aria-controls="room-context" aria-pressed={mobileView === "context"} onClick={() => setMobileView("context")} className="rounded border border-slate-300 px-3 py-2 text-sm font-semibold">Needs You ({projectState.needsYou.length}) · Specs</button>
-      </nav>
-      <div className="grid flex-1 min-h-0 grid-cols-1 md:grid-cols-[230px_minmax(0,1fr)_340px]">
-        {/* LEFT SIDEBAR (Desktop) */}
-        <aside className="hidden md:flex flex-col bg-slate-950 text-slate-200 border-r border-slate-800 min-h-0">
-          <div className="p-4 border-b border-slate-800">
-            <div className="flex items-center justify-between">
-              <div className="text-sm font-semibold truncate">
-                {role === "buyer" ? "Buyer Organization" : externalPartnerName}
+  const contextContent = (
+    <div className={styles.contextContent}>
+      <div className={styles.contextTitle}>
+        <span className={styles.aiLogo}>
+          <Sparkles size={21} />
+        </span>
+        <div>
+          <h2>AI 项目助理</h2>
+          <p>总结 · 待办 · 已确认决议</p>
+        </div>
+        <button
+          aria-label="关闭 AI 面板"
+          title="折叠 AI 面板"
+          className={styles.iconButton}
+          onClick={() => {
+            setRightCollapsed(true);
+            setDrawer(null);
+          }}
+        >
+          <PanelRightClose size={19} />
+        </button>
+      </div>
+      <ProjectStatePanel
+        state={projectState}
+        stateStatus={projectStateStatus}
+        aiStatus={aiStatus}
+        aiConnection={aiConnection}
+        reviewingProposalId={reviewingProposalId}
+        actionError={projectStateError}
+        onReview={handleReviewProjectState}
+        onViewSource={handleViewSourceEvent}
+      />
+      <details className={styles.projectTools}>
+        <summary>项目工具与导出</summary>
+        <EvidenceDownloadControls actions={evidenceDownloads} />
+        {role === "buyer" && (
+          <div className="mt-3 rounded-lg border border-sky-100 bg-sky-50/60 p-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <div className="text-[11px] font-semibold text-slate-800">
+                  Invite Supplier
+                </div>
+                <div className="text-[10px] text-slate-500">
+                  Creates a separate supplier room with isolated access.
+                </div>
               </div>
-              <span
-                className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${
-                  role === "buyer"
-                    ? "bg-sky-400/20 text-sky-300 border border-sky-400/30"
-                    : "bg-amber-400/20 text-amber-300 border border-amber-400/30"
-                }`}
+              <button
+                type="button"
+                onClick={() => setInviteOpen((value) => !value)}
+                className="rounded-md bg-sky-600 px-2 py-1 text-[10px] font-semibold text-white hover:bg-sky-700"
               >
-                {role === "buyer" ? "Buyer · 买方" : "Supplier · 供应商"}
-              </span>
-            </div>
-            <div className="text-[11px] text-slate-400 mt-1">
-              {role === "buyer" ? "Project owner workspace" : "External partner workspace"}
-            </div>
-          </div>
-
-          <div className="p-3">
-            <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-2 font-semibold">
-              Active Project
-            </div>
-            <div className="rounded-lg border border-slate-800 bg-slate-900 p-3">
-              <div className="text-xs font-semibold text-white">{projectName}</div>
-              <EvidenceDownloadControls actions={evidenceDownloads} dark />
-              <div className="text-[10px] text-sky-400 mt-0.5 font-mono">
-                {projectCode || "SourceRating Project"}
-              </div>
-            </div>
-          </div>
-
-          <div className="px-2 flex-1 overflow-y-auto">
-            <div className="px-2 pb-2 text-[10px] uppercase tracking-wider text-slate-500 flex items-center justify-between font-semibold">
-              <span>Project Rooms</span>
-              <span className="text-slate-400 font-mono text-[9px]">{visibleRooms.length}</span>
+                {inviteOpen ? "Close" : "Create"}
+              </button>
             </div>
 
-            {roomsLoading ? (
-              <div className="p-3 text-[11px] text-slate-500">Loading rooms...</div>
-            ) : visibleRooms.length === 0 ? (
-              <div className="p-3 text-[11px] text-slate-500">No rooms authorized.</div>
-            ) : (
-              visibleRooms.map((r) => {
-                const isSelected = r.id === activeRoom.id;
-                const rIsInternal = r.kind === "buyer_internal";
+            {inviteOpen && (
+              <div className="mt-2 space-y-2">
+                <input
+                  value={inviteCompany}
+                  onChange={(event) => setInviteCompany(event.target.value)}
+                  placeholder="Supplier company name"
+                  className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[11px] outline-none focus:border-sky-400"
+                />
+                <input
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(event) => setInviteEmail(event.target.value)}
+                  placeholder="Invitee email (required)"
+                  className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[11px] outline-none focus:border-sky-400"
+                />
+                <button
+                  type="button"
+                  onClick={() => void handleCreateSupplierInvite()}
+                  disabled={
+                    inviteCreating ||
+                    inviteCompany.trim().length < 2 ||
+                    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail.trim())
+                  }
+                  className="w-full rounded-md bg-slate-900 px-2 py-1.5 text-[11px] font-semibold text-white disabled:opacity-50"
+                >
+                  {inviteCreating
+                    ? "Creating..."
+                    : "Generate 7-day Invite Link"}
+                </button>
 
-                return (
-                  <button
-                    key={r.id}
-                    onClick={() => setActiveRoomId(r.id)}
-                    className={
-                      "w-full text-left rounded-lg px-3 py-2.5 text-xs mb-1.5 border transition " +
-                      (isSelected
-                        ? rIsInternal
-                          ? "bg-indigo-950/80 border-indigo-500 text-white font-medium shadow-sm"
-                          : "bg-slate-800 border-sky-400 text-white font-medium shadow-sm"
-                        : "border-transparent text-slate-300 hover:bg-slate-900 hover:text-white")
-                    }
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5 truncate">
-                        <span>{rIsInternal ? "🔒" : "🌐"}</span>
-                        <span className="truncate">{r.name}</span>
-                      </div>
-                      <span
-                        className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase shrink-0 ${
-                          rIsInternal
-                            ? "bg-indigo-900/80 text-indigo-300 border border-indigo-700/50"
-                            : "bg-slate-800 text-slate-400 border border-slate-700"
-                        }`}
-                      >
-                        {rIsInternal ? "Confidential" : "Shared"}
-                      </span>
+                {inviteError && (
+                  <div className="text-[10px] text-rose-700">{inviteError}</div>
+                )}
+
+                {inviteUrl && (
+                  <div className="rounded-md border border-emerald-200 bg-emerald-50 p-2">
+                    <div className="break-all font-mono text-[9px] text-emerald-900">
+                      {inviteUrl}
                     </div>
-                  </button>
-                );
-              })
-            )}
-          </div>
-
-          <div className="mt-auto p-3 border-t border-slate-800 space-y-2">
-            <div className="rounded-lg border border-slate-800 bg-slate-900/80 p-2.5">
-              <div className="text-[10px] text-slate-400 flex items-center justify-between">
-                <span>Identity:</span>
-                <span className="font-mono text-slate-300 capitalize">{role}</span>
-              </div>
-              <div className="text-[9px] text-slate-500 mt-1 truncate">
-                {actingOrgId ? `Org: ${actingOrgId.slice(0, 14)}...` : "RLS Active"}
-              </div>
-            </div>
-
-            <button
-              onClick={handleResetIdentity}
-              disabled={signingOut}
-              className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800 hover:text-white transition"
-            >
-              Sign out · 退出
-            </button>
-          </div>
-        </aside>
-
-        {/* MIDDLE SECTION: CHAT CONVERSATION (Mobile First IM Feel) */}
-        <section id="room-chat" className={`${mobileView === "chat" ? "flex" : "hidden"} md:flex min-w-0 flex-col bg-white h-full min-h-0 relative`}>
-          {/* Header Chrome: Reduced vertical height */}
-          <header className="shrink-0 border-b border-slate-200 bg-white">
-            <div className="px-3 py-2 sm:px-4 sm:py-2.5 flex items-center justify-between gap-2">
-              {/* Room selector / title */}
-              <div className="flex items-center gap-2 min-w-0">
-                {visibleRooms.length > 1 ? (
-                  <nav aria-label="Room selection" className="flex min-w-0 overflow-x-auto rounded-lg bg-slate-100 p-0.5 text-xs">
-                    {visibleRooms.map((r) => {
-                      const rIsInternal = r.kind === "buyer_internal";
-                      const isSelected = r.id === activeRoom.id;
-                      return (
-                        <button
-                          key={r.id}
-                          title={r.name}
-                          aria-label={r.name}
-                          aria-pressed={isSelected}
-                          onClick={() => setActiveRoomId(r.id)}
-                          className={`flex shrink-0 items-center gap-1 rounded-md px-2 py-1 font-medium transition ${
-                            isSelected
-                              ? rIsInternal
-                                ? "bg-indigo-900 text-white shadow-sm"
-                                : "bg-slate-900 text-white shadow-sm"
-                              : "text-slate-600 hover:text-slate-900"
-                          }`}
-                        >
-                          <span>{rIsInternal ? "🔒" : "🌐"}</span>
-                          <span className="max-w-[190px] whitespace-normal text-left">
-                            {r.name}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </nav>
-                ) : (
-                  <div className="flex items-center gap-1.5 truncate">
-                    <span className="text-sm">{isInternal ? "🔒" : "🌐"}</span>
-                    <span className="font-bold text-slate-900 text-xs sm:text-sm truncate">
-                      {activeRoom.name}
-                    </span>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(inviteUrl);
+                          setCopyNotice("Invite link copied.");
+                        } catch {
+                          setCopyNotice(
+                            "Unable to copy. Select the link and copy it manually.",
+                          );
+                        }
+                      }}
+                      className="mt-1.5 rounded bg-emerald-700 px-2 py-1 text-[10px] font-semibold text-white"
+                    >
+                      {copyNotice === "Invite link copied."
+                        ? "Copied"
+                        : "Copy Invite Link"}
+                    </button>
+                    {copyNotice && (
+                      <p role="status" className="mt-1 text-xs text-slate-800">
+                        {copyNotice}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
+            )}
+          </div>
+        )}
+      </details>
+      <button
+        className={styles.connectionLink}
+        onClick={() => {
+          setDrawer(null);
+          setSettingsOpen(true);
+        }}
+      >
+        <Settings2 size={15} /> DeepSeek API 连接设置
+      </button>
+    </div>
+  );
 
-              {/* Right controls: Role Badge & Reset Identity */}
-              <div className="flex items-center gap-1.5 shrink-0">
-                <span
-                  className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${
-                    role === "buyer"
-                      ? "bg-sky-100 text-sky-800 border border-sky-200"
-                      : "bg-amber-100 text-amber-800 border border-amber-200"
-                  }`}
-                >
-                  {role === "buyer" ? "Buyer · 买方" : "Supplier · 供应商"}
-                </span>
+  // 3. Active session view
+  return (
+    <main
+      style={{
+        height: viewportHeight,
+        minHeight: viewportHeight,
+        maxHeight: viewportHeight,
+      }}
+      className={`${styles.app} overflow-hidden bg-slate-100 text-slate-900 flex flex-col w-full`}
+    >
+      {signOutError && (
+        <p
+          role="alert"
+          className="border-b border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800"
+        >
+          {signOutError}
+        </p>
+      )}
+      <AISettings
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        roomId={activeRoomId}
+        eventId={
+          projectState.stagingProposals[0]?.source_event_id ||
+          projectState.canonicalObjects[0]?.source_event_id ||
+          events.filter((event) => event.event_type === "message.posted").at(-1)
+            ?.id
+        }
+        onConnection={setAIConnection}
+      />
+      <div
+        className={`${styles.workspace} ${leftCollapsed ? styles.leftCollapsed : ""} ${rightCollapsed ? styles.rightCollapsed : ""}`}
+      >
+        <aside className={styles.desktopNav}>
+          <WorkspaceNav
+            rooms={visibleRooms}
+            activeId={activeRoomId}
+            activity={roomActivity}
+            projectName={projectName}
+            role={role}
+            collapsed={leftCollapsed}
+            query={roomQuery}
+            onQuery={setRoomQuery}
+            onSelect={setActiveRoomId}
+            onCollapse={() => setLeftCollapsed((value) => !value)}
+            onSettings={() => setSettingsOpen(true)}
+            onSignOut={() => void handleResetIdentity()}
+            signingOut={signingOut}
+          />
+        </aside>
+        <Dialog.Root
+          open={drawer === "rooms"}
+          onOpenChange={(open) => setDrawer(open ? "rooms" : null)}
+        >
+          <Dialog.Portal>
+            <Dialog.Overlay className={styles.overlay} />
+            <Dialog.Content
+              className={styles.leftDrawer}
+              aria-describedby={undefined}
+            >
+              <Dialog.Title className={styles.srOnly}>
+                工作空间和聊天室
+              </Dialog.Title>
+              <Dialog.Close
+                className={styles.drawerClose}
+                aria-label="关闭菜单"
+              >
+                <X size={19} />
+              </Dialog.Close>
+              <WorkspaceNav
+                rooms={visibleRooms}
+                activeId={activeRoomId}
+                activity={roomActivity}
+                projectName={projectName}
+                role={role}
+                collapsed={false}
+                query={roomQuery}
+                onQuery={setRoomQuery}
+                onSelect={(id) => {
+                  setActiveRoomId(id);
+                  setDrawer(null);
+                }}
+                onCollapse={() => setDrawer(null)}
+                onSettings={() => {
+                  setDrawer(null);
+                  setSettingsOpen(true);
+                }}
+                onSignOut={() => void handleResetIdentity()}
+                signingOut={signingOut}
+              />
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog.Root>
 
+        {/* MIDDLE SECTION: CHAT CONVERSATION (Mobile First IM Feel) */}
+        <section
+          id="room-chat"
+          className={`${styles.chat} flex min-w-0 flex-col bg-white h-full min-h-0 relative`}
+        >
+          <header className={styles.chatHeader}>
+            <div className={styles.chatHeading}>
+              <button
+                className={`${styles.iconButton} ${styles.mobileMenu}`}
+                aria-label="打开聊天室菜单"
+                onClick={() => setDrawer("rooms")}
+              >
+                <Menu size={21} />
+              </button>
+              <span
+                className={`${styles.chatRoomIcon} ${isInternal ? styles.privateIcon : ""}`}
+              >
+                {isInternal ? <LockKeyhole size={21} /> : <Hash size={24} />}
+              </span>
+              <div className={styles.roomHeading}>
+                <h1>{activeRoom.name.replace(/\[S2-TEST\]\s*/g, "")}</h1>
+                <p>
+                  {projectName} <span>·</span>{" "}
+                  <span className={styles.syncDot} />
+                  {syncStatus}
+                </p>
+              </div>
+              <div className={styles.headerActions}>
                 <button
-                  onClick={handleResetIdentity}
-                  disabled={signingOut}
-                  title="Sign out of this session"
-                  className="rounded border border-slate-200 px-2 py-0.5 text-[10px] font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition"
+                  title="搜索消息"
+                  aria-label="搜索消息"
+                  aria-expanded={showMessageSearch}
+                  className={styles.iconButton}
+                  onClick={() => setShowMessageSearch((value) => !value)}
                 >
-                  Sign out · 退出
+                  <Search size={19} />
+                </button>
+                <button
+                  title="AI 总结与里程碑"
+                  aria-label="AI 总结与里程碑"
+                  className={styles.aiToggle}
+                  onClick={() => {
+                    if (window.innerWidth < 1100) setDrawer("context");
+                    else setRightCollapsed((value) => !value);
+                  }}
+                >
+                  <Sparkles size={18} />
+                  <span>AI 总结</span>
+                  {projectState.needsYou.length > 0 && (
+                    <b>{projectState.needsYou.length}</b>
+                  )}
                 </button>
               </div>
             </div>
-
-            {/* Persistent Room Boundary Notice Bar */}
             <div
-              className={`px-3 py-1.5 text-[11px] border-t flex items-center justify-between gap-2 transition-colors ${
-                isInternal
-                  ? "bg-indigo-950 text-indigo-100 border-indigo-900 shadow-inner"
-                  : "bg-amber-50 text-amber-950 border-amber-200"
-              }`}
+              className={`${styles.boundary} ${isInternal ? styles.privateBoundary : ""}`}
             >
-              <div className="flex items-center gap-1.5 min-w-0 font-medium truncate">
-                {isInternal ? (
-                  <>
-                    <span className="shrink-0 font-bold bg-indigo-800 text-indigo-200 px-1 py-0.5 rounded text-[9px]">
-                      🔒 CONFIDENTIAL
-                    </span>
-                    <span className="truncate text-[10px] sm:text-[11px]">
-                      Buyer Internal · 仅买方可见 · เฉพาะทีมภายใน ({externalPartnerName} cannot see)
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <span className="shrink-0 font-bold bg-amber-200 text-amber-900 px-1 py-0.5 rounded text-[9px]">
-                      ⚠️ SHARED ROOM
-                    </span>
-                    <span className="truncate text-[10px] sm:text-[11px]">
-                      Visible to {externalPartnerName} · 供应商可见 · ซัพพลายเออร์มองเห็นได้
-                    </span>
-                  </>
-                )}
-              </div>
-              <div className="text-[10px] opacity-80 font-mono shrink-0">
-                {events.length} msgs
-              </div>
+              {isInternal ? <LockKeyhole size={12} /> : <Hash size={13} />}
+              <span>
+                {isInternal
+                  ? "内部私密 · 仅买方团队可见"
+                  : "共享群聊 · 当前房间的买方和供应商可见"}
+              </span>
+              <small>{role === "buyer" ? "BUYER" : "SUPPLIER"}</small>
             </div>
+            {showMessageSearch && (
+              <div className={styles.messageSearch}>
+                <Search size={16} />
+                <input
+                  autoFocus
+                  aria-label="搜索当前聊天室消息"
+                  placeholder="搜索当前聊天室消息…"
+                  value={messageQuery}
+                  onChange={(e) => setMessageQuery(e.target.value)}
+                />
+                <button
+                  aria-label="关闭消息搜索"
+                  onClick={() => {
+                    setShowMessageSearch(false);
+                    setMessageQuery("");
+                  }}
+                >
+                  <X size={17} />
+                </button>
+              </div>
+            )}
           </header>
 
-          {activeRoomId && <InquiryPanel key={activeRoomId} roomId={activeRoomId} isBuyer={role === "buyer"}
-            onSubmitted={() => { void refreshProjectState(activeRoomId); }} />}
+          {activeRoomId && (
+            <InquiryPanel
+              key={activeRoomId}
+              roomId={activeRoomId}
+              isBuyer={role === "buyer"}
+              onSubmitted={() => {
+                void refreshProjectState(activeRoomId);
+              }}
+            />
+          )}
 
           {/* Messages Stream */}
           <div
             ref={scrollContainerRef}
             onScroll={handleScroll}
-            className="min-h-0 flex-1 overflow-y-auto bg-slate-50 px-3 py-3 sm:px-5"
+            className={`${styles.messageStream} min-h-0 flex-1 overflow-y-auto px-3 py-3 sm:px-5`}
           >
             <div className="mx-auto max-w-3xl space-y-3">
-              {/* Header Status & Sync Status */}
-              <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
-                <span className="text-[10px] uppercase tracking-[0.12em] text-slate-400 font-semibold">
-                  Live Sync · {isInternal ? "Internal Alignment" : "Cross-Border Messaging"}
-                </span>
-                <span className="text-[10px] text-emerald-600 flex items-center gap-1 font-medium">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  Realtime Connected
-                </span>
+              <div className={styles.conversationIntro}>
+                <span>项目沟通记录</span>
+                <p>
+                  在这里讨论需求、报价与交付。AI 整理进展，重要变更由你确认。
+                </p>
               </div>
-
-              {/* Honest Neutral Degraded State Notice (No Vercel mention, calm & reassuring) */}
-              <div className="rounded-xl border border-slate-200 bg-white/90 p-2.5 sm:p-3 text-xs text-slate-600 shadow-xs flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="inline-block h-2 w-2 rounded-full bg-slate-400 shrink-0"></span>
-                  <span className="text-[11px] text-slate-600 truncate">
-                    {aiStatus || "AI assistant is temporarily unavailable; live project messaging continues normally."}
-                  </span>
-                </div>
-                <span className="text-[10px] text-slate-400 font-mono shrink-0">
-                  Live Chat Active
-                </span>
-              </div>
-
+              {messageQuery && (
+                <p className={styles.muted}>
+                  搜索结果 ·{" "}
+                  {
+                    events.filter((event) =>
+                      extractEventText(event.payload)
+                        .toLowerCase()
+                        .includes(messageQuery.toLowerCase()),
+                    ).length
+                  }{" "}
+                  条
+                </p>
+              )}
               {/* Loading State */}
               {eventsLoading && (
                 <div className="flex justify-center py-6">
@@ -1116,7 +1534,9 @@ export default function ProjectRoomPage() {
               {/* Empty State */}
               {!eventsLoading && events.length === 0 && !pendingDraft && (
                 <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-xs text-slate-500 space-y-1">
-                  <div className="font-semibold text-slate-700">No messages yet in this room</div>
+                  <div className="font-semibold text-slate-700">
+                    No messages yet in this room
+                  </div>
                   <div className="text-[11px] text-slate-400">
                     {isInternal
                       ? "Send a confidential internal note to begin."
@@ -1126,314 +1546,391 @@ export default function ProjectRoomPage() {
               )}
 
               {/* Canonical Event List */}
-              {events.map((ev, idx) => {
-                const author = getEventAuthorInfo(ev);
-                const text = extractEventText(ev.payload);
-                const isFileEvent =
-                  ev.event_type === "file.attached" &&
-                  typeof ev.payload?.object_path === "string";
-                const latestFileVersion = isFileEvent
-                  ? events.reduce((latest, candidate) => {
-                      if (
-                        candidate.event_type === "file.attached" &&
-                        candidate.actor_organization_id === ev.actor_organization_id &&
-                        candidate.payload?.logical_name === ev.payload?.logical_name
-                      ) {
-                        return Math.max(
-                          latest,
-                          Number(candidate.payload?.version_no || 0),
-                        );
-                      }
-                      return latest;
-                    }, 0)
-                  : 0;
-                const isSuperseded =
-                  isFileEvent &&
-                  Number(ev.payload?.version_no || 0) < latestFileVersion;
-                const verification = isFileEvent
-                  ? fileVerification[String(ev.payload?.file_version_id || "")]
-                  : undefined;
-                const verificationStatus =
-                  verification?.status || (isFileEvent ? "pending" : undefined);
-                const isMyMessage = currentUserId && ev.actor_user_id === currentUserId;
-                const timeStr = ev.created_at
-                  ? new Date(ev.created_at).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })
-                  : "";
+              {events
+                .filter(
+                  (event) =>
+                    !messageQuery ||
+                    extractEventText(event.payload)
+                      .toLowerCase()
+                      .includes(messageQuery.toLowerCase()),
+                )
+                .map((ev, idx, displayedEvents) => {
+                  const author = getEventAuthorInfo(ev);
+                  const text = extractEventText(ev.payload);
+                  const isFileEvent =
+                    ev.event_type === "file.attached" &&
+                    typeof ev.payload?.object_path === "string";
+                  const latestFileVersion = isFileEvent
+                    ? events.reduce((latest, candidate) => {
+                        if (
+                          candidate.event_type === "file.attached" &&
+                          candidate.actor_organization_id ===
+                            ev.actor_organization_id &&
+                          candidate.payload?.logical_name ===
+                            ev.payload?.logical_name
+                        ) {
+                          return Math.max(
+                            latest,
+                            Number(candidate.payload?.version_no || 0),
+                          );
+                        }
+                        return latest;
+                      }, 0)
+                    : 0;
+                  const isSuperseded =
+                    isFileEvent &&
+                    Number(ev.payload?.version_no || 0) < latestFileVersion;
+                  const verification = isFileEvent
+                    ? fileVerification[
+                        String(ev.payload?.file_version_id || "")
+                      ]
+                    : undefined;
+                  const verificationStatus =
+                    verification?.status ||
+                    (isFileEvent ? "pending" : undefined);
+                  const isMyMessage =
+                    currentUserId && ev.actor_user_id === currentUserId;
+                  const timeStr = ev.created_at
+                    ? new Date(ev.created_at).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : "";
 
-                return (
-                  <div
-                    key={ev.id || ev.client_msg_id || idx}
-                    id={ev.id ? `event-${ev.id}` : undefined}
-                    className={`flex flex-col ${isMyMessage ? "items-end" : "items-start"} space-y-1`}
-                  >
-                    {/* Sender Info Header */}
-                    <div
-                      className={`flex items-baseline gap-1.5 text-[10px] ${
-                        isMyMessage ? "flex-row-reverse" : "flex-row"
-                      }`}
-                    >
-                      <span className="font-bold text-slate-800">
-                        {isMyMessage ? "You · 你" : author.who}
-                      </span>
-                      <span className="text-slate-400">
-                        {isMyMessage
-                          ? role === "buyer"
-                            ? "Buyer Organization"
-                            : externalPartnerName
-                          : author.org}
-                      </span>
-                      {typeof ev.seq === "number" && (
-                        <span className="rounded bg-slate-200/60 px-1 py-0.2 font-mono text-[9px] text-slate-500">
-                          #{ev.seq}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Chat Bubble */}
-                    <div
-                      className={`max-w-[88%] sm:max-w-[80%] rounded-2xl p-3 text-[13px] leading-relaxed shadow-xs ${
-                        isMyMessage
-                          ? "rounded-br-xs bg-sky-600 text-white border border-sky-600"
-                          : isInternal
-                          ? "rounded-bl-xs bg-white text-slate-900 border border-indigo-100 shadow-slate-100"
-                          : "rounded-bl-xs bg-white text-slate-900 border border-slate-200"
-                      }`}
-                    >
-                      {!isFileEvent && (
-                        <div className="whitespace-pre-wrap break-words">{text}</div>
-                      )}
-
-                      {isFileEvent && (
-                        <button
-                          type="button"
-                          disabled={verificationStatus !== "verified"}
-                          onClick={() =>
-                            void handleOpenFile(
-                              String(ev.payload.file_version_id || ""),
-                            )
-                          }
-                          className={`block w-full rounded-xl p-3 text-left text-xs transition ${
-                            isMyMessage
-                              ? "bg-sky-700/60 border border-sky-400 text-white hover:bg-sky-700"
-                              : "bg-slate-50 border border-slate-200 text-slate-800 hover:bg-slate-100"
-                          } ${isSuperseded ? "opacity-55" : ""} ${
-                            verificationStatus !== "verified"
-                              ? "cursor-not-allowed"
-                              : ""
-                          }`}
-                        >
-                          {ev.payload.caption && (
-                            <div className="mb-2 whitespace-pre-wrap break-words text-[12px]">
-                              {ev.payload.caption}
-                            </div>
-                          )}
-                          <div className="flex items-start gap-2">
-                            <span className="text-[10px] font-bold uppercase">
-                              {String(ev.payload.mime_type || "").includes("pdf")
-                                ? "PDF"
-                                : String(ev.payload.mime_type || "").includes("sheet") ||
-                                    String(ev.payload.mime_type || "").includes("excel")
-                                  ? "XLS"
-                                  : "FILE"}
-                            </span>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2">
-                                <div className="min-w-0 flex-1 truncate font-semibold">
-                                  {ev.payload.file_name || "Project document"}
-                                </div>
-                                {verificationStatus === "verified" && (
-                                  <span
-                                    className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${
-                                      isMyMessage
-                                        ? "bg-emerald-300/20 text-emerald-50"
-                                        : "bg-emerald-100 text-emerald-700"
-                                    }`}
-                                  >
-                                    Byte checks passed
-                                  </span>
-                                )}
-                                {verificationStatus === "pending" && (
-                                  <span
-                                    className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${
-                                      isMyMessage
-                                        ? "bg-white/15 text-white"
-                                        : "bg-amber-100 text-amber-700"
-                                    }`}
-                                  >
-                                    Checking file bytes
-                                  </span>
-                                )}
-                                {verificationStatus &&
-                                  verificationStatus !== "pending" &&
-                                  verificationStatus !== "verified" && (
-                                    <span
-                                      className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${
-                                        isMyMessage
-                                          ? "bg-rose-300/20 text-rose-50"
-                                          : "bg-rose-100 text-rose-700"
-                                      }`}
-                                    >
-                                      Blocked
-                                    </span>
-                                  )}
-                                {isSuperseded && (
-                                  <span
-                                    className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${
-                                      isMyMessage
-                                        ? "bg-white/15 text-white"
-                                        : "bg-slate-200 text-slate-600"
-                                    }`}
-                                  >
-                                    Superseded
-                                  </span>
-                                )}
-                              </div>
-                              <div
-                                className={`mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] ${
-                                  isMyMessage ? "text-sky-100" : "text-slate-500"
-                                }`}
-                              >
-                                <span>v{ev.payload.version_no || 1}</span>
-                                <span>{formatFileSize(ev.payload.size_bytes)}</span>
-                                <span>{ev.payload.mime_type || "file"}</span>
-                                {ev.payload.supersedes_version_id && (
-                                  <span>supersedes prior version</span>
-                                )}
-                              </div>
-                              <div
-                                className={`mt-1 truncate font-mono text-[9px] ${
-                                  isMyMessage ? "text-sky-200" : "text-slate-400"
-                                }`}
-                              >
-                                SHA256{" "}
-                                {String(
-                                  verification?.serverSha256 ||
-                                    ev.payload.sha256 ||
-                                    "",
-                                ).slice(0, 16)}
-                                ...
-                              </div>
-                              {verificationStatus === "verified" && <p className={`mt-1 text-[10px] ${isMyMessage ? "text-sky-100" : "text-slate-600"}`}>Size, SHA256 and detected type checked. No malware scan or authenticity check.</p>}
-                              <div
-                                className={`mt-1 text-[10px] font-semibold ${
-                                  isMyMessage ? "text-white" : "text-sky-700"
-                                }`}
-                              >
-                                {verificationStatus === "verified"
-                                  ? "Open / Download · 打开文件"
-                                  : verificationStatus &&
-                                      verificationStatus !== "pending"
-                                    ? verification?.verificationError ||
-                                      "File verification failed"
-                                    : "Checking file size, SHA256 and detected type"}
-                              </div>
-                            </div>
-                          </div>
-                        </button>
-                      )}
-
-                      {!isFileEvent && ev.payload?.file && (
+                  const day = ev.created_at
+                    ? new Date(ev.created_at).toLocaleDateString()
+                    : "";
+                  const previous = displayedEvents[idx - 1];
+                  const showDay =
+                    day &&
+                    (!previous?.created_at ||
+                      new Date(previous.created_at).toLocaleDateString() !==
+                        day);
+                  return (
+                    <div key={ev.id || ev.client_msg_id || idx}>
+                      {showDay && <MessageSeparator>{day}</MessageSeparator>}
+                      <div
+                        id={ev.id ? `event-${ev.id}` : undefined}
+                        className={`${styles.messageRow} ${isMyMessage ? styles.ownMessage : ""}`}
+                      >
                         <div
-                          className={`mt-2 rounded-lg p-2.5 text-xs ${
-                            isMyMessage
-                              ? "bg-sky-700/60 border border-sky-500 text-white"
-                              : "bg-slate-50 border border-slate-200 text-slate-800"
-                          }`}
+                          className={`${styles.avatar} ${isMyMessage ? styles.ownAvatar : ""}`}
+                          title={author.who}
                         >
-                          <div className="font-semibold flex items-center gap-1">
-                            <span>📎</span>
-                            <span>{ev.payload.file}</span>
-                          </div>
+                          {isMyMessage
+                            ? role === "buyer"
+                              ? "B"
+                              : "S"
+                            : author.who.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div className={styles.messageBody}>
+                          {/* Sender Info Header */}
                           <div
-                            className={`mt-0.5 text-[10px] ${
-                              isMyMessage ? "text-sky-200" : "text-slate-500"
+                            className={`flex items-baseline gap-1.5 text-[10px] ${
+                              isMyMessage ? "flex-row-reverse" : "flex-row"
                             }`}
                           >
-                            Project document
+                            <span className="font-bold text-slate-800">
+                              {isMyMessage ? "You" : author.who}
+                            </span>
+                            <span className="text-slate-400">
+                              {isMyMessage
+                                ? role === "buyer"
+                                  ? "Buyer Organization"
+                                  : externalPartnerName
+                                : author.org}
+                            </span>
                           </div>
+
+                          <Message
+                            model={{
+                              direction: isMyMessage ? "outgoing" : "incoming",
+                              position: "single",
+                              type: "custom",
+                            }}
+                            className={styles.chatMessage}
+                          >
+                            <Message.CustomContent>
+                              {!isFileEvent && (
+                                <div className="whitespace-pre-wrap break-words">
+                                  {text}
+                                </div>
+                              )}
+
+                              {isFileEvent && (
+                                <button
+                                  type="button"
+                                  disabled={verificationStatus !== "verified"}
+                                  onClick={() =>
+                                    void handleOpenFile(
+                                      String(ev.payload.file_version_id || ""),
+                                    )
+                                  }
+                                  className={`block w-full rounded-xl p-3 text-left text-xs transition ${
+                                    isMyMessage
+                                      ? "bg-sky-700/60 border border-sky-400 text-white hover:bg-sky-700"
+                                      : "bg-slate-50 border border-slate-200 text-slate-800 hover:bg-slate-100"
+                                  } ${isSuperseded ? "opacity-55" : ""} ${
+                                    verificationStatus !== "verified"
+                                      ? "cursor-not-allowed"
+                                      : ""
+                                  }`}
+                                >
+                                  {ev.payload.caption && (
+                                    <div className="mb-2 whitespace-pre-wrap break-words text-[12px]">
+                                      {ev.payload.caption}
+                                    </div>
+                                  )}
+                                  <div className="flex items-start gap-2">
+                                    <span className="text-[10px] font-bold uppercase">
+                                      {String(
+                                        ev.payload.mime_type || "",
+                                      ).includes("pdf")
+                                        ? "PDF"
+                                        : String(
+                                              ev.payload.mime_type || "",
+                                            ).includes("sheet") ||
+                                            String(
+                                              ev.payload.mime_type || "",
+                                            ).includes("excel")
+                                          ? "XLS"
+                                          : "FILE"}
+                                    </span>
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-center gap-2">
+                                        <div className="min-w-0 flex-1 truncate font-semibold">
+                                          {ev.payload.file_name ||
+                                            "Project document"}
+                                        </div>
+                                        {verificationStatus === "verified" && (
+                                          <span
+                                            className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${
+                                              isMyMessage
+                                                ? "bg-emerald-300/20 text-emerald-50"
+                                                : "bg-emerald-100 text-emerald-700"
+                                            }`}
+                                          >
+                                            Byte checks passed
+                                          </span>
+                                        )}
+                                        {verificationStatus === "pending" && (
+                                          <span
+                                            className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${
+                                              isMyMessage
+                                                ? "bg-white/15 text-white"
+                                                : "bg-amber-100 text-amber-700"
+                                            }`}
+                                          >
+                                            Checking file bytes
+                                          </span>
+                                        )}
+                                        {verificationStatus &&
+                                          verificationStatus !== "pending" &&
+                                          verificationStatus !== "verified" && (
+                                            <span
+                                              className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${
+                                                isMyMessage
+                                                  ? "bg-rose-300/20 text-rose-50"
+                                                  : "bg-rose-100 text-rose-700"
+                                              }`}
+                                            >
+                                              Blocked
+                                            </span>
+                                          )}
+                                        {isSuperseded && (
+                                          <span
+                                            className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${
+                                              isMyMessage
+                                                ? "bg-white/15 text-white"
+                                                : "bg-slate-200 text-slate-600"
+                                            }`}
+                                          >
+                                            Superseded
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div
+                                        className={`mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] ${
+                                          isMyMessage
+                                            ? "text-sky-100"
+                                            : "text-slate-500"
+                                        }`}
+                                      >
+                                        <span>
+                                          v{ev.payload.version_no || 1}
+                                        </span>
+                                        <span>
+                                          {formatFileSize(
+                                            ev.payload.size_bytes,
+                                          )}
+                                        </span>
+                                        <span>
+                                          {ev.payload.mime_type || "file"}
+                                        </span>
+                                        {ev.payload.supersedes_version_id && (
+                                          <span>supersedes prior version</span>
+                                        )}
+                                      </div>
+                                      <div
+                                        className={`mt-1 truncate font-mono text-[9px] ${
+                                          isMyMessage
+                                            ? "text-sky-200"
+                                            : "text-slate-400"
+                                        }`}
+                                      >
+                                        SHA256{" "}
+                                        {String(
+                                          verification?.serverSha256 ||
+                                            ev.payload.sha256 ||
+                                            "",
+                                        ).slice(0, 16)}
+                                        ...
+                                      </div>
+                                      {verificationStatus === "verified" && (
+                                        <p
+                                          className={`mt-1 text-[10px] ${isMyMessage ? "text-sky-100" : "text-slate-600"}`}
+                                        >
+                                          Size, SHA256 and detected type
+                                          checked. No malware scan or
+                                          authenticity check.
+                                        </p>
+                                      )}
+                                      <div
+                                        className={`mt-1 text-[10px] font-semibold ${
+                                          isMyMessage
+                                            ? "text-white"
+                                            : "text-sky-700"
+                                        }`}
+                                      >
+                                        {verificationStatus === "verified"
+                                          ? "Open / Download · 打开文件"
+                                          : verificationStatus &&
+                                              verificationStatus !== "pending"
+                                            ? verification?.verificationError ||
+                                              "File verification failed"
+                                            : "Checking file size, SHA256 and detected type"}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </button>
+                              )}
+
+                              {!isFileEvent && ev.payload?.file && (
+                                <div
+                                  className={`mt-2 rounded-lg p-2.5 text-xs ${
+                                    isMyMessage
+                                      ? "bg-sky-700/60 border border-sky-500 text-white"
+                                      : "bg-slate-50 border border-slate-200 text-slate-800"
+                                  }`}
+                                >
+                                  <div className="font-semibold flex items-center gap-1">
+                                    <span>📎</span>
+                                    <span>{ev.payload.file}</span>
+                                  </div>
+                                  <div
+                                    className={`mt-0.5 text-[10px] ${
+                                      isMyMessage
+                                        ? "text-sky-200"
+                                        : "text-slate-500"
+                                    }`}
+                                  >
+                                    Project document
+                                  </div>
+                                </div>
+                              )}
+                            </Message.CustomContent>
+                          </Message>
+
+                          {/* Status & Timestamp */}
+                          <div
+                            className={`flex items-center gap-1.5 text-[10px] text-slate-400 font-mono ${
+                              isMyMessage ? "flex-row-reverse" : "flex-row"
+                            }`}
+                          >
+                            {timeStr && <span>{timeStr}</span>}
+                            {isMyMessage && (
+                              <span className="text-emerald-600 font-medium flex items-center gap-0.5">
+                                <span>✓</span>
+                                <span>已发送</span>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+
+              {/* Pending Draft: Sending State (Subtle IM Feel) */}
+              {pendingDraft?.room_id === activeRoomId &&
+                pendingDraft.status === "sending" && (
+                  <div className="flex flex-col items-end space-y-1">
+                    <div className="flex items-baseline gap-1.5 text-[10px] flex-row-reverse">
+                      <span className="font-bold text-slate-800">You · 你</span>
+                      <span className="text-slate-400">
+                        {role === "buyer"
+                          ? "Buyer Organization"
+                          : externalPartnerName}
+                      </span>
+                    </div>
+
+                    <div className="max-w-[88%] sm:max-w-[80%] rounded-2xl rounded-br-xs p-3 text-[13px] leading-relaxed shadow-xs bg-sky-500/80 text-white border border-sky-400 opacity-90 animate-pulse">
+                      <div className="whitespace-pre-wrap break-words">
+                        {pendingDraft.text}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1 text-[10px] text-sky-600 font-medium">
+                      <span className="h-1.5 w-1.5 rounded-full bg-sky-500 animate-ping"></span>
+                      <span>Sending... · 发送中</span>
+                    </div>
+                  </div>
+                )}
+
+              {/* Pending Draft: Failed State with Subtle Retry (using identical client_msg_id) */}
+              {pendingDraft?.room_id === activeRoomId &&
+                pendingDraft.status === "failed" && (
+                  <div className="flex flex-col items-end space-y-1.5">
+                    <div className="flex items-baseline gap-1.5 text-[10px] flex-row-reverse">
+                      <span className="font-bold text-slate-800">You · 你</span>
+                      <span className="text-rose-600 font-medium">
+                        ⚠️ Delivery unconfirmed · 发送状态待确认
+                      </span>
+                    </div>
+
+                    <div className="max-w-[88%] sm:max-w-[80%] rounded-2xl rounded-br-xs p-3 text-[13px] leading-relaxed shadow-xs bg-rose-50 border border-rose-200 text-slate-900">
+                      <div className="whitespace-pre-wrap break-words">
+                        {pendingDraft.text}
+                      </div>
+                      {pendingDraft.error && (
+                        <div className="mt-1 text-[10px] text-rose-600">
+                          {pendingDraft.error}
                         </div>
                       )}
                     </div>
 
-                    {/* Status & Timestamp */}
-                    <div
-                      className={`flex items-center gap-1.5 text-[10px] text-slate-400 font-mono ${
-                        isMyMessage ? "flex-row-reverse" : "flex-row"
-                      }`}
-                    >
-                      {timeStr && <span>{timeStr}</span>}
-                      {isMyMessage && (
-                        <span className="text-emerald-600 font-medium flex items-center gap-0.5">
-                          <span>✓</span>
-                          <span>Sent · 已发送</span>
-                        </span>
-                      )}
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={handleRetry}
+                        className="rounded bg-rose-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-rose-700 transition"
+                      >
+                        Retry · 重试
+                      </button>
+                      <button
+                        onClick={() => dismissPending(true)}
+                        className="rounded border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700 hover:bg-slate-50 transition"
+                      >
+                        Edit · 编辑
+                      </button>
+                      <button
+                        onClick={() => dismissPending(false)}
+                        className="rounded px-2 py-1 text-[11px] text-slate-500 hover:text-slate-800 transition"
+                      >
+                        Discard · 放弃
+                      </button>
                     </div>
                   </div>
-                );
-              })}
-
-              {/* Pending Draft: Sending State (Subtle IM Feel) */}
-              {pendingDraft?.room_id === activeRoomId && pendingDraft.status === "sending" && (
-                <div className="flex flex-col items-end space-y-1">
-                  <div className="flex items-baseline gap-1.5 text-[10px] flex-row-reverse">
-                    <span className="font-bold text-slate-800">You · 你</span>
-                    <span className="text-slate-400">
-                      {role === "buyer" ? "Buyer Organization" : externalPartnerName}
-                    </span>
-                  </div>
-
-                  <div className="max-w-[88%] sm:max-w-[80%] rounded-2xl rounded-br-xs p-3 text-[13px] leading-relaxed shadow-xs bg-sky-500/80 text-white border border-sky-400 opacity-90 animate-pulse">
-                    <div className="whitespace-pre-wrap break-words">{pendingDraft.text}</div>
-                  </div>
-
-                  <div className="flex items-center gap-1 text-[10px] text-sky-600 font-medium">
-                    <span className="h-1.5 w-1.5 rounded-full bg-sky-500 animate-ping"></span>
-                    <span>Sending... · 发送中</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Pending Draft: Failed State with Subtle Retry (using identical client_msg_id) */}
-              {pendingDraft?.room_id === activeRoomId && pendingDraft.status === "failed" && (
-                <div className="flex flex-col items-end space-y-1.5">
-                  <div className="flex items-baseline gap-1.5 text-[10px] flex-row-reverse">
-                    <span className="font-bold text-slate-800">You · 你</span>
-                    <span className="text-rose-600 font-medium">⚠️ Delivery unconfirmed · 发送状态待确认</span>
-                  </div>
-
-                  <div className="max-w-[88%] sm:max-w-[80%] rounded-2xl rounded-br-xs p-3 text-[13px] leading-relaxed shadow-xs bg-rose-50 border border-rose-200 text-slate-900">
-                    <div className="whitespace-pre-wrap break-words">{pendingDraft.text}</div>
-                    {pendingDraft.error && (
-                      <div className="mt-1 text-[10px] text-rose-600">{pendingDraft.error}</div>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={handleRetry}
-                      className="rounded bg-rose-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-rose-700 transition"
-                    >
-                      Retry · 重试
-                    </button>
-                    <button
-                      onClick={() => dismissPending(true)}
-                      className="rounded border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700 hover:bg-slate-50 transition"
-                    >
-                      Edit · 编辑
-                    </button>
-                    <button
-                      onClick={() => dismissPending(false)}
-                      className="rounded px-2 py-1 text-[11px] text-slate-500 hover:text-slate-800 transition"
-                    >
-                      Discard · 放弃
-                    </button>
-                  </div>
-                </div>
-              )}
+                )}
 
               <div ref={messagesEndRef} />
             </div>
@@ -1451,7 +1948,11 @@ export default function ProjectRoomPage() {
           )}
 
           {/* INPUT BAR (IME Composition Safe & Mobile First) */}
-          {messageStorageError && <p role="alert" className="px-3 text-sm text-rose-700">{messageStorageError}</p>}
+          {messageStorageError && (
+            <p role="alert" className="px-3 text-sm text-rose-700">
+              {messageStorageError}
+            </p>
+          )}
           <div className="shrink-0 border-t border-slate-200 bg-white p-2.5 sm:p-3 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
             <div className="mx-auto max-w-3xl rounded-xl border border-slate-300 focus-within:border-sky-500 focus-within:ring-1 focus-within:ring-sky-500 bg-white transition">
               {/* Recipient explicit reminder */}
@@ -1467,14 +1968,19 @@ export default function ProjectRoomPage() {
                     <>
                       <span>🔒</span>
                       <span className="font-semibold text-indigo-900 truncate">
-                        Internal Note: Only Buyer Organization can see this · 仅买方内部可见
+                        Internal Note: Only Buyer Organization can see this ·
+                        仅买方内部可见
                       </span>
                     </>
                   ) : (
                     <>
                       <span>🌐</span>
                       <span className="truncate">
-                        Sending to: <b className="text-slate-800">{externalPartnerName} & Buyer Organization</b> · 供需双方可见
+                        Sending to:{" "}
+                        <b className="text-slate-800">
+                          {externalPartnerName} & Buyer Organization
+                        </b>{" "}
+                        · 供需双方可见
                       </span>
                     </>
                   )}
@@ -1507,9 +2013,7 @@ export default function ProjectRoomPage() {
                   }
                 }}
                 placeholder={
-                  isInternal
-                    ? `Write an internal confidential message (${externalPartnerName} cannot see this) · 内部私密备忘...`
-                    : `Write a message visible to ${externalPartnerName} & Buyer team · 发送给供应商与买方团队...`
+                  isInternal ? "发送内部消息…" : "发送消息，与项目成员沟通…"
                 }
                 className="w-full resize-none px-3 py-2 text-[13px] sm:text-sm outline-none text-slate-900 bg-transparent min-h-[38px] max-h-[100px] leading-relaxed"
               />
@@ -1543,7 +2047,7 @@ export default function ProjectRoomPage() {
                   >
                     {fileUploading
                       ? `Uploading ${fileUploadProgress}%`
-                      : "Attach · 附件"}
+                      : "＋ 附件"}
                   </button>
                   {fileUploading && (
                     <button
@@ -1554,7 +2058,10 @@ export default function ProjectRoomPage() {
                       Cancel
                     </button>
                   )}
-                  <div id="attachment-formats" className="order-last w-full whitespace-normal text-[10px] text-slate-600 sm:order-none sm:w-auto">
+                  <div
+                    id="attachment-formats"
+                    className="order-last w-full whitespace-normal text-[10px] text-slate-600 sm:order-none sm:w-auto"
+                  >
                     {inputText.trim()
                       ? "Current text will be sent as the file caption"
                       : "PDF / Excel / image · max 50 MB"}
@@ -1565,7 +2072,8 @@ export default function ProjectRoomPage() {
                   onClick={handleSend}
                   disabled={
                     !inputText.trim() ||
-                    !!pendingDraft || !!messageStorageError ||
+                    !!pendingDraft ||
+                    !!messageStorageError ||
                     fileUploading
                   }
                   className="rounded-lg bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-40 transition flex items-center gap-1.5"
@@ -1576,7 +2084,7 @@ export default function ProjectRoomPage() {
                       <span>Sending...</span>
                     </>
                   ) : (
-                    <span>Send · 发送</span>
+                    <span>发送 ↑</span>
                   )}
                 </button>
               </div>
@@ -1584,122 +2092,41 @@ export default function ProjectRoomPage() {
           </div>
         </section>
 
-        {/* RIGHT SIDEBAR: PROJECT STATE (Honest Live Information, No Fake Tabs or Affordances) */}
-        <aside id="room-context" aria-label="Project context" className={`${mobileView === "context" ? "flex" : "hidden"} md:flex flex-col bg-white border-l border-slate-200 min-h-0`}>
-          <div className="p-3 md:hidden">
-            <EvidenceDownloadControls actions={evidenceDownloads} />
-          </div>
-          <div className="p-4 border-b border-slate-200">
-            <div className="flex items-center justify-between">
-              <div className="text-sm font-bold text-slate-900">Project Context</div>
-              <span className="rounded bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 text-[9px] font-mono font-semibold">
-                Live Sync
-              </span>
-            </div>
-            <div className="mt-1 text-[11px] text-slate-500">
-              Room decisions and shared specifications
-            </div>
-
-            {/* Live Counters */}
-            <div className="mt-3 grid grid-cols-2 gap-2 text-[10px]">
-              <div className="rounded-lg border border-slate-100 bg-slate-50 p-2.5">
-                <div className="text-slate-400 font-medium">Room Messages</div>
-                <div className="text-sm font-bold text-slate-800 mt-0.5">{events.length}</div>
-              </div>
-              <div className="rounded-lg border border-slate-100 bg-slate-50 p-2.5">
-                <div className="text-slate-400 font-medium">Authorized Rooms</div>
-                <div className="text-sm font-bold text-slate-800 mt-0.5">{visibleRooms.length}</div>
-              </div>
-            </div>
-
-            {role === "buyer" && (
-              <div className="mt-3 rounded-lg border border-sky-100 bg-sky-50/60 p-2.5">
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <div className="text-[11px] font-semibold text-slate-800">
-                      Invite Supplier
-                    </div>
-                    <div className="text-[10px] text-slate-500">
-                      Creates a separate supplier room with isolated access.
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setInviteOpen((value) => !value)}
-                    className="rounded-md bg-sky-600 px-2 py-1 text-[10px] font-semibold text-white hover:bg-sky-700"
-                  >
-                    {inviteOpen ? "Close" : "Create"}
-                  </button>
-                </div>
-
-                {inviteOpen && (
-                  <div className="mt-2 space-y-2">
-                    <input
-                      value={inviteCompany}
-                      onChange={(event) => setInviteCompany(event.target.value)}
-                      placeholder="Supplier company name"
-                      className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[11px] outline-none focus:border-sky-400"
-                    />
-                    <input
-                      type="email"
-                      value={inviteEmail}
-                      onChange={(event) => setInviteEmail(event.target.value)}
-                      placeholder="Invitee email (required)"
-                      className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[11px] outline-none focus:border-sky-400"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => void handleCreateSupplierInvite()}
-                      disabled={inviteCreating || inviteCompany.trim().length < 2 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail.trim())}
-                      className="w-full rounded-md bg-slate-900 px-2 py-1.5 text-[11px] font-semibold text-white disabled:opacity-50"
-                    >
-                      {inviteCreating
-                        ? "Creating..."
-                        : "Generate 7-day Invite Link"}
-                    </button>
-
-                    {inviteError && (
-                      <div className="text-[10px] text-rose-700">
-                        {inviteError}
-                      </div>
-                    )}
-
-                    {inviteUrl && (
-                      <div className="rounded-md border border-emerald-200 bg-emerald-50 p-2">
-                        <div className="break-all font-mono text-[9px] text-emerald-900">
-                          {inviteUrl}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            try { await navigator.clipboard.writeText(inviteUrl); setCopyNotice("Invite link copied."); }
-                            catch { setCopyNotice("Unable to copy. Select the link and copy it manually."); }
-                          }}
-                          className="mt-1.5 rounded bg-emerald-700 px-2 py-1 text-[10px] font-semibold text-white"
-                        >
-                          {copyNotice === "Invite link copied." ? "Copied" : "Copy Invite Link"}
-                        </button>
-                        {copyNotice && <p role="status" className="mt-1 text-xs text-slate-800">{copyNotice}</p>}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="p-3 overflow-y-auto flex-1">
-            <ProjectStatePanel
-              state={projectState}
-              stateStatus={projectStateStatus}
-              aiStatus={aiStatus}
-              reviewingProposalId={reviewingProposalId}
-              actionError={projectStateError}
-              onReview={handleReviewProjectState}
-              onViewSource={handleViewSourceEvent}
-            />
-          </div>
+        <aside aria-label="AI 总结与里程碑" className={styles.desktopContext}>
+          {rightCollapsed ? (
+            <button
+              className={styles.collapsedAI}
+              aria-label="展开 AI 总结"
+              onClick={() => setRightCollapsed(false)}
+            >
+              <Sparkles size={21} />
+              <span>AI 总结</span>
+              {projectState.needsYou.length > 0 && (
+                <b>{projectState.needsYou.length}</b>
+              )}
+              <PanelRightOpen size={17} />
+            </button>
+          ) : (
+            contextContent
+          )}
         </aside>
+        <Dialog.Root
+          open={drawer === "context"}
+          onOpenChange={(open) => setDrawer(open ? "context" : null)}
+        >
+          <Dialog.Portal>
+            <Dialog.Overlay className={styles.overlay} />
+            <Dialog.Content
+              className={styles.rightDrawer}
+              aria-describedby={undefined}
+            >
+              <Dialog.Title className={styles.srOnly}>
+                AI 总结与里程碑
+              </Dialog.Title>
+              {contextContent}
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog.Root>
       </div>
     </main>
   );
