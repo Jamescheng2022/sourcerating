@@ -124,3 +124,47 @@ Browser test source is in `apps/web/scripts/workspace-acceptance.cjs` and `works
 GCP receipts: `ui-qa/workspace-acceptance.json`, `ui-qa/workspace-review-acceptance.json`, `ui-qa/ai-status-acceptance.json`; desktop, mobile, AI drawer and settings screenshots; `ui-build.log`, `ui-eslint.log`, `ui-tsc.log`, `ui-ai-regression.log`. The QA browser image is pinned to `mcr.microsoft.com/playwright@sha256:6446946a1d9fd62d9ae501312a2d76a43ee688542b21622056a372959b65d63d`.
 
 The trial URL and private accounts are unchanged. No production promotion, infrastructure purchase, other-project pause, or production-data migration was performed. The temporary-domain, physical-phone, restore-drill and independent-review gates above still apply.
+
+
+## Chat-platform comparison — 2026-10-30 (documentation review)
+
+Scope: compare retaining the current pilot with adopting Mattermost or Zulip as the collaboration foundation. No alternative platform was installed, no accounts were provisioned, and no production data was moved in this comparison. Product capability below is documented upstream capability, not locally accepted integration.
+
+| Criterion | Existing SourceRating pilot | Mattermost | Zulip |
+| --- | --- | --- | --- |
+| Group chat and mobile | Minimal real chat, responsive web tested; physical phone acceptance/push still open | Mature chat and native mobile clients | Mature channel/topic chat and native Android/iOS clients |
+| AI | Real scoped DeepSeek pipeline accepted on synthetic room | Agents supports OpenAI-compatible providers; availability depends on edition/license | OpenAI-compatible endpoint configuration; documented built-in topic summaries remain beta |
+| Continuous procurement analysis | Existing minute worker plus three-second UI refresh | Procurement event processing and durable business state still need an adapter | Same; built-in on-demand topic summary does not replace the procurement worker |
+| Suppliers | Room/org RLS tested in pilot, public invitations not deployed | Private channels; guest-role capability depends on edition | Guests can access only subscribed channels; user-directory and company boundaries require configuration and negative tests |
+| Human confirmation | One assigned organization accepts/rejects a proposal | Tool-call approval is documented, but bilateral procurement acceptance still requires domain logic | Procurement acceptance requires domain logic |
+| Strict buyer + supplier confirmation of one version | NOT implemented in the current review RPC | Not verified as an out-of-the-box procurement workflow | Not verified as an out-of-the-box procurement workflow |
+| Rebranding/source reuse | App uses Chatscope, Radix and Lucide | Server/source/commercial editions have different licenses; current repo lists AGPLv3 server terms and Apache-2.0 webapp scope | Main server repository is Apache-2.0 |
+| Commercial recurring cost | Hosting/model/email/maintenance, no platform seat license added | Entry is free but restricted; subscription pricing requires vendor quote | Self-hosting software can remain free; official mobile push service is free up to 10 users, otherwise paid plans/eligibility apply |
+| Migration | No chat-system migration | Identity, membership, source message IDs, attachments, review permissions and client UI must be mapped | Same; topics add useful structure but do not remove this integration work |
+
+Correction to the initial verbal comparison: Mattermost channel/thread summarization is not simply "paid only." Its free no-license Agents tier has restrictions, while the commercially licensed free Entry mode exposes a broader feature set. The official editions page lists Entry's 10,000-message visible/searchable history limit; several other listed limits, including 250 Agent queries/month, are explicitly marked as taking effect in a future release. These must not be reported as already enforced across all deployed versions. "Free Entry", "open-source Team Edition" and "paid Enterprise" are separate cases.
+
+Zulip's documented topic summarization is requested by the user, and excludes uploaded files/images from the summarized input. Connecting DeepSeek through its compatible endpoint is technically plausible from the documented API contract, but has not been accepted on a local Zulip instance. Do not label this turnkey continuous procurement AI.
+
+Current SourceRating review SQL selects one open assignment's target organization, accepts that assigned party's action, and writes one Canonical object. It does not collect two independent company confirmations or bind both parties to an identical frozen commercial version. SourceRating's market differentiation remains a hypothesis; it is not established merely by having this workflow.
+
+Recommendation (engineering judgment, pending a bounded integration test):
+- Stop expanding generic messaging functions until a mature-platform integration has been tested.
+- Prioritize Zulip as the free/open-source foundation candidate for a branded external SourceRating product; its permissive license and channel/topic structure make it worth testing first.
+- Use Mattermost as the stronger ready-made chat/AI UX benchmark and a possible internal collaboration choice, while keeping its edition, commercial-license and growth costs explicit.
+- Keep the existing pilot and procurement domain rules as a baseline. Neither rewriting everything nor keeping the existing UI indefinitely is approved by this documentation comparison.
+- Before any architectural switch, validate one synthetic buyer, suppliers A/B, one private internal channel, one private channel per supplier, same-source DeepSeek extraction, authorized review, source/attachment readback and actual phone use. Include no cross-supplier discovery/leakage and no duplicate decisions after reconnect/retry. Record identity and permission mapping costs.
+- A successful integration sample would support a migration proposal. Any production-data migration, purchase or major architecture switch needs a concrete impact review and owner decision.
+
+Primary sources checked:
+- https://docs.mattermost.com/product-overview/editions-and-offerings
+- https://docs.mattermost.com/administration-guide/configure/agents-admin-guide
+- https://docs.mattermost.com/end-user-guide/agents
+- https://docs.mattermost.com/administration-guide/onboard/guest-accounts
+- https://raw.githubusercontent.com/mattermost/mattermost/master/LICENSE.txt
+- https://zulip.readthedocs.io/en/latest/production/ai-integrations.html
+- https://zulip.com/help/guest-users
+- https://zulip.com/help/self-hosted-billing
+- https://raw.githubusercontent.com/zulip/zulip/main/LICENSE
+- https://zulip.readthedocs.io/en/latest/production/requirements.html
+- https://github.com/zulip/zulip-flutter
