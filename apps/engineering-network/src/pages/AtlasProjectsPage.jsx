@@ -106,7 +106,7 @@ export function AtlasProjectsPage() {
 
   return <div className="min-w-0 w-full max-w-6xl mx-auto space-y-5 text-ink">
     <header className="bg-surface border border-hairline rounded-2xl p-4 sm:p-6 space-y-3">
-      <div className="flex items-center gap-2 text-xs font-semibold text-accent"><Database className="w-4 h-4" /> PROJECT ATLAS · LIVE-SOURCE SNAPSHOT</div>
+      <div className="flex items-center gap-2 text-xs font-semibold text-accent"><Database className="w-4 h-4" /> PROJECT ATLAS · {catalog?.backend?.kind === 'supabase' ? 'DATABASE-SYNCED SOURCE SNAPSHOT' : 'PUBLIC-SOURCE ARCHIVE'}</div>
       <h1 className="text-xl sm:text-2xl font-bold">{l.name}</h1>
       <p className="text-sm text-ink-muted leading-relaxed max-w-3xl">{l.intro}</p>
       {catalog && <div className="flex flex-wrap gap-2 text-xs text-ink-muted">
@@ -114,6 +114,12 @@ export function AtlasProjectsPage() {
         <span className="rounded-md border border-hairline px-2 py-1">{catalog.manifest.totals.ukProcurements.toLocaleString()} · {l.uk}</span>
         <span className="rounded-md border border-hairline px-2 py-1">{l.licensed}</span>
       </div>}
+      {catalog && <p role="status" data-atlas-backend={catalog.backend?.kind || 'unknown'}
+          className={'text-xs rounded-lg border px-3 py-2 ' + (catalog.backend?.kind === 'supabase' ? 'border-emerald-600/30 text-ink-muted' : 'border-amber-600/40 text-amber-700 dark:text-amber-300')}>
+        {catalog.backend?.kind === 'supabase'
+          ? (locale === 'zh' ? '数据库已同步 · 来源快照截至 ' : locale === 'th' ? 'ซิงก์ข้อมูลฐานข้อมูล · อัปเดตถึง ' : 'Database synchronized · source snapshot as of ') + new Date(catalog.backend.asOf).toLocaleDateString()
+          : (locale === 'zh' ? '当前显示静态来源档案回退；数据库读取未成功，并非实时数据。' : locale === 'th' ? 'กำลังแสดงไฟล์ข้อมูลสำรอง ไม่ใช่ข้อมูลสด' : 'Static source archive fallback; database query is unavailable. Not live data.')}
+      </p>}
     </header>
     <SourceState state={state} retry={retry} labels={l} />
     {catalog && <>
