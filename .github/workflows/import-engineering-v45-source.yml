@@ -1,0 +1,101 @@
+name: Import verified Engineering Network V4.5 full source
+on:
+  push:
+    branches:
+      - feature/engineering-network-v45-concrete-20261111
+    paths:
+      - .github/workflows/import-engineering-v45-source.yml
+      - docs/engineering-network/CONCRETE-LAUNCH-PLAN.md
+
+permissions:
+  contents: write
+
+concurrency:
+  group: engineering-network-source-import-v45
+  cancel-in-progress: false
+
+jobs:
+  import-original-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout isolated feature branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: feature/engineering-network-v45-concrete-20261111
+          persist-credentials: true
+
+      - name: Fetch pinned complete V4.5 source archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="https://sb-3o7tsecgzh4q.vercel.run/sr-v45-auth-drafts-20261111.tgz"
+          curl --fail --show-error --location --retry 3 --connect-timeout 15 --max-time 180 "$url" -o "$RUNNER_TEMP/v45-source.archive"
+          hash="$(sha256sum "$RUNNER_TEMP/v45-source.archive" | awk '{print $1}')"
+          case "$hash" in
+            8360f79e39edd3501b8cf1b3873ea45b929f6a6526767d42ae21466adbb6ed7c|03408f3281530ae6c8d570c2da54c65b5319692d252765b0a30c8713a788ad41)
+              echo "Verified pinned source archive sha256: $hash";;
+            *) echo "Source hash mismatch: $hash" >&2; exit 44;;
+          esac
+
+      - name: Inspect archive safety before extraction
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - "$RUNNER_TEMP/v45-source.archive" <<'PY'
+          import sys, tarfile, pathlib
+          f = sys.argv[1]
+          with tarfile.open(f, 'r:*') as archive:
+              files=[m for m in archive.getmembers() if m.isfile()]
+              assert 80 <= len(files) <= 700, f"Suspicious file count: {len(files)}"
+              allowed={'src','public','scripts'}
+              allowed_roots={'index.html','package.json','package-lock.json','vite.config.js','tailwind.config.js','postcss.config.js'}
+              for m in archive.getmembers():
+                  path=pathlib.PurePosixPath(m.name)
+                  parts=[p for p in path.parts if p!='.']
+                  if not parts or '..' in parts or path.is_absolute() or m.issym() or m.islnk():
+                      raise ValueError(f"Unsafe tar member: {m.name}")
+                  if parts[0] not in allowed and m.name.lstrip('./') not in allowed_roots:
+                      raise ValueError(f"Unexpected source member: {m.name}")
+                  if '.env' in m.name or 'private_key' in m.name.lower() or 'service_role' in m.name.lower():
+                      raise ValueError(f"Possible secret-bearing file: {m.name}")
+              names={m.name.lstrip('./') for m in files}
+              for wanted in ('src/pages/FeedPage.jsx','src/components/modals/EngineeringPublisherWizard.jsx','src/components/article/EngineeringCloudDrafts.jsx','src/services/enPilotClient.js','public/data/atlas/manifest.json','package-lock.json'):
+                  if wanted not in names:
+                      raise ValueError(f"Missing expected source file: {wanted}")
+              print(f"PASS: {len(files)} checked source files")
+          PY
+
+      - name: Restore complete source into a dedicated directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p apps/engineering-network
+          tar -xf "$RUNNER_TEMP/v45-source.archive" -C apps/engineering-network --no-same-owner
+          test -f apps/engineering-network/src/components/modals/EngineeringPublisherWizard.jsx
+          test -f apps/engineering-network/src/services/enPilotClient.js
+          test -f apps/engineering-network/src/data/engineeringArticleLayouts.js
+          test -f apps/engineering-network/public/data/atlas/worldbank-projects.json
+          test "$(find apps/engineering-network/public/visual-templates -name '*.svg' | wc -l)" -eq 52
+
+      - name: Build restored application
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd apps/engineering-network
+          npm ci --no-audit --no-fund
+          npm run build
+          test -f dist/index.html
+          test -f dist/data/atlas/manifest.json
+
+      - name: Commit full source to feature branch only
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s\n' 'dist/' 'node_modules/' '*.env' '*.env.*' '!*.env.example' > apps/engineering-network/.gitignore
+          git add apps/engineering-network/
+          git diff --cached --quiet && { echo 'Source unchanged'; exit 0; }
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "feat(engineering-network): restore full V4.5 buildable source [source-import]"
+          git push origin HEAD:refs/heads/feature/engineering-network-v45-concrete-20261111
