@@ -1,0 +1,46 @@
+name: Atlas standby official-source ingest (preview-only)
+on:
+  push:
+    branches:
+      - feature/engineering-network-v45-concrete-20261111
+    paths:
+      - .github/workflows/en-atlas-standby-refresh.yml
+      - apps/engineering-network/scripts/standby_official_refresh.py
+  workflow_dispatch:
+
+# On this isolated feature branch the job is push/manual-triggered.
+# GitHub scheduled workflows run only from a repository's DEFAULT branch.
+# Supabase pg_cron is the independent daily scheduler; do not merge this
+# file to the production main branch merely to activate schedule.
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: engineering-atlas-standby-data-probe
+  cancel-in-progress: false
+
+jobs:
+  refresh-private-candidates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout engineering network feature source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Dry-run official-source response, schema and quality
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: |
+          set -euo pipefail
+          python3 apps/engineering-network/scripts/standby_official_refresh.py --dry-run --lookback-days 3 --max-pages 2
+      - name: Authenticate using GitHub OIDC and stage ONLY pending-review source candidates
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: |
+          set -euo pipefail
+          python3 apps/engineering-network/scripts/standby_official_refresh.py --lookback-days 3 --max-pages 4
+      - name: Explicit nonproduction postcondition
+        run: |
+          echo 'No user tables or public Atlas snapshot were written. All candidate updates are private pending review.'
