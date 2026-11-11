@@ -1,0 +1,79 @@
+name: Engineering Network V4.5 source build and integrity
+on:
+  push:
+    branches:
+      - feature/engineering-network-v45-concrete-20261111
+    paths:
+      - apps/engineering-network/**
+      - .github/workflows/engineering-network-source-ci.yml
+  pull_request:
+    paths:
+      - apps/engineering-network/**
+      - .github/workflows/engineering-network-source-ci.yml
+
+permissions:
+  contents: read
+
+jobs:
+  build-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: apps/engineering-network
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Validate source and authorship disclosure
+        run: |
+          set -euo pipefail
+          test -f src/pages/FeedPage.jsx
+          test -f src/components/modals/EngineeringPublisherWizard.jsx
+          test -f src/components/article/EngineeringCloudDrafts.jsx
+          test -f src/services/enPilotClient.js
+          test -f src/data/engineeringArticleLayouts.js
+          test -f public/data/atlas/worldbank-projects.json
+          test -f public/data/atlas/uk-procurement.json
+          test -f package-lock.json
+          test "$(find public/visual-templates -name '*.svg' | wc -l)" -eq 52
+          grep -q 'noindex,nofollow' index.html
+          python3 - <<'PY'
+          import pathlib,re
+          manifest=pathlib.Path("public/visual-templates/manifest.json").read_text()
+          assert '"count": 52' in manifest
+          assert 'not photographs of the referenced project' in manifest
+          banned=re.compile(r'(sb_secret_[A-Za-z0-9_-]{12,}|sk-[A-Za-z0-9]{20,}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----)')
+          scanned=0
+          for root in ('src','scripts'):
+            for file in pathlib.Path(root).rglob('*'):
+              if file.is_file() and file.suffix in ('.js','.jsx','.ts','.tsx','.mjs','.json'):
+                scanned+=1
+                if banned.search(file.read_text(errors='replace')):
+                  raise SystemExit("Refusing to pass secret-like data in source file: "+str(file))
+          print("INTEGRITY: 52 illustrations, required source modules, noindex pilot, "+str(scanned)+" source files scanned")
+          PY
+
+      - name: Install pinned dependencies and build
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm run build
+          test -f dist/index.html
+          test -f dist/data/atlas/manifest.json
+          test -f dist/data/atlas/worldbank-projects.json
+
+      - name: Audit editor rule behavior
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'JS'
+          import {ENGINEERING_ARTICLE_LAYOUTS,auditEngineeringArticle,exportEngineeringArticleHtml} from './src/data/engineeringArticleLayouts.js';
+          if(ENGINEERING_ARTICLE_LAYOUTS.length!==8)throw new Error('Editor layouts not 8');
+          const out=auditEngineeringArticle({headline:'Test',answers:{method:'30 mm = 4 cm',evidence:'No publishable evidence yet',outcome:'100% compliant'}});
+          if(!out.issues.some(i=>i.id==='unit-equality'))throw new Error('Unit check missing');
+          const html=exportEngineeringArticleHtml({title:'<script>alert(1)</script>',layoutId:'journal'});
+          if(html.includes('<script>alert(1)</script>'))throw new Error('HTML injection');
+          console.log('EDITOR_VALIDATED: layouts, unit check, escaped HTML');
+          JS
