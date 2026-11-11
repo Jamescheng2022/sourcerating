@@ -1,3 +1,4 @@
+# Second import run: verified temporary source endpoint is HTTP 200 and source SHA256 matches.
 name: Import verified Engineering Network V4.5 full source
 on:
   push:
