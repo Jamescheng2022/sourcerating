@@ -1,0 +1,475 @@
+{
+  "schemaVersion": "source-rating-visuals/1.0",
+  "count": 52,
+  "disclosure": "All assets are generic type illustrations, not photographs of the referenced project.",
+  "templates": [
+    {
+      "id": "building-field",
+      "category": "building",
+      "style": "field",
+      "image": "/visual-templates/building-field.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "building-blueprint",
+      "category": "building",
+      "style": "blueprint",
+      "image": "/visual-templates/building-blueprint.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "building-editorial",
+      "category": "building",
+      "style": "editorial",
+      "image": "/visual-templates/building-editorial.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "building-dusk",
+      "category": "building",
+      "style": "dusk",
+      "image": "/visual-templates/building-dusk.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "industrial-field",
+      "category": "industrial",
+      "style": "field",
+      "image": "/visual-templates/industrial-field.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "industrial-blueprint",
+      "category": "industrial",
+      "style": "blueprint",
+      "image": "/visual-templates/industrial-blueprint.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "industrial-editorial",
+      "category": "industrial",
+      "style": "editorial",
+      "image": "/visual-templates/industrial-editorial.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "industrial-dusk",
+      "category": "industrial",
+      "style": "dusk",
+      "image": "/visual-templates/industrial-dusk.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "bridge-field",
+      "category": "bridge",
+      "style": "field",
+      "image": "/visual-templates/bridge-field.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "bridge-blueprint",
+      "category": "bridge",
+      "style": "blueprint",
+      "image": "/visual-templates/bridge-blueprint.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "bridge-editorial",
+      "category": "bridge",
+      "style": "editorial",
+      "image": "/visual-templates/bridge-editorial.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "bridge-dusk",
+      "category": "bridge",
+      "style": "dusk",
+      "image": "/visual-templates/bridge-dusk.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "tunnel-field",
+      "category": "tunnel",
+      "style": "field",
+      "image": "/visual-templates/tunnel-field.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "tunnel-blueprint",
+      "category": "tunnel",
+      "style": "blueprint",
+      "image": "/visual-templates/tunnel-blueprint.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "tunnel-editorial",
+      "category": "tunnel",
+      "style": "editorial",
+      "image": "/visual-templates/tunnel-editorial.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "tunnel-dusk",
+      "category": "tunnel",
+      "style": "dusk",
+      "image": "/visual-templates/tunnel-dusk.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "dam-field",
+      "category": "dam",
+      "style": "field",
+      "image": "/visual-templates/dam-field.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "dam-blueprint",
+      "category": "dam",
+      "style": "blueprint",
+      "image": "/visual-templates/dam-blueprint.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "dam-editorial",
+      "category": "dam",
+      "style": "editorial",
+      "image": "/visual-templates/dam-editorial.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "dam-dusk",
+      "category": "dam",
+      "style": "dusk",
+      "image": "/visual-templates/dam-dusk.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "energy-field",
+      "category": "energy",
+      "style": "field",
+      "image": "/visual-templates/energy-field.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "energy-blueprint",
+      "category": "energy",
+      "style": "blueprint",
+      "image": "/visual-templates/energy-blueprint.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "energy-editorial",
+      "category": "energy",
+      "style": "editorial",
+      "image": "/visual-templates/energy-editorial.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "energy-dusk",
+      "category": "energy",
+      "style": "dusk",
+      "image": "/visual-templates/energy-dusk.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "road-field",
+      "category": "road",
+      "style": "field",
+      "image": "/visual-templates/road-field.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "road-blueprint",
+      "category": "road",
+      "style": "blueprint",
+      "image": "/visual-templates/road-blueprint.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "road-editorial",
+      "category": "road",
+      "style": "editorial",
+      "image": "/visual-templates/road-editorial.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "road-dusk",
+      "category": "road",
+      "style": "dusk",
+      "image": "/visual-templates/road-dusk.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "rail-field",
+      "category": "rail",
+      "style": "field",
+      "image": "/visual-templates/rail-field.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "rail-blueprint",
+      "category": "rail",
+      "style": "blueprint",
+      "image": "/visual-templates/rail-blueprint.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "rail-editorial",
+      "category": "rail",
+      "style": "editorial",
+      "image": "/visual-templates/rail-editorial.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "rail-dusk",
+      "category": "rail",
+      "style": "dusk",
+      "image": "/visual-templates/rail-dusk.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "port-field",
+      "category": "port",
+      "style": "field",
+      "image": "/visual-templates/port-field.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "port-blueprint",
+      "category": "port",
+      "style": "blueprint",
+      "image": "/visual-templates/port-blueprint.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "port-editorial",
+      "category": "port",
+      "style": "editorial",
+      "image": "/visual-templates/port-editorial.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "port-dusk",
+      "category": "port",
+      "style": "dusk",
+      "image": "/visual-templates/port-dusk.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "water-field",
+      "category": "water",
+      "style": "field",
+      "image": "/visual-templates/water-field.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "water-blueprint",
+      "category": "water",
+      "style": "blueprint",
+      "image": "/visual-templates/water-blueprint.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "water-editorial",
+      "category": "water",
+      "style": "editorial",
+      "image": "/visual-templates/water-editorial.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "water-dusk",
+      "category": "water",
+      "style": "dusk",
+      "image": "/visual-templates/water-dusk.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "precast-field",
+      "category": "precast",
+      "style": "field",
+      "image": "/visual-templates/precast-field.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "precast-blueprint",
+      "category": "precast",
+      "style": "blueprint",
+      "image": "/visual-templates/precast-blueprint.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "precast-editorial",
+      "category": "precast",
+      "style": "editorial",
+      "image": "/visual-templates/precast-editorial.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "precast-dusk",
+      "category": "precast",
+      "style": "dusk",
+      "image": "/visual-templates/precast-dusk.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "geotech-field",
+      "category": "geotech",
+      "style": "field",
+      "image": "/visual-templates/geotech-field.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "geotech-blueprint",
+      "category": "geotech",
+      "style": "blueprint",
+      "image": "/visual-templates/geotech-blueprint.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "geotech-editorial",
+      "category": "geotech",
+      "style": "editorial",
+      "image": "/visual-templates/geotech-editorial.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "geotech-dusk",
+      "category": "geotech",
+      "style": "dusk",
+      "image": "/visual-templates/geotech-dusk.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "general-field",
+      "category": "general",
+      "style": "field",
+      "image": "/visual-templates/general-field.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "general-blueprint",
+      "category": "general",
+      "style": "blueprint",
+      "image": "/visual-templates/general-blueprint.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "general-editorial",
+      "category": "general",
+      "style": "editorial",
+      "image": "/visual-templates/general-editorial.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    },
+    {
+      "id": "general-dusk",
+      "category": "general",
+      "style": "dusk",
+      "image": "/visual-templates/general-dusk.svg",
+      "illustrativeOnly": true,
+      "source": "AI-assisted deterministic vector template",
+      "notSitePhoto": true
+    }
+  ]
+}

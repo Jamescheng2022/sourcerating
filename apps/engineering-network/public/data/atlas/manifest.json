@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "atlas-public/1.0",
+  "generatedAt": "2026-11-09T02:57:03.005744+00:00",
+  "dataType": "Read-only, source-attributed engineering/development records; not a live tender feed",
+  "totals": {
+    "worldBank": 16642,
+    "ukProcurements": 695,
+    "engineeringTitleSignal": 5340,
+    "worldBankActive": 2254,
+    "worldBankClosed": 13651,
+    "ukNoticesWithBuyer": 695,
+    "ukNoticesWithAward": 695
+  },
+  "sourceLicenses": [
+    {
+      "name": "World Bank Projects & Operations",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://www.worldbank.org/ext/en/legal/terms-conditions/datasets",
+      "datasetUrl": "https://datacatalog.worldbank.org/search/dataset/0037800/world-bank-projects-operations",
+      "attribution": "The World Bank: World Bank Projects & Operations; reformatted and filtered by Project Atlas; not endorsed by the World Bank."
+    },
+    {
+      "name": "UK Contracts Finder",
+      "license": "OGL v3.0",
+      "licenseUrl": "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
+      "datasetUrl": "https://www.gov.uk/government/publications/open-contracting",
+      "attribution": "Contains public sector information licensed under the Open Government Licence v3.0."
+    }
+  ],
+  "excluded": [
+    "website project-case content (redistribution rights unresolved)",
+    "individual contacts and private data",
+    "inferred identity matches"
+  ],
+  "dataFiles": {
+    "worldbank-projects.json": {
+      "sha256": "861ace9480e1d02b300b0d2f0d17599f2130efcabf33df9ea94f9c4c9f06a83d",
+      "bytes": 10349507,
+      "records": 16642
+    },
+    "uk-procurement.json": {
+      "sha256": "15745db0cb28d79554fd7f766d71e6dfb2f0679a320eddfea66c529e2c227d95",
+      "bytes": 948063,
+      "records": 695
+    }
+  },
+  "limits": [
+    "World Bank projects are not all engineering construction projects.",
+    "Source status is not construction phase.",
+    "Buyer and supplier links reflect source-declared OCDS data, not independent identity verification.",
+    "Geocoordinates and exact jobsite locations are not verified.",
+    "No evidence that award equals contract execution."
+  ]
+}

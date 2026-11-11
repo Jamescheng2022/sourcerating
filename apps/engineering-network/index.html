@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+    <title>工程行业网络 (暂称) · Engineering Network</title>
+    <meta name="robots" content="noindex,nofollow" />
+    <meta name="description" content="工程行业网络 (暂称) — 汇聚工程行业人脉、企业、现场动态与重点项目关系图谱 (Project Atlas 模块)" />
+    <script>
+      (function() {
+        try {
+          var theme = localStorage.getItem('atlas_theme_mode');
+          if (theme === 'dark' || theme === 'light') {
+            document.documentElement.setAttribute('data-theme', theme);
+          }
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body class="bg-canvas text-ink antialiased min-h-screen flex flex-col">
+    <div id="root" class="flex-1 flex flex-col w-full max-w-full min-w-0"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

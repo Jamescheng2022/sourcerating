@@ -1,0 +1,36 @@
+{
+  "name": "engineering-network-ux-spike-20261029",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Engineering Network / Project Atlas - Core Project Dynamic Profile UX Spike (Approach A & Approach B)",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check:evidence": "node scripts/check-evidence.js",
+    "check:links": "node scripts/check-links.js",
+    "check:zh": "node scripts/check-zh.js",
+    "test:full-b": "node scripts/capture-full-b.js",
+    "test:verify-fixes": "node scripts/verify-fixes.js",
+    "test:lead-r3": "node scripts/verify-lead-r3.js",
+    "test:v3": "node scripts/verify-v3-e2e.js",
+    "test:v4": "node scripts/verify-v4-milestone.js",
+    "test:v41": "node scripts/verify-v41-milestone.js",
+    "test:publisher": "node scripts/verify-engineering-p0p1.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.119.0",
+    "lucide-react": "^1.64.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-router-dom": "^7.18.5"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.1.2",
+    "autoprefixer": "^10.6.2",
+    "postcss": "^8.5.32",
+    "puppeteer-core": "^25.16.0",
+    "tailwindcss": "^3.4.19",
+    "vite": "^8.3.5"
+  }
+}

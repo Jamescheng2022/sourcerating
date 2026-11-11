@@ -1,0 +1,146 @@
+/**
+ * Engineering Network V4 Design System Tokens
+ * Semantic light/dark token system
+ * Default: Light (#FAFAF8 canvas, #FFFFFF surface, #1C1F23 ink, #5B6168 ink-muted, #0E8F6B emerald accent, #E6E7E9 border-hairline)
+ * Dark variant behind @media (prefers-color-scheme: dark) + data-theme override
+ */
+
+:root {
+  /* Light Theme (Default, No JS Required) */
+  --bg-canvas: #FAFAF8;
+  --bg-canvas-subtle: #F3F4F1;
+  --bg-surface: #FFFFFF;
+  --bg-surface-subtle: #F6F7F8;
+  --bg-surface-hover: #F0F2F4;
+  --bg-surface-active: #E6E9EC;
+
+  --ink-primary: #1C1F23;
+  --ink-muted: #5B6168;
+  --ink-faint: #8C939D;
+  --ink-on-accent: #FFFFFF;
+
+  --accent: #0E8F6B;
+  --accent-hover: #0B7356;
+  --accent-active: #095C45;
+  --accent-subtle: #E8F5F1;
+  --accent-text: #0E8F6B;
+
+  --border-hairline: #E6E7E9;
+  --border-subtle: #D6D9DE;
+  --border-strong: #A9AFB8;
+
+  --card-bg: #FFFFFF;
+  --card-border: #E6E7E9;
+  --card-hover: #F9FAFB;
+
+  --chip-bg: #F0F2F4;
+  --chip-text: #2D3238;
+  --chip-border: #E0E3E7;
+
+  --tag-bg: #F2F4F5;
+  --tag-text: #374151;
+
+  --input-bg: #FFFFFF;
+  --input-border: #D6D9DE;
+  --input-focus-border: #0E8F6B;
+
+  --illustration-bg: #151E2E;
+  --illustration-panel-bg: #0B1120;
+  --illustration-stroke: #94A3B8;
+
+  color-scheme: light;
+}
+
+/* System Dark Theme (behind prefers-color-scheme: dark, unless overridden with data-theme="light") */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg-canvas: #0b1120;
+    --bg-canvas-subtle: #070b14;
+    --bg-surface: #0f172a;
+    --bg-surface-subtle: #1e293b;
+    --bg-surface-hover: #334155;
+    --bg-surface-active: #475569;
+
+    --ink-primary: #f8fafc;
+    --ink-muted: #94a3b8;
+    --ink-faint: #64748b;
+    --ink-on-accent: #ffffff;
+
+    --accent: #10b981;
+    --accent-hover: #059669;
+    --accent-active: #047857;
+    --accent-subtle: rgba(16, 185, 129, 0.15);
+    --accent-text: #34d399;
+
+    --border-hairline: #1e293b;
+    --border-subtle: #334155;
+    --border-strong: #475569;
+
+    --card-bg: #151e2e;
+    --card-border: #334155;
+    --card-hover: #1e293b;
+
+    --chip-bg: #1e293b;
+    --chip-text: #cbd5e1;
+    --chip-border: #334155;
+
+    --tag-bg: #1e293b;
+    --tag-text: #cbd5e1;
+
+    --input-bg: #0b1120;
+    --input-border: #334155;
+    --input-focus-border: #10b981;
+
+    --illustration-bg: #151e2e;
+    --illustration-panel-bg: #0b1120;
+    --illustration-stroke: #94a3b8;
+
+    color-scheme: dark;
+  }
+}
+
+/* User Explicit Dark Override */
+:root[data-theme="dark"] {
+  --bg-canvas: #0b1120;
+  --bg-canvas-subtle: #070b14;
+  --bg-surface: #0f172a;
+  --bg-surface-subtle: #1e293b;
+  --bg-surface-hover: #334155;
+  --bg-surface-active: #475569;
+
+  --ink-primary: #f8fafc;
+  --ink-muted: #94a3b8;
+  --ink-faint: #64748b;
+  --ink-on-accent: #ffffff;
+
+  --accent: #10b981;
+  --accent-hover: #059669;
+  --accent-active: #047857;
+  --accent-subtle: rgba(16, 185, 129, 0.15);
+  --accent-text: #34d399;
+
+  --border-hairline: #1e293b;
+  --border-subtle: #334155;
+  --border-strong: #475569;
+
+  --card-bg: #151e2e;
+  --card-border: #334155;
+  --card-hover: #1e293b;
+
+  --chip-bg: #1e293b;
+  --chip-text: #cbd5e1;
+  --chip-border: #334155;
+
+  --tag-bg: #1e293b;
+  --tag-text: #cbd5e1;
+
+  --input-bg: #0b1120;
+  --input-border: #334155;
+  --input-focus-border: #10b981;
+
+  --illustration-bg: #151e2e;
+  --illustration-panel-bg: #0b1120;
+  --illustration-stroke: #94a3b8;
+
+  color-scheme: dark;
+}
