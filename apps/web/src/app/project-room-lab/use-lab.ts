@@ -24,6 +24,8 @@ interface State {
   failNext: boolean;
   typing: { roomId: string; userId: string } | null;
   draftInsert: { text: string; nonce: number } | null;
+  /** Real adapter only: rooms whose full history is loaded. */
+  ended?: Record<string, boolean>;
 }
 
 const OLDER_CAP = 120;
@@ -209,7 +211,7 @@ export function useLab() {
     },
   };
 
-  return { s, set, meId, user, org, myRooms, room, msgs, actions };
+  return { s, set, meId, user, org, myRooms, room, msgs, actions, real: false as boolean };
 }
 
 export type Lab = ReturnType<typeof useLab>;

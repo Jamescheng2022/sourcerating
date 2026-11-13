@@ -76,7 +76,7 @@ export function ChatPane({ lab, toast, onBack }: { lab: Lab; toast: (t: string) 
   // Older history loads when the top is reached, except while a programmatic jump settles
   // (a prepend mid-jump would shift the target). The header button is the manual fallback.
   const pageOlder = () => { if (Date.now() > holdPaging.current) actions.loadOlder(); };
-  const ended = older >= 120;
+  const ended = lab.real ? !!s.ended?.[room.id] : older >= 120;
   const loadRef = useRef(() => {});
   useEffect(() => { loadRef.current = () => actions.loadOlder(); });
   const parts = useMemo(() => ({
@@ -118,6 +118,7 @@ export function ChatPane({ lab, toast, onBack }: { lab: Lab; toast: (t: string) 
           <button type="button" className={css.iconBtn} onClick={() => (s.panel.open ? actions.closePanel() : actions.openPanel(s.panel.tab))} aria-label={s.panel.open ? "关闭项目面板" : "打开项目面板"} aria-pressed={s.panel.open}>
             <PanelRight size={18} />
           </button>
+          {!lab.real && (
           <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild>
               <button type="button" className={css.demoBtn} aria-label="演示控制"><FlaskConical size={14} /><span className={css.hideNarrow}>DEMO</span></button>
@@ -133,6 +134,7 @@ export function ChatPane({ lab, toast, onBack }: { lab: Lab; toast: (t: string) 
               </DropdownMenu.Content>
             </DropdownMenu.Portal>
           </DropdownMenu.Root>
+          )}
         </div>
       </header>
 
@@ -231,7 +233,7 @@ function Composer({ lab, initial, saveDraft }: { lab: Lab; initial: string; save
       {file && (
         <div className={css.attach}>
           <FileIcon kind={file.type.startsWith("image/") ? "image" : "pdf"} />
-          <span><b>{file.name}</b>{formatSize(file.size)} · 演示：仅保存在本页，不上传</span>
+          <span><b>{file.name}</b>{formatSize(file.size)}{lab.real ? "" : " · 演示：仅保存在本页，不上传"}</span>
           <button type="button" className={css.iconBtn} onClick={() => { setFile(null); if (pick.current) pick.current.value = ""; }} aria-label="移除附件"><X size={16} /></button>
         </div>
       )}
