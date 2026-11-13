@@ -1,10 +1,11 @@
 # SourceRating — Master PDR v3.1 | Chat-First Core Baseline
 
-**副标题：面向中小企业复杂 B2B 采购与项目协作的 AI 原生聊天工作空间、证据链及双边增长基础设施**  
+**副标题：面向中小企业定制化产品、专业服务、工程协作与物流等复杂跨企业业务的 AI 原生聊天基础设施**  
 **版本：** v3.1（2026-11-13，提交 Claude 独立设计与技术审计）  
 **状态：** Owner 待批准的产品设计基线；**不代表源码已合并、生产已上线或真实客户验收**  
 **产品口号：** *Chat naturally. AI works silently. Business remembers.*  
-**产品规则：** *Chat is the product. Procurement is the context. AI is the assistant. Evidence is the asset.*  
+**产品规则：** *Chat is the product. Cross-company work is the context. AI is the assistant. Evidence is the asset.*  
+**范围澄清（Owner 2026-11-13）：** 商品采购只是其中一种工作场景；服务委托、工程设计与复核、地勘与桩基检测、物流、技术咨询及跨企业项目履约均属于通用协作基础设施，不应以 RFQ/报价定义所有项目。  
 **开发规则：** *Build the Core, Integrate the Rest. Freeze the skeleton, refine the organs.*  
 **前置参考：** 早期 SourceRating PDR v3.0 与 2026-11-13 Project Room 只读审计；本文件已包含核心产品决策和关键源码链接，不依赖其他附件。
 
@@ -12,9 +13,9 @@
 
 ## 执行摘要：这次纠偏是什么
 
-SourceRating 的长期定位已经在 2026 年 7 月至 10 月的讨论中建立：它首先是一款**几乎零学习成本、像微信 / WhatsApp / LINE 一样自然的跨企业采购群聊工具**。买方与卖方以各自独立企业身份互相邀请，使用自己熟悉的聊天方式发送消息、图片、语音、文件、图纸、报价与确认。系统在后台保持原始过程，AI 静默抽取技术条件、报价、变更、承诺、风险、任务及相关证据；真正重要的改变通过 Needs You 交给有权人员确认。每次采购自然沉淀为两家企业各自有权限的过程记忆与可复用的 Agent 上下文。
+SourceRating 的长期定位已经在 2026 年 7 月至 10 月的讨论中建立：它首先是一款**几乎零学习成本、像微信 / WhatsApp / LINE 一样自然的跨企业协作群聊工具**。商品买卖双方、服务委托方与专业服务提供方、设计/检测/物流等协作组织以各自独立身份互相邀请，使用自己熟悉的聊天方式发送消息、图片、语音、文件、图纸、报价与确认。系统在后台保持原始过程，AI 静默抽取技术条件、报价、变更、承诺、风险、任务及相关证据；真正重要的改变通过 Needs You 交给有权人员确认。每次真实合作自然沉淀为各参与企业在其权限范围内可使用的过程记忆、可追溯履约证据和可复用的 Agent 上下文。
 
-**这不是“在采购 SaaS 里加聊天”，而是“在原生聊天之上自然长出复杂 B2B 采购协作”**。不要求用户先填写复杂 RFQ 表单、学习采购管理界面或使用电子表格才能开始交谈。项目和业务对象可以由系统随过程提取；用户可以随时显式创建或修正，但无需先建立一串流程节点。
+**这不是“在采购 SaaS 里加聊天”，而是“从原生跨企业聊天中自然长出定制化交易、专业服务与项目履约协作”**。不要求用户先填写复杂 RFQ 表单、学习采购管理界面或使用电子表格才能开始交谈。项目和业务对象可以由系统随过程提取；用户可以随时显式创建或修正，但无需先建立一串流程节点。
 
 独立专业工具（视频会议、Office、CAD/BIM、3D、OCR、CRM/ERP/OA、财务、物流）优先通过 SDK、API、Webhook、MCP、Deep Link 连接，不能反过来把聊天核心弱化为插件合集。WePrefab 的 3D 参数化设计与 BOM 引擎不是 SourceRating 必须亲自制造的核心技术；但其设计版本/构件/BOM/报价与聊天过程的精确关联是 SourceRating 的关键集成场景。
 
@@ -40,6 +41,8 @@ SourceRating 的长期定位已经在 2026 年 7 月至 10 月的讨论中建立
 
 ### 1.1 原始工作行为，而不是采购 SaaS 的菜单
 
+同一底层行为也发生在专业服务：业主询问检测公司“这批桩能否安排 PDA 和静载、什么时候出报告？”；工程项目委托波兰专业设计公司审图并与当地持证工程师澄清责任；货代与买方/工厂反复确认箱单、订舱、清关和延误。这些工作不是简单购买标准 SKU，往往具有长周期、多方参与、高频沟通、专业文件和逐步明确的交付范围。项目进入系统无需先声明自己是商品采购还是服务采购。
+
 中小企业的复杂采购经常始于一句话：“这个图纸能不能做？大概多少钱？交期多久？”接着是微信/WhatsApp/LINE 群聊、邮件、PDF/Excel、图片、语音、截图以及反复确认。许多企业不愿为了一个供应商安装新的 ERP，采购负责人也不会为了发送一条消息先创建几十个字段的 RFQ。行业差异很大，但**人和人围绕需求交流、澄清、谈条件、传文件、确认和执行的行为**在行业间高度相似。
 
 过去软件将这些动作拆分为 ERP、CRM、SRM、PLM、OA、邮件、云盘和 IM；真正导致损失的往往是无法回答：“现在说的是哪一版图纸？这个数字是谁说的？谁批准了？报价为什么变？客户到底承诺了什么？之前类似采购在哪里做过？”
@@ -63,7 +66,7 @@ SourceRating 的长期定位已经在 2026 年 7 月至 10 月的讨论中建立
 ## 2. 产品宪法：不得在局部开发中推翻
 
 1. **Chat First / Near-zero Learning Curve：**用户首先进入聊天，像在常见 IM 里建群和沟通，不被 RFQ、CRM、ERP 表单挡在前面。
-2. **买卖双方双向发起：**Organization 与用户可在不同项目扮演不同角色，不把 Buyer/Supplier 写死为全局身份；企业可互相邀请。
+2. **双方/多方双向发起：**Organization 与用户可在不同项目扮演买方、卖方、委托方、服务方、工程师、检测方、物流方、顾问等角色；不是全局固定 Buyer/Supplier，任何被邀请的组织都可独立发起新 Room。
 3. **原生 Project Room 为正式协作场：**微信、WhatsApp、LINE、邮件用于邀请、通知、召回；不依赖抓取私人聊天数据来维持完整证据链。导入历史数据必须另行授权和标注来源完整性。
 4. **PC 三栏稳定：**左侧组织/项目/Room，中间群聊/文件工作台，右侧 AI / Needs You / 进度/证据；手机默认全屏聊天，其他功能抽屉化。
 5. **聊天体验为 P0：**即时反馈、历史分页、消息引用/回复、附件、检索、未读、移动键盘、断线重试、同步和通知。禁止为了 AI 增加发送延迟。
@@ -72,7 +75,7 @@ SourceRating 的长期定位已经在 2026 年 7 月至 10 月的讨论中建立
 8. **AI 安静地做助理：**实时保存，近实时/定时整理均可；模型故障不影响正常聊天。
 9. **人类确认商业状态：**AI 提出 Staging Proposal；Needs You 由有权人处理；Canonical 不能因为一句模糊确认或机器翻译自动写入。
 10. **强权限隔离：**买方内部房间和不同供应商房间隔离；授权先于检索，所有数据和 AI 输出遵守 RLS/服务端检查。
-11. **先过程，后组织记忆：**原始记录、AI 派生、人工批准状态、业务记忆分层，保留来源和版本关系。
+11. **先过程，后组织记忆：**原始记录、AI 派生、人工批准状态、业务记忆分层，保留来源和版本关系。组织档案可根据经授权的真实项目、交付物、专业资质及核验证据逐步形成；**不要求建立中心化评分，也不自动公开 AI 推断的能力排名**。
 12. **买方和卖方各有资产：**双方企业对自己有权保留的信息形成自己的客户/供应商知识库，不擅自继承对方商业秘密。
 13. **对象关联而非全局自动共享：**Person↔Organization↔Project↔Room↔Requirement↔Quote↔File 等 Match & Link 必须能解释、撤销和审计。
 14. **Build Core, Integrate Rest：**聊天、协作对象、权限、证据、记忆和集成治理自己掌握；Zoom、Office、CAD、3D、CRM/ERP/OA 优先复用。
@@ -87,17 +90,21 @@ SourceRating 的长期定位已经在 2026 年 7 月至 10 月的讨论中建立
 
 ### 3.1 产品定义
 
+**SourceRating 是 Chat-first、AI-native 的通用跨企业协作基础设施，不是只针对商品采购的电子商务网站。**
+
 **SourceRating = Collaboration Kernel + Document Context + AI Decision Layer + Evidence Ledger + Business Memory + Integration Hub + Configurable Workflows。**
 
-首期目标客户是有真实跨企业技术/商务澄清的采购负责人、项目经理、设计/技术主管、制造商销售、供应链代理和专业服务方，而非单纯追求热闹的社交用户。
+产品覆盖需要反复协商、形成专业成果和共同承担交付责任的工作：产品/设备定制采购、工程设计审查、地勘/桩基/材料检测、专业咨询、安装施工协同、运输清关及其他定制化服务。交易和支付可以发生，也可以只完成服务验收或项目协调；不能强制所有 Room 具有 RFQ、商品行或供应商报价。
 
-### 3.2 Buyer OS / Supplier OS / Agent Workspaces
+首期目标客户是有真实跨企业技术/商务沟通的采购负责人、项目经理、设计/技术主管、制造商销售、工程设计/审查人员、检测机构、物流/货代、供应链代理和其他专业服务方，而非单纯追求热闹的社交用户。
 
-- **Buyer OS：**项目、RFQ、技术文件、独立供应商 Room、报价比较、风险、内部审批、采购决策、交付和历史供应商记忆。
-- **Supplier OS：**客户询盘、产品能力、报价、版本、技术答疑、内部技术/销售/财务审批、交货和客户关系记忆。
+### 3.2 Organization OS：Buyer / Seller / Client / Service Provider / Agent Workspaces
+
+- **Buyer / Client OS：**项目、专业服务委托或 RFQ、技术文件、各承接方独立 Room、方案/报价比较、风险、内部审批、技术确认、成果验收和合作历史。
+- **Supplier / Service Provider OS：**产品、服务范围、专业资质、报价或服务方案、文件版本、技术答疑、内部审批、阶段成果、交付、验收及客户关系记忆。检测、设计、物流公司与制造商拥有同等完整的独立组织工作空间。
 - **Independent Agent / Professional Workspace：**受托参与、线索归属、独立顾问、QC、物流、工程师与客户之间的授权协作。佣金结算作为后续可选功能，不是平台首期前提。
 
-同一公司可能在 A 项目是买方、在 B 项目是卖方。跨项目复用的是**本企业有权拥有的**资料和记忆，而不是直接把另一企业的商业秘密纳入自家知识库。
+同一公司可能在 A 项目是买方、在 B 项目是卖方，在 C 项目是专业服务委托方或承接方。跨项目复用的是**本企业有权拥有的**资料和记忆，而不是直接把另一企业的商业秘密纳入自家知识库。
 
 ### 3.3 双边增长飞轮：两边必须真正独立 [HYPOTHESIS]
 
@@ -134,6 +141,24 @@ SourceRating 的长期定位已经在 2026 年 7 月至 10 月的讨论中建立
 - 不在首期托管买卖双方货款或自动执行佣金支付；支付和佣金合规另案处理。
 
 **实证要求：**先让 5–10 个真实跨企业项目/2–3 个行业场景跑通，记录是否减少信息重复、技术误解、漏项和审批时间。NEWMEDA 可作为真实业务试点，但不得伪造供应商、报价或订单。
+
+### 3.5 通用协作基础设施：业务自然生长，不预设“商品采购” [REQUIRED]
+
+**核心产品不是某一种采购流程，而是一个可承载长期跨企业信任与工作过程的自然沟通空间。** 服务、产品、专业审查、物流、安装与其他业务可以是同一项目的不同 Work Package，也可以是单独的 Engagement。底层始终是组织、人员、项目、Room、消息、文件、权限、证据、人工确认和记忆；各种业务流程应从真实对话中逐步浮现，而不是先靠大量表单把用户带入某个垂直行业。
+
+| 代表场景 | 参与者与自然起点 | 自然长出的业务对象与证据 |
+|---|---|---|
+| **工程检测服务** | 业主/总包 ↔ 检测机构 ↔ 现场负责人 ↔ PE/设计人员；讨论测试方法、点位、时间 | 服务范围、Method Statement、检测安排、现场原始数据、试验报告、专业审核、设计方接受/异议与责任记录；不得用 PDA 自动代替规范要求的静载试验 |
+| **跨国设计与专业审查** | 海外业主 ↔ 波兰等国的设计公司/工程师 ↔ 当地持证设计师；讨论图纸转换、规范适配、责任边界 | 设计任务书、图纸版本、RFI、计算书、设计偏差、审查意见、专业签核、监管/许可进度与确认；AI 不能冒充持证人员批准 |
+| **跨境物流与清关** | 制造商 ↔ 买方 ↔ 货代 ↔ 报关/运输方；讨论包装、订舱、ETA、文件遗漏 | 包装清单、提单、舱位、HS申报参考、交付节点、异常事件、回执、签收及费用澄清 |
+| **定制化商品/构件采购** | 买方 ↔ 工厂 ↔ 设计/质检；由一张图纸或一句需求开始 | 规格、BOM、RFQ、报价版本、生产变更、质检、装运、验收 |
+| **工程咨询与施工协同** | 业主 ↔ 顾问 ↔ 分包/安装 ↔ 监理；围绕现场问题长期沟通 | 服务工作包、建议、整改、照片、NCR、会议结论、里程碑、成果与验收 |
+
+**档案自然形成（Evidence-backed Organization Profile）：** 在权限与明确授权范围内，企业可由参与过的项目、实际工作包、提交过的交付物、专业证书与核验状态、承诺及履行情况逐步形成“可追溯能力档案”。其数据要区分“企业自述/交易对手陈述/提交文件/第三方核验/实际履约”；不自动把 AI 评价、聊天语气或少量样本转换为公开信誉评分、客户排行榜或敏感商业推断。跨组织公开可见内容必须经授权确认。客户需要时可以进行有依据的查询和筛选，而不是要求每家企业先被平台打分。
+
+**双飞轮普适化：** Buyer/Supplier 是产品交易场景的简称；服务场景为 Client/Provider，物流场景可能有多名平等参与者。任何组织从受邀请者成长为独立的 Room 发起者，都属于飞轮成功。应保留两个核心指标：活跃跨组织 Room、Invitee → New Room Owner，并观察服务方和制造商是否都能主动邀请客户。
+
+**自然生长 ≠ 不设计底层。** 必须预先做扎实组织身份、Room 成员隔离、事件与文件版本、EvidenceRef、Work Package/Deliverable 通用对象、AI 授权上下文、Approval/Review 可扩展接口、可撤销 Match & Link 与 Integration Hub。行业扩展不反过来修改这些内核契约。
 
 ## 4. 首期不可缺席的客户体验：三栏 Project Workspace
 
@@ -192,11 +217,11 @@ SourceRating 的长期定位已经在 2026 年 7 月至 10 月的讨论中建立
 
 **体验测试不是请内部开发者评价好不好看，而是让从未见过产品的采购员/供应商在不看说明的情况下完成建群、收发、文件、引用、翻译、Ask AI。**
 
-### 4.7 采购工作流必须“从聊天长出来”，而不是阻塞聊天
+### 4.7 业务工作流必须“从聊天长出来”，而不是阻塞聊天
 
 自然聊天中，用户可以直接问“这个 200 套能做吗？”、上传图纸、让供应商回复价格。系统可以建议生成 `Requirement`、`RFQ`、`Quote` 或 `Clarification`，但必须区分：机器提议、被邀请方陈述、相对方知悉、双方同意、授权内部批准以及实际履行状态。业务卡片在聊天和右栏适度出现，不强迫所有对话先被录成表单。报价对比和工程审批可以切到工作台，但用户始终能回到原始讨论。
 
-## 5. 第一版完整业务旅程（两个真实用户故事）
+## 5. 第一版完整业务旅程（商品与专业服务均可进入同一基础设施）
 
 1. 买方注册并创建 Organization 与 Project。
 2. 买方建立内部 Room，上传 RFQ/BOM/规格图，文件保存到云端并形成版本/哈希。
@@ -224,7 +249,11 @@ SourceRating 的长期定位已经在 2026 年 7 月至 10 月的讨论中建立
 5. D 可带来其内部工程师或其他供应商，但成员只能看到明确授权的 Room；不同供应商互不看对方报价。
 6. 该新业务达成真实的沟通与一个可追溯的决定，并形成 `Invitee → New Room Owner` 的指标事件。
 
-### 5.3 Link / Match：不是海量抓取联系人
+### 5.3 第三种必测场景：专业服务 + 多组织协作 [REQUIRED]
+
+一名委托方创建“工程检测”或“跨国设计审查”Room，邀请专业服务公司及有授权的工程师。双方自然聊天，发送设计/试验文件并形成版本；AI 识别 Work Package、需澄清的问题、时间和交付物；专业审核与客户确认各有独立责任人。交付物和核验证据进入各自有权限的长期档案。验收中**不得要求先创建 RFQ/商品 SKU/报价行**。随后受邀服务公司独立创建自己的新项目，邀请另一客户，验证服务版双边飞轮。
+
+### 5.4 Link / Match：不是海量抓取联系人
 
 采用**可确认的关系图谱**：Person、Organization、Project、Room、Counterparty、Product/Component、FileVersion、Requirement、RFQ、Quote、Decision、EvidenceRef。一个人可属于多组织，一个企业可同时做不同项目的买方/供应商，一个文件可在不同 Project 中有不同授权范围。AI 可以建议匹配联系人、旧项目、相似 SKU、规格版本，但不得越权推断同一实体、自动公开隐私关系或未经确认合并两家企业档案。
 
@@ -234,17 +263,21 @@ SourceRating 的长期定位已经在 2026 年 7 月至 10 月的讨论中建立
 
 ### 6.1 内核实体
 
-`User, Organization, Membership, Project, ProjectParticipant, Room, RoomMember, MessageEvent, Thread, FileAsset, FileVersion, Annotation, EvidenceRef, AIAnalysis, StagingProposal, NeedsYou, CanonicalObject, Decision, Commitment, Task, Approval, IntegrationConnection, ExternalObjectRef, MemoryItem, AuditEvent`。
+`User, Organization, Membership, Project, ProjectParticipant, Engagement, WorkPackage, Deliverable, ParticipantRole, Room, RoomMember, MessageEvent, Thread, FileAsset, FileVersion, Annotation, EvidenceRef, AIAnalysis, StagingProposal, NeedsYou, CanonicalObject, Decision, Commitment, Task, Approval, IntegrationConnection, ExternalObjectRef, MemoryItem, CapabilityClaim, AuditEvent`。**Engagement / WorkPackage / Deliverable 是行业无关的一等对象；商品采购、专业服务和物流均复用。**
 
-### 6.2 采购扩展对象
+### 6.2 领域扩展对象（不强制所有项目拥有 RFQ）
 
-`Requirement, Specification, RFQ, RFQLine, SupplierResponse, Quote, QuoteLine, QuoteRevision, ScopeDeviation, Contract, PO, Shipment, Inspection, InvoiceReference, PaymentStatus, Outcome`。
+- **可选商品采购：** `Requirement, Specification, RFQ, RFQLine, SupplierResponse, Quote, QuoteLine, QuoteRevision, ScopeDeviation, Contract, PO, Inspection, InvoiceReference, PaymentStatus, Outcome`。
+- **专业服务：** `ServiceRequest, ScopeOfWork, Proposal, ProfessionalCredentialReference, MethodStatement, ReviewComment, ReviewResponsibility, ServiceMilestone, ServiceReport, AcceptanceRecord`。
+- **物流履约：** `Shipment, Booking, PackingList, TrackingEvent, CustomsDocumentReference, DeliveryReceipt, ExceptionCase`。
+
+这些对象只在对应业务确实需要时启用，由对话、文件、外部回执或人工操作产生；**不可把 RFQ/报价/PO 当作所有跨企业 Room 的强制上游对象**。
 
 每类对象具有 ID、Owner Organization、项目、版本、状态、来源证据、权限范围、责任人、时间和外部 ID 映射。重要对象的历史版本是追加式，不能直接无痕覆盖。
 
 ### 6.3 通用协作工作流
 
-`Requirement → Clarification ↔ Quote → Evaluation → Approval → Contract / Order → Execution ↔ Change → Delivery / Inspection → Close / Learn`。
+**通用协作语义：**`Conversation → Scope / Requirement → Clarification ↔ Proposal / Technical Review → Authorization / Agreement → Work / Delivery → Review / Acceptance → Close / Learn`。商品采购可从中投影为 `RFQ → Quote → PO`；检测服务可投影为 `Scope → Method Statement → Testing → Professional Review → Report Acceptance`；物流可投影为 `Booking → Documents → Transport Events → Delivery / Claims`。
 
 实际流程不应硬编码为唯一顺序。企业与 Vertical Pack 可以配置节点、前置条件、审批角色、必需证据、SLA 和完成条件。核心引擎支持版本化规则、事件触发、超时、重试和人工干预。
 
@@ -380,7 +413,13 @@ P0 建立 **Connector Framework**（Registry、权限、映射、Webhook/Action 
 
 SourceRating 保有通用协作层；行业包只实现领域特有的数据字段、规则、专业工具和工作流模板：预制建筑、钢结构、定制机械、工业设备、OEM/ODM、工程服务、物流与检验等。
 
-### 11.1 WePrefab × SourceRating 关系
+### 11.1 服务与物流同样是独立行业包
+
+- **Engineering Services Pack：** 设计转换、合规审查、专业签署、地勘、桩基/材料检测、结构质量监测、独立技术咨询；以交付物、证据和责任链为核心，不默认产品 SKU。
+- **Logistics Pack：** 订舱、运输、清关单证、到货检验、异常与索赔，优先接入已有物流 SaaS/承运商 API；聊天、文件和异常证据仍留在 Room。
+- **Manufacturing/WePrefab Pack：** 项目模型、设计版本、BOM、报价和构件交付是行业专业扩展，不得反向决定 SourceRating 核心身份、聊天或数据模型。
+
+### 11.2 WePrefab × SourceRating 关系
 
 - **WePrefab：**3D 配置、`ProjectSpec/PrefabSpec`、构件图、BOM、设计快照、确定性变更影响、成本/运输/工程状态。保留自己的设计引擎和领域数据库。
 - **SourceRating：**企业、项目协作、Room、文件权限、供应商讨论、报价业务对象、AI、Needs You、证据和采购记忆。
@@ -388,9 +427,9 @@ SourceRating 保有通用协作层；行业包只实现领域特有的数据字�
 
 设计变更时，WePrefab 通过确定性依赖/哈希计算标记受影响的 BOM/报价行 `Recheck required`；SourceRating 记录变更原因、讨论、确认和证据。AI 可以解释和发现遗漏，但不能凭推断替代确定性变更判定。
 
-### 11.2 轻量供应商入口 + 完整 Room 同时存在
+### 11.3 轻量合作方入口 + 完整 Room 同时存在
 
-Supplier Share Link 是 Project Room 的轻量入口，而非替代品：供应商可快速查看受限 RFQ、逐行报价和上传文件；需要多轮讨论时直接进入同一项目 Room，无需迁移文件或丢失上下文。对于尚未接受新平台的工厂，邮件/微信负责触达，回复可经授权导入；但不应以假设式“自动抓取微信”作为首期依赖。
+Partner / Supplier Share Link 是 Project Room 的轻量入口，而非替代品：供应商可快速查看受限 RFQ、逐行报价和上传文件；需要多轮讨论时直接进入同一项目 Room，无需迁移文件或丢失上下文。对于尚未接受新平台的工厂，邮件/微信负责触达，回复可经授权导入；但不应以假设式“自动抓取微信”作为首期依赖。
 
 ## 12. 当前工程资产和可核查地址（2026-11-13）
 
@@ -615,13 +654,13 @@ IntegrationActionReceipt {
 
 ### D.1 角色和目的
 
-你是独立的产品架构师、实时聊天系统工程师、B2B 工业采购专家和安全审计负责人。请先阅读本 PDR，**但不假设其中的架构建议正确，也不把历史测试报告等同于生产结果**。必须真正打开和比对 GitHub 代码、PR、目录和测试；若权限不足，明确指出缺了哪些信息，不能靠猜测完成审计。你可以推翻非硬约束的技术建议，但不能在未提出充分理由和迁移方案前，改变下面的产品根本原则。
+你是独立的产品架构师、实时聊天系统工程师、跨企业产品/专业服务协作系统专家和安全审计负责人。请先阅读本 PDR，**但不假设其中的架构建议正确，也不把历史测试报告等同于生产结果**。必须真正打开和比对 GitHub 代码、PR、目录和测试；若权限不足，明确指出缺了哪些信息，不能靠猜测完成审计。你可以推翻非硬约束的技术建议，但不能在未提出充分理由和迁移方案前，改变下面的产品根本原则。
 
 ### D.2 不得擅自改变的产品要求
 
 1. Chat-first：真正像日常消息软件一样低学习成本；以群聊为主体验，AI 不抢界面。
 2. PC 三栏、移动端全屏聊天，文件/AI/业务视图是可渐进打开的工作空间。
-3. Buyer 与 Supplier 的双飞轮；双方均有自己的 Org OS，可独立发起、邀请、管理项目。
+3. 买卖双方与委托方/服务方的双飞轮；所有参与组织均有自己的 Org OS，可独立发起、邀请、管理项目。不得只围绕商品、RFQ、SKU 设计。
 4. 正式跨企业沟通和证据形成于 SourceRating Room；外部 IM 仅作为官方支持的邀请/通知/召回或明确授权的数据导入渠道。
 5. 原始消息/文件持久化、版本、权限、证据；AI 静默整理/翻译，Needs You/Human Commit 控制正式状态。
 6. 插件/SDK/API/MCP 连接成熟专业能力；不自造 Zoom、Office、复杂 CAD，也不在 WePrefab 再造聊天室。
@@ -678,9 +717,13 @@ IntegrationActionReceipt {
 7. **Agent 与插件架构：**区分 Tools/MCP、API/Webhooks、SDK 嵌入、Deep Link；客户端授权、连接器权限、AI 数据边界和回执；给 WePrefab 设计快照/BOM 的实际 API Contract。
 8. **P0/P1 开发拆单：**列出可合并 PR 单元及其依赖、验收用例、回滚；先围绕聊天/邀请/双向 Org/文件/Ask AI/翻译/证据再扩展采购领域，禁止先发布无聊天室的表单工具。
 9. **双飞轮试点设计：**买方邀请供应商、供应商再邀请新买方，两条完整真实账号旅程；用可反证的指标确认用户主动回访，而不是看注册量。
-10. **商业与资源判断：**以 SME 跨境复杂采购为初期场景，明确哪几项技术应该自己做，哪些用成熟 SDK/连接器；估计复杂度时注明假设，不编造成本和完成时长。
+10. **商业与资源判断：**以 SME 跨境复杂定制产品、工程专业服务与物流协作为初期场景，明确哪几项技术应该自己做，哪些用成熟 SDK/连接器；估计复杂度时注明假设，不编造成本和完成时长。
 
 ### D.6 Claude 最终结论必须回答
+
+- 如果**完全不发生商品采购**，只有工程检测服务、波兰等国专业设计审查或物流协作，现有域模型、Room UI、AI 与档案能力是否仍能成立？请用真实流程及字段逐项反证。
+- 平台能否在不要求中心化供应商评分的情况下，从真实授权项目自然生成双方的能力/履约档案？哪些推断禁止自动公开？
+
 
 - 现有 Pilot 做得最好的 5 件事是什么？最危险的 5 个缺口是什么？
 - 对这个产品，能否把学习成本压到接近微信/WhatsApp？最大障碍在哪？
