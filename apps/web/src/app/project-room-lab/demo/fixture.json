@@ -1,0 +1,608 @@
+{
+ "_demo": "DEMO fixture — fictional companies, people and figures. Not database output.",
+ "orgs": [
+  {
+   "id": "o-sie",
+   "name": "Siam Infra Engineering",
+   "short": "SIE",
+   "place": "Bangkok",
+   "color": "#2f5fd0"
+  },
+  {
+   "id": "o-jg",
+   "name": "冀工精密制造",
+   "short": "冀工",
+   "place": "河北 沧州",
+   "color": "#b4562b"
+  },
+  {
+   "id": "o-ln",
+   "name": "Lanna Testing Lab",
+   "short": "LTL",
+   "place": "Chiang Mai",
+   "color": "#6b4fb3"
+  },
+  {
+   "id": "o-ob",
+   "name": "OceanBridge Logistics",
+   "short": "OBL",
+   "place": "Laem Chabang",
+   "color": "#0e7c86"
+  }
+ ],
+ "users": [
+  {
+   "id": "u-narin",
+   "name": "Narin S.",
+   "orgId": "o-sie",
+   "title": "Project Manager"
+  },
+  {
+   "id": "u-ploy",
+   "name": "Ploy K.",
+   "orgId": "o-sie",
+   "title": "QA Engineer"
+  },
+  {
+   "id": "u-chen",
+   "name": "陈立",
+   "orgId": "o-jg",
+   "title": "外贸销售"
+  },
+  {
+   "id": "u-wang",
+   "name": "王工",
+   "orgId": "o-jg",
+   "title": "技术负责人"
+  },
+  {
+   "id": "u-som",
+   "name": "Somchai P.",
+   "orgId": "o-ln",
+   "title": "Inspector"
+  },
+  {
+   "id": "u-kanya",
+   "name": "Kanya T.",
+   "orgId": "o-ob",
+   "title": "Customs Coordinator"
+  }
+ ],
+ "identities": [
+  {
+   "orgId": "o-sie",
+   "userId": "u-narin"
+  },
+  {
+   "orgId": "o-jg",
+   "userId": "u-chen"
+  }
+ ],
+ "rooms": [
+  {
+   "id": "r1",
+   "name": "端板采购 · Orange Line",
+   "kind": "external",
+   "project": "BKK Orange Line · PHC 桩",
+   "ownerOrgId": "o-sie",
+   "memberIds": [
+    "u-narin",
+    "u-ploy",
+    "u-chen",
+    "u-wang",
+    "u-som"
+   ],
+   "unread": {}
+  },
+  {
+   "id": "r2",
+   "name": "报价评估",
+   "kind": "internal",
+   "project": "BKK Orange Line · PHC 桩",
+   "ownerOrgId": "o-sie",
+   "memberIds": [
+    "u-narin",
+    "u-ploy"
+   ],
+   "unread": {
+    "o-sie": 1
+   }
+  },
+  {
+   "id": "r3",
+   "name": "林查班清关 · 首批",
+   "kind": "external",
+   "project": "BKK Orange Line · PHC 桩",
+   "ownerOrgId": "o-sie",
+   "memberIds": [
+    "u-narin",
+    "u-chen",
+    "u-kanya"
+   ],
+   "unread": {
+    "o-sie": 2,
+    "o-jg": 2
+   }
+  },
+  {
+   "id": "r4",
+   "name": "P12 静载检测",
+   "kind": "external",
+   "project": "Rama 3 仓库 · 桩基",
+   "ownerOrgId": "o-sie",
+   "memberIds": [
+    "u-narin",
+    "u-ploy",
+    "u-som"
+   ],
+   "unread": {}
+  },
+  {
+   "id": "r5",
+   "name": "排产与发货",
+   "kind": "internal",
+   "project": "BKK Orange Line · PHC 桩",
+   "ownerOrgId": "o-jg",
+   "memberIds": [
+    "u-chen",
+    "u-wang"
+   ],
+   "unread": {
+    "o-jg": 1
+   }
+  }
+ ],
+ "files": [
+  {
+   "id": "f1",
+   "roomId": "r1",
+   "name": "EP-600 End Plate Drawing.pdf",
+   "kind": "pdf",
+   "size": 482133,
+   "version": 1,
+   "lineage": "ep600",
+   "preview": {
+    "plate": {
+     "t": 18,
+     "od": 600,
+     "holes": 12,
+     "rev": "A"
+    }
+   }
+  },
+  {
+   "id": "f2",
+   "roomId": "r1",
+   "name": "EP-600 End Plate Drawing.pdf",
+   "kind": "pdf",
+   "size": 497020,
+   "version": 2,
+   "lineage": "ep600",
+   "supersedes": "f1",
+   "preview": {
+    "plate": {
+     "t": 20,
+     "od": 600,
+     "holes": 12,
+     "rev": "B"
+    }
+   },
+   "diff": [
+    {
+     "field": "端板厚度 t",
+     "from": "18 mm",
+     "to": "20 mm"
+    },
+    {
+     "field": "图纸版本",
+     "from": "Rev A",
+     "to": "Rev B"
+    },
+    {
+     "field": "单件重量",
+     "from": "19.6 kg",
+     "to": "21.8 kg"
+    }
+   ]
+  },
+  {
+   "id": "f3",
+   "roomId": "r1",
+   "name": "Quotation JG-2611-018.xlsx",
+   "kind": "xlsx",
+   "size": 38912,
+   "version": 1,
+   "lineage": "quote",
+   "preview": {
+    "sheet": [
+     [
+      "Item",
+      "Spec",
+      "Qty",
+      "Unit price (USD)",
+      "Amount (USD)"
+     ],
+     [
+      "EP-600 端板",
+      "Q355B · t=20 mm",
+      "4,800",
+      "14.80",
+      "71,040.00"
+     ],
+     [
+      "包装",
+      "钢托盘 + 防锈",
+      "48",
+      "35.00",
+      "1,680.00"
+     ],
+     [
+      "合计 FOB 天津",
+      "",
+      "",
+      "",
+      "72,720.00"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "f4",
+   "roomId": "r1",
+   "name": "首件样品.jpg",
+   "kind": "image",
+   "size": 1843200,
+   "version": 1,
+   "lineage": "sample",
+   "preview": {
+    "photo": "plate"
+   }
+  },
+  {
+   "id": "f5",
+   "roomId": "r3",
+   "name": "Packing List PL-001.pdf",
+   "kind": "pdf",
+   "size": 120044,
+   "version": 1,
+   "lineage": "pl",
+   "preview": {
+    "sheet": [
+     [
+      "Pallet",
+      "Pcs",
+      "Gross (kg)"
+     ],
+     [
+      "P01–P12",
+      "1,200",
+      "26,900"
+     ]
+    ]
+   }
+  }
+ ],
+ "messages": {
+  "r1": [
+   {
+    "id": "m1",
+    "userId": "u-narin",
+    "at": "2026-11-11T09:12:00+07:00",
+    "text": "Hi Chen, sharing the end plate drawing for the Orange Line PHC piles. Please check and quote for 4,800 pcs.",
+    "tr": "陈立你好，发你 Orange Line PHC 桩的端板图纸，请核对并按 4,800 件报价。"
+   },
+   {
+    "id": "m2",
+    "userId": "u-narin",
+    "at": "2026-11-11T09:12:30+07:00",
+    "fileId": "f1"
+   },
+   {
+    "id": "m3",
+    "userId": "u-chen",
+    "at": "2026-11-11T09:40:00+07:00",
+    "text": "收到，Narin。我们今天内核对图纸，明天给报价。",
+    "tr": "Received, Narin. We will check the drawing today and send the quotation tomorrow."
+   },
+   {
+    "id": "m4",
+    "userId": "u-wang",
+    "at": "2026-11-11T14:05:00+07:00",
+    "text": "图纸里端板厚度标的是 18 mm。Ø600 的桩我们建议做 20 mm，18 mm 焊后变形风险比较大，后面接桩容易对不齐。",
+    "tr": "The drawing shows an 18 mm end plate. For Ø600 piles we recommend 20 mm — 18 mm carries a higher risk of distortion after welding, which makes pile splicing hard to align.",
+    "replyTo": "m2"
+   },
+   {
+    "id": "m5",
+    "userId": "u-narin",
+    "at": "2026-11-11T14:30:00+07:00",
+    "text": "Understood. Ploy, can you confirm with the design team?",
+    "tr": "明白。Ploy，请和设计确认一下。",
+    "replyTo": "m4"
+   },
+   {
+    "id": "m6",
+    "userId": "u-ploy",
+    "at": "2026-11-11T16:10:00+07:00",
+    "text": "Designer confirmed: 20 mm is acceptable. Revised drawing attached.",
+    "tr": "设计已确认：20 mm 可以接受。附上修订图纸。"
+   },
+   {
+    "id": "m7",
+    "userId": "u-ploy",
+    "at": "2026-11-11T16:10:30+07:00",
+    "fileId": "f2"
+   },
+   {
+    "id": "m8",
+    "userId": "u-chen",
+    "at": "2026-11-12T10:02:00+07:00",
+    "fileId": "f3"
+   },
+   {
+    "id": "m9",
+    "userId": "u-chen",
+    "at": "2026-11-12T10:03:00+07:00",
+    "text": "报价已发。20 mm 版本单价 USD 14.80/件，FOB 天津。首批 1,200 件 11 月 28 日前可以发运，余量 12 月 15 日前。",
+    "tr": "Quotation sent. The 20 mm version is USD 14.80/pc, FOB Tianjin. First batch of 1,200 pcs can ship by 28 Nov, the balance by 15 Dec."
+   },
+   {
+    "id": "m10",
+    "userId": "u-narin",
+    "at": "2026-11-12T10:45:00+07:00",
+    "text": "Thanks. We need mill certificates for Q355B with every batch, and third-party dimensional inspection before shipment.",
+    "tr": "谢谢。每批都需要 Q355B 材质证书，发运前要做第三方尺寸检验。"
+   },
+   {
+    "id": "m11",
+    "userId": "u-som",
+    "at": "2026-11-12T11:20:00+07:00",
+    "text": "Lanna can witness the inspection at the factory on 25–26 Nov. Sampling 32 pcs per batch as per our ITP.",
+    "tr": "Lanna 可以在 11 月 25–26 日到厂见证检验，按我们的 ITP 每批抽 32 件。"
+   },
+   {
+    "id": "m12",
+    "userId": "u-wang",
+    "at": "2026-11-12T13:02:00+07:00",
+    "tr": "Mill certificates are no problem, provided with every batch. We hold hole position tolerance to ±0.5.",
+    "voice": {
+     "seconds": 23,
+     "transcript": "材质证书没有问题，每批随货提供。孔位公差我们按正负零点五控制。"
+    }
+   },
+   {
+    "id": "m13",
+    "userId": "u-chen",
+    "at": "2026-11-12T15:40:00+07:00",
+    "fileId": "f4"
+   },
+   {
+    "id": "m14",
+    "userId": "u-narin",
+    "at": "2026-11-13T09:05:00+07:00",
+    "text": "Sample looks good. Please confirm the 28 Nov shipment date is firm — our casting schedule depends on it.",
+    "tr": "样品看起来不错。请确认 11 月 28 日的发运日期是确定的，我们的浇筑计划取决于它。",
+    "replyTo": "m13"
+   },
+   {
+    "id": "m15",
+    "userId": "u-chen",
+    "at": "2026-11-13T09:20:00+07:00",
+    "text": "确认，11 月 28 日前首批 1,200 件发运。",
+    "tr": "Confirmed — first batch of 1,200 pcs ships by 28 Nov."
+   }
+  ],
+  "r2": [
+   {
+    "id": "n1",
+    "userId": "u-ploy",
+    "at": "2026-11-12T10:20:00+07:00",
+    "text": "Their quote is 14.80. Our budget line is 14.20 — do we push back?",
+    "tr": "他们报 14.80，我们预算是 14.20，要不要还价？"
+   },
+   {
+    "id": "n2",
+    "userId": "u-narin",
+    "at": "2026-11-12T10:26:00+07:00",
+    "text": "Let's hold. 20 mm adds weight, the price is fair. Keep the budget number in this room only.",
+    "tr": "先不还。20 mm 增重了，价格合理。预算数字只留在这个房间。"
+   },
+   {
+    "id": "n3",
+    "userId": "u-ploy",
+    "at": "2026-11-13T08:50:00+07:00",
+    "text": "Noted. I'll prepare the PO draft once you confirm the quote.",
+    "tr": "好的，你确认报价后我来准备 PO 草稿。"
+   }
+  ],
+  "r3": [
+   {
+    "id": "k1",
+    "userId": "u-kanya",
+    "at": "2026-11-12T16:00:00+07:00",
+    "text": "Hello all. For Laem Chabang clearance I need the packing list and Form E draft at least 5 days before ETA.",
+    "tr": "大家好。林查班清关需要装箱单和 Form E 草稿，最晚 ETA 前 5 天给我。"
+   },
+   {
+    "id": "k2",
+    "userId": "u-chen",
+    "at": "2026-11-12T16:30:00+07:00",
+    "fileId": "f5"
+   },
+   {
+    "id": "k3",
+    "userId": "u-chen",
+    "at": "2026-11-13T08:15:00+07:00",
+    "text": "装箱单草稿已发，Form E 等订舱确认后出。",
+    "tr": "Packing list draft sent. Form E will follow once the booking is confirmed."
+   },
+   {
+    "id": "k4",
+    "userId": "u-kanya",
+    "at": "2026-11-13T08:40:00+07:00",
+    "text": "Got it. Please share vessel name and ETA when booked.",
+    "tr": "收到，订舱后请告知船名和 ETA。"
+   }
+  ],
+  "r4": [
+   {
+    "id": "s1",
+    "userId": "u-som",
+    "at": "2026-11-10T11:00:00+07:00",
+    "text": "Static load test for P12 is scheduled for 18 Nov. Reaction frame arrives on the 16th.",
+    "tr": "P12 静载试验定在 11 月 18 日，反力架 16 日到场。"
+   },
+   {
+    "id": "s2",
+    "userId": "u-narin",
+    "at": "2026-11-10T11:30:00+07:00",
+    "text": "OK. Max test load is 2× working load, right?",
+    "tr": "好的。最大试验荷载是 2 倍工作荷载，对吗？"
+   },
+   {
+    "id": "s3",
+    "userId": "u-som",
+    "at": "2026-11-10T11:42:00+07:00",
+    "text": "Yes, 2× WL held for 24 h, per the approved method statement.",
+    "tr": "是的，2 倍工作荷载持荷 24 小时，按批准的施工方案。"
+   }
+  ],
+  "r5": [
+   {
+    "id": "j1",
+    "userId": "u-wang",
+    "at": "2026-11-12T17:10:00+07:00",
+    "text": "20 mm 板料周五到，下周一开始下料。28 号前出 1,200 件没问题，但检验要预留两天。",
+    "tr": "20 mm plate arrives Friday, cutting starts Monday. 1,200 pcs by the 28th is fine, but leave two days for inspection."
+   },
+   {
+    "id": "j2",
+    "userId": "u-chen",
+    "at": "2026-11-13T09:10:00+07:00",
+    "text": "好，那我按 28 号跟客户确认。",
+    "tr": "OK, I'll confirm the 28th with the customer."
+   }
+  ]
+ },
+ "proposals": [
+  {
+   "id": "p1",
+   "roomId": "r1",
+   "kind": "decision",
+   "title": "端板厚度改为 20 mm",
+   "detail": "原图 18 mm；供应商建议、设计确认后改为 20 mm（Rev B）。",
+   "sources": [
+    "m4",
+    "m6"
+   ],
+   "fileId": "f2",
+   "forOrgId": null,
+   "status": "confirmed",
+   "reviewedBy": "u-ploy"
+  },
+  {
+   "id": "p2",
+   "roomId": "r1",
+   "kind": "date",
+   "title": "首批 1,200 件 · 11 月 28 日前发运",
+   "detail": "余量 3,600 件 12 月 15 日前。",
+   "sources": [
+    "m9",
+    "m15"
+   ],
+   "forOrgId": null,
+   "status": "pending"
+  },
+  {
+   "id": "p3",
+   "roomId": "r1",
+   "kind": "needs_you",
+   "title": "确认报价 USD 14.80/件（FOB 天津）",
+   "detail": "合计 USD 72,720.00，含包装。",
+   "sources": [
+    "m9"
+   ],
+   "fileId": "f3",
+   "forOrgId": "o-sie",
+   "status": "pending"
+  },
+  {
+   "id": "p4",
+   "roomId": "r1",
+   "kind": "requirement",
+   "title": "每批随货提供 Q355B 材质证书，发运前第三方尺寸检验",
+   "detail": "Lanna 11 月 25–26 日到厂见证，每批抽 32 件。",
+   "sources": [
+    "m10",
+    "m11",
+    "m12"
+   ],
+   "forOrgId": "o-jg",
+   "status": "pending"
+  },
+  {
+   "id": "p5",
+   "roomId": "r3",
+   "kind": "needs_you",
+   "title": "ETA 前 5 天提供装箱单与 Form E 草稿",
+   "detail": "",
+   "sources": [
+    "k1"
+   ],
+   "fileId": "f5",
+   "forOrgId": "o-jg",
+   "status": "pending"
+  }
+ ],
+ "ai": {
+  "m4": {
+   "answer": "王工的意思是：图纸要求端板厚 18 mm，他建议加厚到 20 mm。理由是薄板在焊接后更容易翘曲，两节桩对接时端面不平、螺栓孔对不齐。这是制造方从工艺角度提出的建议，不是标准条文——是否采纳需要你方设计确认。",
+   "followup": "后续：Ploy 已回复设计确认 20 mm 可接受，并上传了 Rev B 图纸。",
+   "sources": [
+    "m4",
+    "m6",
+    "f2"
+   ]
+  },
+  "m9": {
+   "answer": "这条消息包含三个承诺：① 单价 USD 14.80/件（20 mm 版本，FOB 天津）；② 首批 1,200 件 11 月 28 日前发运；③ 余量 12 月 15 日前。报价单里的合计是 USD 72,720.00（含 48 个托盘包装 1,680.00）。数量 4,800 件与你最初询价一致。",
+   "followup": "注意：FOB 天津不含海运与林查班清关费用。",
+   "sources": [
+    "m9",
+    "f3",
+    "m1"
+   ]
+  },
+  "m11": {
+   "answer": "Lanna 将在 11 月 25–26 日到供应商工厂见证检验，每批抽 32 件。这比 28 日的发运日期早两天，时间上衔接得上，但余量很小：如果检验出现不合格需要返修，28 日发运会受影响。",
+   "sources": [
+    "m11",
+    "m9"
+   ]
+  },
+  "f1": {
+   "answer": "这是 EP-600 端板图纸 Rev A：外径 600 mm，厚度 18 mm，12 个螺栓孔。该版本已被 Rev B 取代（厚度改为 20 mm）。",
+   "sources": [
+    "f1",
+    "f2",
+    "m4"
+   ]
+  },
+  "f2": {
+   "answer": "这是 EP-600 端板图纸 Rev B，当前有效版本。与 Rev A 相比只有一处设计变更：厚度 18 mm → 20 mm，单件重量相应从 19.6 kg 增至 21.8 kg。孔数与外径未变。",
+   "sources": [
+    "f2",
+    "f1",
+    "m6"
+   ]
+  },
+  "f3": {
+   "answer": "报价单 JG-2611-018：EP-600 端板 4,800 件 × USD 14.80 = 71,040.00；包装 48 托 × 35.00 = 1,680.00；合计 FOB 天津 USD 72,720.00。规格写的是 Q355B、t=20 mm，与 Rev B 图纸一致。",
+   "sources": [
+    "f3",
+    "f2",
+    "m9"
+   ]
+  }
+ }
+}
