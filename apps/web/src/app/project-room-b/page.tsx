@@ -26,7 +26,10 @@ export default function ProjectRoomB() {
 
   useEffect(() => {
     const p = new URLSearchParams(location.search);
-    setInvite(p.get("invite"));
+    // The token survives the e-mail confirmation round trip, which lands on the bare Site URL.
+    const token = p.get("invite") ?? localStorage.getItem("sr_b_invite");
+    if (token) localStorage.setItem("sr_b_invite", token);
+    setInvite(token);
     deep.current = { room: p.get("room"), msg: p.get("msg") };
     const sync = () => { setMode(modeOf(window.innerWidth)); if (window.visualViewport) setVvh(`${Math.round(window.visualViewport.height)}px`); };
     sync();
@@ -50,7 +53,7 @@ export default function ProjectRoomB() {
   useEffect(() => { if (s.jump && mode !== "wide") actions.closePanel();   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s.jump]);
 
-  const done = () => { setInvite(null); history.replaceState(history.state, "", location.pathname); };
+  const done = () => { setInvite(null); localStorage.removeItem("sr_b_invite"); history.replaceState(history.state, "", location.pathname); };
   const openRoom = (id: string) => { actions.openRoom(id); if (modeOf(window.innerWidth) === "narrow" && history.state?.lab !== "chat") history.pushState({ lab: "chat" }, ""); };
   const back = () => (history.state?.lab === "chat" ? history.back() : actions.backToList());
 

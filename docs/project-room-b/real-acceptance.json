@@ -1,0 +1,130 @@
+{
+  "kind": "REAL BACKEND (staging Supabase), not DEMO",
+  "base": "http://localhost:3100/project-room-b",
+  "stamp": "11140049",
+  "passed": 25,
+  "failed": 0,
+  "notRun": 4,
+  "results": [
+    {
+      "name": "T1 A signs in and creates an organisation",
+      "ok": true
+    },
+    {
+      "name": "T1 A creates a project (main room appears)",
+      "ok": true
+    },
+    {
+      "name": "T1 A invites company B by e-mail",
+      "ok": true
+    },
+    {
+      "name": "T1 a different e-mail cannot use the invitation",
+      "ok": true
+    },
+    {
+      "name": "T1 B accepts with its own new organisation and enters the room",
+      "ok": true
+    },
+    {
+      "name": "T1 both sides exchange real messages",
+      "ok": true
+    },
+    {
+      "name": "T1 history survives reload and a fresh sign-in",
+      "ok": true
+    },
+    {
+      "name": "T1 reverse: B creates a project, invites A, A joins with its existing organisation",
+      "ok": true
+    },
+    {
+      "name": "colleagues join their own organisations by invitation",
+      "ok": true
+    },
+    {
+      "name": "T2 AI proposes the split",
+      "ok": null,
+      "error": "no AI provider key is configured on staging; sub rooms were created manually"
+    },
+    {
+      "name": "T2 A creates a cross-company sub room with chosen members only",
+      "ok": true
+    },
+    {
+      "name": "T2 invited member talks in the sub room; uninvited colleague cannot see it",
+      "ok": true
+    },
+    {
+      "name": "T2/T5 sub room messages do not leak into the main room",
+      "ok": true
+    },
+    {
+      "name": "T2 a summary is sent back to the main room on purpose",
+      "ok": true
+    },
+    {
+      "name": "T5 internal sub room is invisible to the other organisation",
+      "ok": true
+    },
+    {
+      "name": "T3 B uploads v1 then v2 of the same file",
+      "ok": true
+    },
+    {
+      "name": "T3 organisation A confirms v2; B is still unconfirmed",
+      "ok": true
+    },
+    {
+      "name": "T3 organisation B confirms v2 independently",
+      "ok": true
+    },
+    {
+      "name": "T3 v3 starts unconfirmed; v2 keeps both confirmations",
+      "ok": true
+    },
+    {
+      "name": "T3 side-by-side version diff and original download",
+      "ok": null,
+      "error": "file gateway (verify/sign) is not deployed to staging yet"
+    },
+    {
+      "name": "T4 evidence export matches messages, hashes, organisations and people",
+      "ok": true
+    },
+    {
+      "name": "T5 removed room member loses the room",
+      "ok": true
+    },
+    {
+      "name": "T5 member removed from the organisation loses every room, file row and file object",
+      "ok": true
+    },
+    {
+      "name": "T5 AI cannot read rooms the user cannot access",
+      "ok": null,
+      "error": "AI not configured on staging; the analyze API resolves events under the caller RLS (code path unchanged from A)"
+    },
+    {
+      "name": "T6 history paging on real data (70 extra messages)",
+      "ok": true
+    },
+    {
+      "name": "T6 1440px: no horizontal overflow, composer usable, panel opens",
+      "ok": true
+    },
+    {
+      "name": "T6 768px: no horizontal overflow, composer usable, panel opens",
+      "ok": true
+    },
+    {
+      "name": "T6 390px: no horizontal overflow, composer usable, panel opens",
+      "ok": true
+    },
+    {
+      "name": "T6 soft keyboard on a physical phone",
+      "ok": null,
+      "error": "only simulated by shrinking the viewport"
+    }
+  ]
+}

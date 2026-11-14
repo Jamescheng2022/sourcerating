@@ -299,6 +299,7 @@ export function RealPanel({ real }: { real: Real }) {
   const lineages = Array.from(new Set(files.map((f) => f.lineage)));
   const turns = s.aiTurns.filter((t) => t.roomId === room.id);
   const admin = room.myRole === "admin";
+  const orgAdmin = s.memberships.some((m) => m.orgId === s.orgId && m.role !== "member");
   return (
     <div className={css.panel}>
       <div className={css.panelHead}>
@@ -322,6 +323,7 @@ export function RealPanel({ real }: { real: Real }) {
                       <OrgMark color={org(oid).color} short={user(id).name.slice(0, 1)} size={28} />
                       <span className={rc.grow}><b>{user(id).name}{id === meId && <em>你</em>}</b><small>{user(id).title}</small></span>
                       {admin && id !== meId && <button type="button" className={rc.mini} data-danger onClick={() => void actions.removeMember(id).catch(() => null)}>移出</button>}
+                      {orgAdmin && oid === s.orgId && id !== meId && <button type="button" className={rc.mini} data-danger onClick={() => void actions.removeFromOrganization(id).catch(() => null)}>移出组织</button>}
                     </div>
                   ))}
                 </div>

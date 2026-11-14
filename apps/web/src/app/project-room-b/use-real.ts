@@ -358,7 +358,7 @@ export function useReal() {
     // ── real-only ──
     signIn: async (email: string, password: string) => { const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password }); if (error) throw error; },
     signUp: async (email: string, password: string) => {
-      const { data, error } = await supabase.auth.signUp({ email: email.trim(), password, options: { emailRedirectTo: `${location.origin}${location.pathname}${location.search}` } });
+      const { data, error } = await supabase.auth.signUp({ email: email.trim(), password, options: { emailRedirectTo: `${location.origin}${location.pathname}` } });
       if (error) throw error;
       return !!data.session;
     },
