@@ -1,0 +1,8 @@
+{"t":"2026-11-14T04:06:16.690Z","ctx":4,"type":"error","text":"Failed to load resource: the server responded with a status of 403 ()"}
+{"t":"2026-11-14T04:07:23.075Z","ctx":3,"type":"error","text":"Failed to load resource: the server responded with a status of 403 (Forbidden)"}
+{"t":"2026-11-14T04:07:28.379Z","ctx":3,"type":"error","text":"Access to fetch at 'https://nunojlfangvnjlwggvvb.supabase.co/functions/v1/room-file-gateway' from origin 'http://localhost:3100' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource."}
+{"t":"2026-11-14T04:07:28.382Z","ctx":3,"type":"error","text":"Failed to load resource: net::ERR_FAILED"}
+{"t":"2026-11-14T04:07:57.836Z","ctx":3,"type":"error","text":"Access to fetch at 'https://nunojlfangvnjlwggvvb.supabase.co/functions/v1/room-file-gateway' from origin 'http://localhost:3100' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource."}
+{"t":"2026-11-14T04:07:57.837Z","ctx":3,"type":"error","text":"Failed to load resource: net::ERR_FAILED"}
+{"t":"2026-11-14T04:08:04.412Z","ctx":4,"type":"error","text":"Failed to load resource: the server responded with a status of 400 ()"}
+{"t":"2026-11-14T04:08:32.832Z","ctx":1,"type":"error","text":"Failed to load resource: net::ERR_INTERNET_DISCONNECTED"}

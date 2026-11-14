@@ -1,0 +1,13 @@
+diff --git a/home/claude/sourcerating-e2e/qa/windows-b/scenarios/offline-recovery.cjs b/home/claude/sourcerating-e2e/qa/windows-b/work/offline-recovery-control.cjs
+index 63c76d2..45e844b 100644
+--- a/home/claude/sourcerating-e2e/qa/windows-b/scenarios/offline-recovery.cjs
++++ b/home/claude/sourcerating-e2e/qa/windows-b/work/offline-recovery-control.cjs
+@@ -51,7 +51,7 @@ const check = async (name, fn) => {
+   await check('O4 back online: A resends once, B receives it, A catches up with B without reload', async () => {
+     await C.a1.setOffline(false);
+     await P.a1.getByRole('button', { name: /重新发送/ }).first().click();
+-    await sees(P.b1, m1, 45000); await sees(P.a1, m2, 45000);
++    await sees(P.b1, 'nonexistent-control-text', 3000); await sees(P.a1, m2, 45000);
+     if (await P.a1.getByRole('button', { name: /重新发送/ }).count()) throw new Error('still shows not-sent after delivery');
+   });
+   await check('O5 B offline then online: B reload shows the full ordered history', async () => {

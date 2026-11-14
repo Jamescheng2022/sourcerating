@@ -1,0 +1,278 @@
+{
+  "stamp": "11140406",
+  "mode": "snapshot",
+  "at": "2026-11-14T04:09:36.138Z",
+  "pass": true,
+  "executed": 29,
+  "passed": 29,
+  "failed": 0,
+  "skipped": 0,
+  "unexpectedChecks": [],
+  "checks": [
+    {
+      "id": "scope.projects",
+      "expected": {
+        "op": "eq",
+        "value": 2
+      },
+      "actual": "2",
+      "ok": true
+    },
+    {
+      "id": "scope.rooms",
+      "expected": {
+        "op": "gte",
+        "value": 5
+      },
+      "actual": "5",
+      "ok": true
+    },
+    {
+      "id": "events.seq_contiguous_violations",
+      "expected": {
+        "op": "eq",
+        "value": 0
+      },
+      "actual": "0",
+      "ok": true
+    },
+    {
+      "id": "events.duplicate_client_msg",
+      "expected": {
+        "op": "eq",
+        "value": 0
+      },
+      "actual": "0",
+      "ok": true
+    },
+    {
+      "id": "events.hash_chain_breaks",
+      "expected": {
+        "op": "eq",
+        "value": 0
+      },
+      "actual": "0",
+      "ok": true
+    },
+    {
+      "id": "files.not_verified",
+      "expected": {
+        "op": "eq",
+        "value": 0
+      },
+      "actual": "0",
+      "ok": true
+    },
+    {
+      "id": "files.sha_mismatch",
+      "expected": {
+        "op": "eq",
+        "value": 0
+      },
+      "actual": "0",
+      "ok": true
+    },
+    {
+      "id": "files.version_gaps",
+      "expected": {
+        "op": "eq",
+        "value": 0
+      },
+      "actual": "0",
+      "ok": true
+    },
+    {
+      "id": "files.object_missing",
+      "expected": {
+        "op": "eq",
+        "value": 0
+      },
+      "actual": "0",
+      "ok": true
+    },
+    {
+      "id": "files.versions_total",
+      "expected": {
+        "op": "gte",
+        "value": 4
+      },
+      "actual": "4",
+      "ok": true
+    },
+    {
+      "id": "confirm.hash_not_bound_to_version",
+      "expected": {
+        "op": "eq",
+        "value": 0
+      },
+      "actual": "0",
+      "ok": true
+    },
+    {
+      "id": "confirm.without_event",
+      "expected": {
+        "op": "eq",
+        "value": 0
+      },
+      "actual": "0",
+      "ok": true
+    },
+    {
+      "id": "confirm.org_not_in_project",
+      "expected": {
+        "op": "eq",
+        "value": 0
+      },
+      "actual": "0",
+      "ok": true
+    },
+    {
+      "id": "state.ep600_v2_distinct_confirming_orgs",
+      "expected": {
+        "op": "eq",
+        "value": 2
+      },
+      "actual": "2",
+      "ok": true
+    },
+    {
+      "id": "state.ep600_latest_version_confirmations",
+      "expected": {
+        "op": "eq",
+        "value": 0
+      },
+      "actual": "0",
+      "ok": true
+    },
+    {
+      "id": "state.ep600_latest_version_no",
+      "expected": {
+        "op": "eq",
+        "value": 4
+      },
+      "actual": "4",
+      "ok": true
+    },
+    {
+      "id": "state.restored_version_has_original_bytes",
+      "expected": {
+        "op": "eq",
+        "value": 1
+      },
+      "actual": "1",
+      "ok": true
+    },
+    {
+      "id": "isolation.internal_room_multi_org",
+      "expected": {
+        "op": "eq",
+        "value": 0
+      },
+      "actual": "0",
+      "ok": true
+    },
+    {
+      "id": "isolation.internal_foreign_author",
+      "expected": {
+        "op": "eq",
+        "value": 0
+      },
+      "actual": "0",
+      "ok": true
+    },
+    {
+      "id": "isolation.member_org_outside_project",
+      "expected": {
+        "op": "eq",
+        "value": 0
+      },
+      "actual": "0",
+      "ok": true
+    },
+    {
+      "id": "isolation.subroom_text_copied_to_main",
+      "expected": {
+        "op": "eq",
+        "value": 0
+      },
+      "actual": "0",
+      "ok": true
+    },
+    {
+      "id": "isolation.events_after_member_removed",
+      "expected": {
+        "op": "eq",
+        "value": 0
+      },
+      "actual": "0",
+      "ok": true
+    },
+    {
+      "id": "offline.m1_exactly_once",
+      "expected": {
+        "op": "eq",
+        "value": 1,
+        "requiresSuite": "offline_recovery"
+      },
+      "actual": "1",
+      "ok": true
+    },
+    {
+      "id": "offline.m2_exactly_once",
+      "expected": {
+        "op": "eq",
+        "value": 1,
+        "requiresSuite": "offline_recovery"
+      },
+      "actual": "1",
+      "ok": true
+    },
+    {
+      "id": "offline.m3_exactly_once",
+      "expected": {
+        "op": "eq",
+        "value": 1,
+        "requiresSuite": "offline_recovery"
+      },
+      "actual": "1",
+      "ok": true
+    },
+    {
+      "id": "offline.order_m2_before_m3_violations",
+      "expected": {
+        "op": "eq",
+        "value": 0,
+        "requiresSuite": "offline_recovery"
+      },
+      "actual": "0",
+      "ok": true
+    },
+    {
+      "id": "rls.pairs_probed",
+      "expected": {
+        "op": "gte",
+        "value": 10
+      },
+      "actual": "20",
+      "ok": true
+    },
+    {
+      "id": "rls.nonmember_leaks",
+      "expected": {
+        "op": "eq",
+        "value": 0
+      },
+      "actual": "0",
+      "ok": true
+    },
+    {
+      "id": "rls.member_cannot_read_own_room",
+      "expected": {
+        "op": "eq",
+        "value": 0
+      },
+      "actual": "0",
+      "ok": true
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+PASS O1 both parties are online in the same room
+PASS O2 while A is offline the message is kept and marked as not sent
+PASS O3 B keeps talking meanwhile and does not see the unsent message
+FAIL O4 back online: A resends once, B receives it, A catches up with B without reload — locator.waitFor: Timeout 3000ms exceeded.
+PASS O5 B offline then online: B reload shows the full ordered history
+
+4 passed, 1 failed, 0 not run
+
+--- stderr ---
+(node:2555) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)

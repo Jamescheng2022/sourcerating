@@ -1,0 +1,142 @@
+[
+  {
+    "file": "artifacts/b-real-1440-chat.png",
+    "sha256": "cff15ce750088276da12b1b5729837f121d35bbe40dfb95f11e00d137b34903a",
+    "bytes": 89497
+  },
+  {
+    "file": "artifacts/b-real-1440-files.png",
+    "sha256": "05d96cf2b7e36bc5151675f174ec98713a8091d931b5d2d04364728ee0ad5b68",
+    "bytes": 237477
+  },
+  {
+    "file": "artifacts/b-real-390-chat.png",
+    "sha256": "e749e838f81054729ae1b49c96334828b789da8cf8fcace055c2d7822509fac2",
+    "bytes": 20210
+  },
+  {
+    "file": "artifacts/b-real-390-files.png",
+    "sha256": "fc49a60b5d46c0f695507c681472fb439c5c7fd648f93c371ef41eaf9a29fe4f",
+    "bytes": 86813
+  },
+  {
+    "file": "artifacts/b-real-390-list.png",
+    "sha256": "e09490c55c6339ddc84e306e06cce806e89f6ec898b1a77060ad3306ee9a0757",
+    "bytes": 58039
+  },
+  {
+    "file": "artifacts/b-real-768-chat.png",
+    "sha256": "d20ff8d9c7b040426a966c4876a859e7c2f45f016a8813ae0d92add3989cb272",
+    "bytes": 92554
+  },
+  {
+    "file": "artifacts/b-real-768-files.png",
+    "sha256": "b6664ed834efda5326fc36028e8d422756947228917b33fd21a5443858d87791",
+    "bytes": 203350
+  },
+  {
+    "file": "artifacts/b-real-compare.png",
+    "sha256": "2cac7298b96b8b505031c12a3c7413988d1655de053f1ca8a79322adacfb7034",
+    "bytes": 133884
+  },
+  {
+    "file": "artifacts/evidence.json",
+    "sha256": "2415223c99553eea33c6fc17616d612b42ebf40a2910540d93a0666a6ea3cbc9",
+    "bytes": 17138
+  },
+  {
+    "file": "artifacts/offline-acceptance.json",
+    "sha256": "af55112ed7c856f32862be647ef30fd5049457d3a7cf648e6b7fa33f39e29e32",
+    "bytes": 681
+  },
+  {
+    "file": "artifacts/real-acceptance.json",
+    "sha256": "3f567ae5f12f66162eaf2fbac0354aeeb05a9c0c76eb738849a4fc7b455bc453",
+    "bytes": 4027
+  },
+  {
+    "file": "db/oracle-rows.json",
+    "sha256": "4a17eb5a0f863d141696366639dd35e1322304da53c5bf071a1df11279129dbe",
+    "bytes": 1737
+  },
+  {
+    "file": "db/oracle.sql",
+    "sha256": "0e7c41c4dfc0a6b1af643fca2083d7aeacf003b527a21e4b155c9caec5db9677",
+    "bytes": 8392
+  },
+  {
+    "file": "logs/baseline_real_e2e.log",
+    "sha256": "46fe39733aa8d7ae697f747681d831e57a2f2ced7150c9399d542c800cad2b48",
+    "bytes": 2607
+  },
+  {
+    "file": "logs/console.jsonl",
+    "sha256": "3269738d9062202b9d462d4f0627487ab871f789d71539f042f3f70ac6ffe1ab",
+    "bytes": 1357
+  },
+  {
+    "file": "logs/offline_recovery.log",
+    "sha256": "15d31e1a7815be2d6f01e4f299b63dab736463ac907b10a28ae715515ddf1597",
+    "bytes": 571
+  },
+  {
+    "file": "logs/oracle.log",
+    "sha256": "3c436d57b83de2ffe5d78db6065d20b3355889fdc2205cae6d942a194f6440fd",
+    "bytes": 1613
+  },
+  {
+    "file": "meta.json",
+    "sha256": "a299048ba3a1968a177999182fbc98878c25c174a8354302141b2bf78610745d",
+    "bytes": 613
+  },
+  {
+    "file": "oracle-result.json",
+    "sha256": "2b34754f540369e0567dc2b1fa1a3054cd72151d666254b45bd41963d913c491",
+    "bytes": 5087
+  },
+  {
+    "file": "report.md",
+    "sha256": "d9a65cf35df6ade6e3217ea77b72c351203fe4e3fde16560b93c7203a3b31347",
+    "bytes": 1596
+  },
+  {
+    "file": "results.json",
+    "sha256": "2835485af45d3a4ef7b4dc09de0c3bb2619ce6fb700acec2cf8c2b9ea52935ca",
+    "bytes": 6824
+  },
+  {
+    "file": "traces/baseline_real_e2e-ctx1.zip",
+    "sha256": "267b69b43ea577b5acd0e186ca836f08ec7bbaa60261551e8fa5beb8cc42b3d6",
+    "bytes": 16994158
+  },
+  {
+    "file": "traces/baseline_real_e2e-ctx2.zip",
+    "sha256": "92eb5ad22ccfc0f3cc97f9734717fef622030be92cf46fef00375ee472eb2095",
+    "bytes": 615192
+  },
+  {
+    "file": "traces/baseline_real_e2e-ctx3.zip",
+    "sha256": "0342129ed055403f383b8cb53a5d77828c34d15bffb6abe80e0bd4a566d9a6c9",
+    "bytes": 7943278
+  },
+  {
+    "file": "traces/baseline_real_e2e-ctx4.zip",
+    "sha256": "20a8ec2b7d922e9b0d09e9c7dd818009504aea969595c7018056fca9d5fa3ee9",
+    "bytes": 701556
+  },
+  {
+    "file": "traces/offline_recovery-ctx1.zip",
+    "sha256": "a2c07b7823b3f053690333e1afc4617dd2a5071db5a7a521019464d30c456483",
+    "bytes": 1398254
+  },
+  {
+    "file": "traces/offline_recovery-ctx2.zip",
+    "sha256": "0f39a6022e126bbdbe9f774eeb9f637cc56235dc793e31a204bc0756c37f53fe",
+    "bytes": 1074237
+  },
+  {
+    "file": "verdict.json",
+    "sha256": "371814dd599636c231f6983ee70d18a1453b642fcbe545da5a5444c8bd9dc6fa",
+    "bytes": 12491
+  }
+]

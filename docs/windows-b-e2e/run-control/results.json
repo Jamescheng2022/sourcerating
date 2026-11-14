@@ -1,0 +1,238 @@
+{
+  "results": [
+    {
+      "suite": "baseline_real_e2e",
+      "name": "T1 A signs in and creates an organisation",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "suite": "baseline_real_e2e",
+      "name": "T1 A creates a project (main room appears)",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "suite": "baseline_real_e2e",
+      "name": "T1 A invites company B by e-mail",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "suite": "baseline_real_e2e",
+      "name": "T1 a different e-mail cannot use the invitation",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "suite": "baseline_real_e2e",
+      "name": "T1 B accepts with its own new organisation and enters the room",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "suite": "baseline_real_e2e",
+      "name": "T1 both sides exchange real messages",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "suite": "baseline_real_e2e",
+      "name": "T1 history survives reload and a fresh sign-in",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "suite": "baseline_real_e2e",
+      "name": "T1 reverse: B creates a project, invites A, A joins with its existing organisation",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "suite": "baseline_real_e2e",
+      "name": "colleagues join their own organisations by invitation",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "suite": "baseline_real_e2e",
+      "name": "T2 A creates a cross-company sub room with chosen members only",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "suite": "baseline_real_e2e",
+      "name": "T2 invited member talks in the sub room; uninvited colleague cannot see it",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "suite": "baseline_real_e2e",
+      "name": "T2/T5 sub room messages do not leak into the main room",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "suite": "baseline_real_e2e",
+      "name": "T2 a summary is sent back to the main room on purpose",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "suite": "baseline_real_e2e",
+      "name": "T5 internal sub room is invisible to the other organisation",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "suite": "baseline_real_e2e",
+      "name": "AI(stub model) summary is private, sectioned, and its sources jump to real messages",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "suite": "baseline_real_e2e",
+      "name": "AI(stub model) explains and translates one message for the reader only",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "suite": "baseline_real_e2e",
+      "name": "T2 AI(stub model) proposes a split; nothing is created until A confirms; unknown people are not added",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "suite": "baseline_real_e2e",
+      "name": "T5 AI refuses a room the caller cannot access (403 before any model call)",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "suite": "baseline_real_e2e",
+      "name": "AI with the real model (answer quality, latency)",
+      "status": "notrun",
+      "error": "the workspace cannot reach the preview site or the model provider; only the stubbed-model path was exercised"
+    },
+    {
+      "suite": "baseline_real_e2e",
+      "name": "T3 B uploads v1 then v2 of the same file",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "suite": "baseline_real_e2e",
+      "name": "T3 organisation A confirms v2; B is still unconfirmed",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "suite": "baseline_real_e2e",
+      "name": "T3 organisation B confirms v2 independently",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "suite": "baseline_real_e2e",
+      "name": "T3 v3 starts unconfirmed; v2 keeps both confirmations",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "suite": "baseline_real_e2e",
+      "name": "T3 server verifies uploads; original bytes of an old version download with the registered hash",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "suite": "baseline_real_e2e",
+      "name": "T3 two versions open side by side with their differences marked",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "suite": "baseline_real_e2e",
+      "name": "T3 restoring v1 creates v4 with v1 bytes and no confirmations; v2 confirmations untouched",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "suite": "baseline_real_e2e",
+      "name": "T4 evidence export matches messages, hashes, organisations and people",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "suite": "baseline_real_e2e",
+      "name": "T5 removed room member loses the room",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "suite": "baseline_real_e2e",
+      "name": "T5 member removed from the organisation loses every room, file row and file object",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "suite": "baseline_real_e2e",
+      "name": "T6 history paging on real data (70 extra messages)",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "suite": "baseline_real_e2e",
+      "name": "T6 1440px: no horizontal overflow, composer usable, panel opens",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "suite": "baseline_real_e2e",
+      "name": "T6 768px: no horizontal overflow, composer usable, panel opens",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "suite": "baseline_real_e2e",
+      "name": "T6 390px: no horizontal overflow, composer usable, panel opens",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "suite": "baseline_real_e2e",
+      "name": "T6 soft keyboard on a physical phone",
+      "status": "notrun",
+      "error": "only simulated by shrinking the viewport"
+    },
+    {
+      "suite": "offline_recovery",
+      "name": "O1 both parties are online in the same room",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "suite": "offline_recovery",
+      "name": "O2 while A is offline the message is kept and marked as not sent",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "suite": "offline_recovery",
+      "name": "O3 B keeps talking meanwhile and does not see the unsent message",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "suite": "offline_recovery",
+      "name": "O4 back online: A resends once, B receives it, A catches up with B without reload",
+      "status": "fail",
+      "error": "locator.waitFor: Timeout 3000ms exceeded."
+    },
+    {
+      "suite": "offline_recovery",
+      "name": "O5 B offline then online: B reload shows the full ordered history",
+      "status": "pass",
+      "error": null
+    }
+  ]
+}

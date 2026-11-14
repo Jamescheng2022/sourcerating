@@ -1,0 +1,38 @@
+{
+  "_doc": "Pinned pass criteria. The Test Director (AGY) and any model may not edit this file; it is hash-pinned by the runner.",
+  "verdictRule": "PASS only if: every required check passed, no required check is missing, the oracle passed, and no boundary violation occurred. Checks in allowedNotRun do not fail the run but are listed as residual gaps and lower coverage.",
+  "requirements": [
+    { "id": "R1", "title": "Two companies invite each other in both directions; colleagues join their own organisation",
+      "checks": ["T1 A signs in and creates an organisation", "T1 A creates a project (main room appears)", "T1 A invites company B by e-mail", "T1 a different e-mail cannot use the invitation", "T1 B accepts with its own new organisation and enters the room", "T1 reverse: B creates a project, invites A, A joins with its existing organisation", "colleagues join their own organisations by invitation"] },
+    { "id": "R2", "title": "Multi-person real chat: delivery, reload persistence, fresh sign-in, paging",
+      "checks": ["T1 both sides exchange real messages", "T1 history survives reload and a fresh sign-in", "T6 history paging on real data (70 extra messages)"],
+      "oracle": ["events.seq_contiguous_violations", "events.duplicate_client_msg", "events.hash_chain_breaks"] },
+    { "id": "R3", "title": "Sub rooms, internal rooms and deliberate sharing back",
+      "checks": ["T2 A creates a cross-company sub room with chosen members only", "T2 invited member talks in the sub room; uninvited colleague cannot see it", "T2/T5 sub room messages do not leak into the main room", "T2 a summary is sent back to the main room on purpose", "T5 internal sub room is invisible to the other organisation"],
+      "oracle": ["isolation.subroom_text_copied_to_main", "isolation.internal_room_multi_org", "isolation.internal_foreign_author"] },
+    { "id": "R4", "title": "File upload, versions, hash verification, compare, restore",
+      "checks": ["T3 B uploads v1 then v2 of the same file", "T3 server verifies uploads; original bytes of an old version download with the registered hash", "T3 two versions open side by side with their differences marked", "T3 restoring v1 creates v4 with v1 bytes and no confirmations; v2 confirmations untouched"],
+      "oracle": ["files.not_verified", "files.sha_mismatch", "files.version_gaps", "files.object_missing", "state.restored_version_has_original_bytes", "state.ep600_latest_version_no"] },
+    { "id": "R5", "title": "Per-organisation approval bound to one file version and hash",
+      "checks": ["T3 organisation A confirms v2; B is still unconfirmed", "T3 organisation B confirms v2 independently", "T3 v3 starts unconfirmed; v2 keeps both confirmations"],
+      "oracle": ["confirm.hash_not_bound_to_version", "confirm.without_event", "confirm.org_not_in_project", "state.ep600_v2_distinct_confirming_orgs", "state.ep600_latest_version_confirmations"] },
+    { "id": "R6", "title": "AI analysis is private to the asker, sourced, never auto-published (stub model)",
+      "checks": ["AI(stub model) summary is private, sectioned, and its sources jump to real messages", "AI(stub model) explains and translates one message for the reader only", "T2 AI(stub model) proposes a split; nothing is created until A confirms; unknown people are not added", "T5 AI refuses a room the caller cannot access (403 before any model call)"] },
+    { "id": "R7", "title": "Permission isolation with 2 organisations and 4 accounts; removal takes effect",
+      "checks": ["T5 removed room member loses the room", "T5 member removed from the organisation loses every room, file row and file object"],
+      "oracle": ["isolation.member_org_outside_project", "isolation.events_after_member_removed", "rls.pairs_probed", "rls.nonmember_leaks", "rls.member_cannot_read_own_room"] },
+    { "id": "R8", "title": "Evidence export matches stored messages, hashes, organisations and people",
+      "checks": ["T4 evidence export matches messages, hashes, organisations and people"] },
+    { "id": "R9", "title": "Mobile 390 / 768 / 1440 layouts",
+      "checks": ["T6 1440px: no horizontal overflow, composer usable, panel opens", "T6 768px: no horizontal overflow, composer usable, panel opens", "T6 390px: no horizontal overflow, composer usable, panel opens"] },
+    { "id": "R10", "title": "Network loss and recovery: unsent message kept, resent once, catch-up, order preserved",
+      "checks": ["O1 both parties are online in the same room", "O2 while A is offline the message is kept and marked as not sent", "O3 B keeps talking meanwhile and does not see the unsent message", "O4 back online: A resends once, B receives it, A catches up with B without reload", "O5 B offline then online: B reload shows the full ordered history"],
+      "oracle": ["offline.m1_exactly_once", "offline.m2_exactly_once", "offline.m3_exactly_once", "offline.order_m2_before_m3_violations"] },
+    { "id": "R11", "title": "Scope integrity of the synthetic tenant", "checks": [], "oracle": ["scope.projects", "scope.rooms", "files.versions_total"] }
+  ],
+  "allowedNotRun": [
+    "AI with the real model (answer quality, latency)",
+    "T6 soft keyboard on a physical phone"
+  ],
+  "limits": { "maxBoundaryViolations": 0, "maxBlockedUnexpectedRequests": 0, "maxRunSeconds": 1800 }
+}

@@ -1,0 +1,1 @@
+CONTROL RUN: failure injected on purpose into a fixed copy to prove the failure path (repro, screenshots, diff, FAIL verdict). Oracle rows are borrowed from run 20261114T040604, so oracle results here are NOT evidence about this run.

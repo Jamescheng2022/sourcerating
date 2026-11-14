@@ -1,0 +1,16 @@
+{
+  "createdAt": "2026-11-14T04:06:00.472Z",
+  "files": {
+    "qa/windows-b/profile/sourcerating_playwright_e2e.json": "0ffadef0dfee0386c85c41d941843bfa506d6818fe1dab91caabf2a6372bbc8e",
+    "qa/windows-b/acceptance/criteria.json": "78475ffbdf1bf93cf6f09a2883b63723f93f5b34fb57cac8543133adb343c211",
+    "qa/windows-b/oracle/queries/oracle.sql": "c9673c34bafd3f549d85981d82e6fcbd11817778c60c77a62d2cb1bf620d8d7f",
+    "qa/windows-b/oracle/expectations.json": "051c9e5032ca0b1a78cd658ecfb7d6c435926b9c426a544c7335767e6304344a",
+    "qa/windows-b/oracle/oracle.cjs": "0bab37367b8cdd89db372685171f1d86e877bafdb2d2f4446a403d140d3e7e95",
+    "qa/windows-b/lib/guard.cjs": "abeb4e9c39ff7fffed67c76d94f601b702fa27a114dd24c93a74c4d35dc80ca3",
+    "qa/windows-b/lib/preload.cjs": "777e3a7ad2c178a27c24ebd745ba8658cc08dc2a565b63af13785a71641567af",
+    "qa/windows-b/runner/run.cjs": "2dbe022335cdca108aeb5ff77b43c529886833f79a13a5b908da09cd9e93dbf0",
+    "qa/windows-b/tools/playwright-mcp.cjs": "bd54f74495f192e402eb5f797ab5c9b325e994a9a0421f9e0d8cd55d105d0b3e",
+    "qa/windows-b/scenarios/offline-recovery.cjs": "58e624e1fef685fbf5da991eba2522567737e3ae899e877f5194a4fd5179cc16",
+    "apps/web/scripts/project-room-b-real-e2e.cjs": "2d026631c38bb8a1a7da65c1ccbb06e67b8a364bf41f239123877cc0d65b3353"
+  }
+}

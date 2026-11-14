@@ -1,0 +1,28 @@
+{
+  "stamp": "11140406",
+  "base": "http://localhost:3100/project-room-b",
+  "passed": 5,
+  "failed": 0,
+  "results": [
+    {
+      "name": "O1 both parties are online in the same room",
+      "ok": true
+    },
+    {
+      "name": "O2 while A is offline the message is kept and marked as not sent",
+      "ok": true
+    },
+    {
+      "name": "O3 B keeps talking meanwhile and does not see the unsent message",
+      "ok": true
+    },
+    {
+      "name": "O4 back online: A resends once, B receives it, A catches up with B without reload",
+      "ok": true
+    },
+    {
+      "name": "O5 B offline then online: B reload shows the full ordered history",
+      "ok": true
+    }
+  ]
+}

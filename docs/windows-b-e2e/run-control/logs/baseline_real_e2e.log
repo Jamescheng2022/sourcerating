@@ -1,0 +1,40 @@
+PASS T1 A signs in and creates an organisation
+PASS T1 A creates a project (main room appears)
+PASS T1 A invites company B by e-mail
+PASS T1 a different e-mail cannot use the invitation
+PASS T1 B accepts with its own new organisation and enters the room
+PASS T1 both sides exchange real messages
+PASS T1 history survives reload and a fresh sign-in
+PASS T1 reverse: B creates a project, invites A, A joins with its existing organisation
+PASS colleagues join their own organisations by invitation
+PASS T2 A creates a cross-company sub room with chosen members only
+PASS T2 invited member talks in the sub room; uninvited colleague cannot see it
+PASS T2/T5 sub room messages do not leak into the main room
+PASS T2 a summary is sent back to the main room on purpose
+PASS T5 internal sub room is invisible to the other organisation
+PASS AI(stub model) summary is private, sectioned, and its sources jump to real messages
+PASS AI(stub model) explains and translates one message for the reader only
+PASS T2 AI(stub model) proposes a split; nothing is created until A confirms; unknown people are not added
+PASS T5 AI refuses a room the caller cannot access (403 before any model call)
+NOT RUN AI with the real model (answer quality, latency) — the workspace cannot reach the preview site or the model provider; only the stubbed-model path was exercised
+PASS T3 B uploads v1 then v2 of the same file
+PASS T3 organisation A confirms v2; B is still unconfirmed
+PASS T3 organisation B confirms v2 independently
+PASS T3 v3 starts unconfirmed; v2 keeps both confirmations
+PASS T3 server verifies uploads; original bytes of an old version download with the registered hash
+PASS T3 two versions open side by side with their differences marked
+PASS T3 restoring v1 creates v4 with v1 bytes and no confirmations; v2 confirmations untouched
+PASS T4 evidence export matches messages, hashes, organisations and people
+PASS T5 removed room member loses the room
+PASS T5 member removed from the organisation loses every room, file row and file object
+PASS T6 history paging on real data (70 extra messages)
+PASS T6 1440px: no horizontal overflow, composer usable, panel opens
+PASS T6 768px: no horizontal overflow, composer usable, panel opens
+PASS T6 390px: no horizontal overflow, composer usable, panel opens
+NOT RUN T6 soft keyboard on a physical phone — only simulated by shrinking the viewport
+
+32 passed, 0 failed, 2 not run
+
+--- stderr ---
+(node:2151) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)

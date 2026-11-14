@@ -1,0 +1,16 @@
+{
+  "_doc": "Give AGY ONLY this MCP server. Do not add a shell, filesystem or browser server next to it. Edit the three paths/URLs for your machine; keep everything else.",
+  "mcpServers": {
+    "sourcerating-playwright": {
+      "command": "node",
+      "args": ["D:\\AgentWorkspaces\\sourcerating-e2e\\repo\\qa\\windows-b\\tools\\playwright-mcp.cjs"],
+      "env": {
+        "B_URL": "http://localhost:3100",
+        "B_SUPABASE_URL": "https://nunojlfangvnjlwggvvb.supabase.co",
+        "B_USERS": "D:\\AgentWorkspaces\\sourcerating-e2e\\secrets\\users.json",
+        "B_CHROME_CHANNEL": "chrome",
+        "QA_INTEGRITY_ROOT_SHA256": "<value printed by pin.cjs, set by the owner>"
+      }
+    }
+  }
+}

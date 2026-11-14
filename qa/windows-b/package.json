@@ -1,0 +1,6 @@
+{
+  "name": "sourcerating-windows-b-e2e",
+  "private": true,
+  "description": "Harness only. The app's own dependencies stay in apps/web.",
+  "dependencies": { "pg": "^8.13.0" }
+}

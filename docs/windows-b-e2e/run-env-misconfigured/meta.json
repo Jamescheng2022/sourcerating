@@ -1,0 +1,19 @@
+{
+  "runId": "20261114T035637",
+  "target": "http://localhost:3100",
+  "supabase": "https://nunojlfangvnjlwggvvb.supabase.co",
+  "branch": "qa/windows-b-e2e-20261114",
+  "commit": "3c8584fc4bd82c33204072cb3e067d52fe68429c",
+  "baselineTag": "3c8584fc4bd82c33204072cb3e067d52fe68429c",
+  "startedAt": "2026-11-14T03:56:37.045Z",
+  "suites": [
+    "baseline_real_e2e",
+    "offline_recovery"
+  ],
+  "node": "v22.23.4",
+  "integrityRoot": "221e552e3c22ea514b76020cab2e89b45a9b6460a7a8889171fff2dd5f87ac53",
+  "fixedCopy": null,
+  "stamp": "11140356",
+  "timedOut": false,
+  "finishedAt": "2026-11-14T04:01:56.025Z"
+}

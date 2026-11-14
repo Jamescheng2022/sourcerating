@@ -1,0 +1,41 @@
+{
+  "name": "sourcerating_playwright_e2e",
+  "version": 1,
+  "purpose": "Synthetic multi-user acceptance of SourceRating Project Room B. Test Director may run only the entrypoints listed here.",
+  "repo": "Jamescheng2022/sourcerating",
+  "baselineTag": "qa-baseline-20261114",
+  "entrypoints": {
+    "baseline_real_e2e": {
+      "file": "apps/web/scripts/project-room-b-real-e2e.cjs",
+      "description": "Journeys T1-T6 with four synthetic accounts (unmodified baseline)"
+    },
+    "offline_recovery": {
+      "file": "qa/windows-b/scenarios/offline-recovery.cjs",
+      "description": "Network loss and recovery during two-party chat"
+    }
+  },
+  "targets": {
+    "localHosts": ["localhost", "127.0.0.1"],
+    "previewHosts": ["sourcerating-room-lab.vercel.app"],
+    "supabaseAllowedRefs": ["nunojlfangvnjlwggvvb"],
+    "supabaseDeniedRefs": {
+      "qnozpurjtgkmwtvsrjoi": "sourcerating-p1 (production-like, protected)",
+      "fzrberkeoizarduwuisp": "sourcerating-stage2 historical project, inactive; not authorized for this profile",
+      "abmsmyrfsygrbjnoowkx": "other project",
+      "trjbsfntvfcogfkhfzks": "other project",
+      "egtzldbtpfiunnxgcxcy": "other project",
+      "jwejjhudbwvrtpmieuli": "other project"
+    },
+    "note": "Any other *.supabase.co host or any other *.vercel.app host is a boundary violation and stops the run."
+  },
+  "childEnvAllowList": ["B_URL", "B_SUPABASE_URL", "B_ANON_KEY", "B_USERS", "B_CHROME_CHANNEL", "B_AI_STUB", "B_QA_OUTPUT", "PATH", "SystemRoot", "HOME", "USERPROFILE", "TEMP", "TMP", "HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY", "NODE_USE_ENV_PROXY", "NODE_EXTRA_CA_CERTS", "PLAYWRIGHT_DISABLE_FORCED_CHROMIUM_PROXIED_LOOPBACK", "PLAYWRIGHT_BROWSERS_PATH", "QA_RUN_DIR", "QA_PRELOAD_PROFILE"],
+  "forbiddenEnvPatterns": ["SERVICE_ROLE", "SECRET_KEY", "sb_secret_", "STRIPE", "SMTP", "RESEND", "SENDGRID", "WHATSAPP", "TWILIO"],
+  "tools": {
+    "arbitraryShell": false,
+    "arbitraryJavascriptInPage": false,
+    "arbitraryUrl": false,
+    "fixtureUploadsOnly": true,
+    "readableRoots": ["runs", "fixtures"],
+    "writableRoots": ["runs", "work"]
+  }
+}

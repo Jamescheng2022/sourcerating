@@ -1,0 +1,32 @@
+ORACLE PASS scope.projects actual=2
+ORACLE PASS scope.rooms actual=5
+ORACLE PASS events.seq_contiguous_violations actual=0
+ORACLE PASS events.duplicate_client_msg actual=0
+ORACLE PASS events.hash_chain_breaks actual=0
+ORACLE PASS files.not_verified actual=0
+ORACLE PASS files.sha_mismatch actual=0
+ORACLE PASS files.version_gaps actual=0
+ORACLE PASS files.object_missing actual=0
+ORACLE PASS files.versions_total actual=4
+ORACLE PASS confirm.hash_not_bound_to_version actual=0
+ORACLE PASS confirm.without_event actual=0
+ORACLE PASS confirm.org_not_in_project actual=0
+ORACLE PASS state.ep600_v2_distinct_confirming_orgs actual=2
+ORACLE PASS state.ep600_latest_version_confirmations actual=0
+ORACLE PASS state.ep600_latest_version_no actual=4
+ORACLE PASS state.restored_version_has_original_bytes actual=1
+ORACLE PASS isolation.internal_room_multi_org actual=0
+ORACLE PASS isolation.internal_foreign_author actual=0
+ORACLE PASS isolation.member_org_outside_project actual=0
+ORACLE PASS isolation.subroom_text_copied_to_main actual=0
+ORACLE PASS isolation.events_after_member_removed actual=0
+ORACLE PASS offline.m1_exactly_once actual=1
+ORACLE PASS offline.m2_exactly_once actual=1
+ORACLE PASS offline.m3_exactly_once actual=1
+ORACLE PASS offline.order_m2_before_m3_violations actual=0
+ORACLE PASS rls.pairs_probed actual=20
+ORACLE PASS rls.nonmember_leaks actual=0
+ORACLE PASS rls.member_cannot_read_own_room actual=0
+ORACLE PASS 29/29
+(node:2116) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)

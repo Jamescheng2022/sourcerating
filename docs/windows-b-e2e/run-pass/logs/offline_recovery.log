@@ -1,0 +1,11 @@
+PASS O1 both parties are online in the same room
+PASS O2 while A is offline the message is kept and marked as not sent
+PASS O3 B keeps talking meanwhile and does not see the unsent message
+PASS O4 back online: A resends once, B receives it, A catches up with B without reload
+PASS O5 B offline then online: B reload shows the full ordered history
+
+5 passed, 0 failed, 0 not run
+
+--- stderr ---
+(node:1931) [UNDICI-EHPA] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time.
+(Use `node --trace-warnings ...` to show where the warning was created)
