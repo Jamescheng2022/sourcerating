@@ -132,7 +132,6 @@ const T = 30000;
     await signIn('b2', lb); await b2.getByLabel('你的姓名').fill('Ben'); await b2.getByRole('button', { name: '加入', exact: true }).click(); await chat(b2).getByText(proj).first().waitFor({ timeout: T });
   });
 
-  notRun('T2 AI proposes the split', 'no AI provider key is configured on staging; sub rooms were created manually');
   await check('T2 A creates a cross-company sub room with chosen members only', async () => {
     await a1.reload(); await openRoom(a1, proj);
     await subRoom(a1, `Logistics ${stamp}`, 'external', ['Bob']);
@@ -162,6 +161,72 @@ const T = 30000;
     await b1.reload(); await room(b1, proj).first().waitFor({ timeout: T });
     if (await room(b1, `A internal ${stamp}`).count()) throw new Error('B sees A internal room');
   });
+
+  const rest = (p, q) => p.evaluate(async ([q, key, url]) => {
+    const tok = JSON.parse(localStorage.getItem('sr_p1_supabase_auth')).access_token;
+    const r = await fetch(`${url}/${q}`, { headers: { Authorization: `Bearer ${tok}`, apikey: key } });
+    return { status: r.status, body: await r.text() };
+  }, [q, process.env.B_ANON_KEY, process.env.B_SUPABASE_URL]);
+  // ── AI: real database, real RLS, real API route; only the language model is a local stub ──
+  const prompts = [];
+  if (process.env.B_AI_STUB) {
+    require('http').createServer((req, res) => {
+      let raw = ''; req.on('data', (c) => (raw += c)); req.on('end', () => {
+        const prompt = JSON.parse(raw).messages[1].content; prompts.push(prompt);
+        const seqs = Array.from(prompt.matchAll(/^\[#(\d+)\]/gm)).map((m) => Number(m[1]));
+        const task = prompt.match(/TASK: (\w+)/)[1];
+        const out = task === 'Summarise' ? { summary: 'STUB summary of the room', decided: [{ text: 'STUB decided item', sources: [seqs[0], 99999] }], open_questions: [{ text: 'STUB open question', sources: [seqs[1]] }], todos: [], contradictions: [], version_notes: [], clarify: ['STUB follow-up?'] }
+          : task === 'Explain' ? { answer: 'STUB explanation', sources: [Number(prompt.match(/TARGET \[#(\d+)\]/)[1])] }
+          : task === 'Translate' ? { translation: 'STUB 译文' }
+          : { suggestions: [{ name: `AI Split ${stamp}`, purpose: 'STUB purpose', kind: 'external', member_names: ['Bob', 'Nobody Invented'], file_names: [], reason: 'two streams', sources: [seqs[0]] }] };
+        res.setHeader('content-type', 'application/json'); res.end(JSON.stringify({ choices: [{ message: { content: JSON.stringify(out) } }] }));
+      });
+    }).listen(3199);
+    const aiTab = async (p) => { await openRoom(p, proj); await panel(p, 'AI'); };
+    await check('AI(stub model) summary is private, sectioned, and its sources jump to real messages', async () => {
+      await a1.keyboard.press('Escape'); await aiTab(a1);
+      await a1.getByRole('button', { name: '总结' }).click();
+      const turn = a1.getByTestId('ai-turn').last(); await turn.getByText('STUB decided item').waitFor({ timeout: T });
+      if ((await turn.getByText('STUB decided item').locator('..').getByRole('button', { name: '来源' }).count()) !== 1) throw new Error('invented source #99999 was not dropped');
+      if (await chat(b1).getByText('STUB summary').count()) throw new Error('AI output reached the other party');
+      const pr = prompts.at(-1);
+      if (!pr.includes(`hello from B ${stamp}`)) throw new Error('room content missing from prompt');
+      if (pr.includes(`floor price 14.2 ${stamp}`) || pr.includes(`vessel booked ${stamp}`)) throw new Error('other rooms leaked into the prompt');
+    });
+    await check('AI(stub model) explains and translates one message for the reader only', async () => {
+      const m = chat(a1).getByText(`hello from B ${stamp}`).first(); await m.click({ button: 'right' });
+      await a1.getByRole('menuitem', { name: '翻译' }).click(); await chat(a1).getByText('STUB 译文').waitFor({ timeout: T });
+      await m.click({ button: 'right' }); await a1.getByRole('menuitem', { name: '问 AI' }).click();
+      await a1.getByTestId('ai-turn').last().getByText('STUB explanation').waitFor({ timeout: T });
+      if (await chat(b1).getByText('STUB 译文').count()) throw new Error('translation visible to the other party');
+    });
+    await check('T2 AI(stub model) proposes a split; nothing is created until A confirms; unknown people are not added', async () => {
+      const before = await room(a1, `AI Split ${stamp}`).count();
+      await a1.getByRole('button', { name: '建议拆分' }).click();
+      const card = a1.getByTestId('split-suggestion'); await card.getByText(`AI Split ${stamp}`).waitFor({ timeout: T });
+      if (before || (await room(a1, `AI Split ${stamp}`).count())) throw new Error('room created without confirmation');
+      await card.getByRole('button', { name: '创建…' }).click();
+      const dlg = a1.getByRole('dialog').filter({ hasText: '下新建子房间' });
+      if ((await dlg.getByLabel('子房间名称').inputValue()) !== `AI Split ${stamp}`) throw new Error('not prefilled');
+      if ((await dlg.locator('button[data-on="true"]').filter({ hasText: 'Bob' }).count()) !== 1) throw new Error('suggested member not preselected');
+      await dlg.getByRole('button', { name: '创建', exact: true }).click();
+      await chat(a1).getByText(`AI Split ${stamp}`).first().waitFor({ timeout: T });
+      await b1.reload(); await room(b1, `AI Split ${stamp}`).first().waitFor({ timeout: T });
+      await b2.reload(); await room(b2, proj).first().waitFor({ timeout: T });
+      if (await room(b2, `AI Split ${stamp}`).count()) throw new Error('uninvited colleague sees the AI-suggested room');
+    });
+    await check('T5 AI refuses a room the caller cannot access (403 before any model call)', async () => {
+      const rooms = JSON.parse((await rest(a1, 'rest/v1/rooms?select=id,name')).body);
+      const hidden = rooms.find((r) => r.name === `A internal ${stamp}`).id, n = prompts.length;
+      const r = await b1.evaluate(async (roomId) => {
+        const tok = JSON.parse(localStorage.getItem('sr_p1_supabase_auth')).access_token;
+        const res = await fetch('/api/project-room-b/assist', { method: 'POST', headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ roomId, mode: 'summary' }) });
+        return res.status;
+      }, hidden);
+      if (r !== 403 || prompts.length !== n) throw new Error(`status ${r}, model calls ${prompts.length - n}`);
+    });
+    notRun('AI with the real model (answer quality, latency)', 'the workspace cannot reach the preview site or the model provider; only the stubbed-model path was exercised');
+  } else notRun('T2/T5 AI journeys', 'run with B_AI_STUB=1 and the app pointed at the stub endpoint');
 
   const fileTab = async (p) => { await openRoom(p, proj); await panel(p, '文件与确认'); };
   const cards = (p) => p.getByTestId('file-version');
@@ -197,7 +262,35 @@ const T = 30000;
     const n = await b1.evaluate(() => Array.from(document.querySelectorAll('[data-testid="file-version"]')).map((c) => c.querySelectorAll('[data-d="confirmed"]').length));
     if (n[0] !== 0 || n[1] !== 2) throw new Error('confirmations per version (v3,v2,v1) = ' + JSON.stringify(n));
   });
-  notRun('T3 side-by-side version diff and original download', 'file gateway (verify/sign) is not deployed to staging yet');
+  await check('T3 server verifies uploads; original bytes of an old version download with the registered hash', async () => {
+    await b1.reload(); await fileTab(b1);
+    await b1.waitForFunction(() => document.querySelectorAll('[data-testid="file-version"]').length === 3 && Array.from(document.querySelectorAll('[data-testid="file-version"]')).every((c) => c.textContent.includes('verified')), null, { timeout: 60000 });
+    const got = await b1.evaluate(async () => {
+      const card = document.querySelectorAll('[data-testid="file-version"]')[1]; // v2
+      const orig = window.open; let url = null; window.open = (u) => { url = u; return null; };
+      Array.from(card.querySelectorAll('button')).find((x) => x.textContent.includes('下载')).click();
+      for (let i = 0; i < 100 && !url; i++) await new Promise((r) => setTimeout(r, 200));
+      window.open = orig; if (!url) return null;
+      const buf = await (await fetch(url)).arrayBuffer();
+      return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', buf))).map((x) => x.toString(16).padStart(2, '0')).join('');
+    });
+    if (got !== sha(v2)) throw new Error('downloaded sha ' + got);
+  });
+  await check('T3 two versions open side by side with their differences marked', async () => {
+    await cards(b1).first().getByRole('button', { name: /对比 v2/ }).click();
+    const d = b1.getByTestId('compare'); await d.locator('iframe').nth(1).waitFor({ timeout: T });
+    if ((await d.locator('tr[data-diff="true"]').count()) < 2) throw new Error('differences not marked');
+    await b1.screenshot({ path: path.join(out, 'b-real-compare.png') });
+    await b1.keyboard.press('Escape');
+  });
+  await check('T3 restoring v1 creates v4 with v1 bytes and no confirmations; v2 confirmations untouched', async () => {
+    await cards(b1).nth(2).getByRole('button', { name: '恢复为新版本' }).click();
+    await b1.waitForFunction(() => document.querySelectorAll('[data-testid="file-version"]').length === 4, null, { timeout: 60000 });
+    const top = await cards(b1).first().innerText();
+    if (!top.includes('v4') || !top.includes(sha(v1).slice(0, 16))) throw new Error('v4 is not v1 bytes: ' + top.slice(0, 90));
+    const n = await b1.evaluate(() => Array.from(document.querySelectorAll('[data-testid="file-version"]')).map((c) => c.querySelectorAll('[data-d="confirmed"]').length));
+    if (n.join() !== '0,0,2,0') throw new Error('confirmations (v4,v3,v2,v1) = ' + n.join());
+  });
 
   await check('T4 evidence export matches messages, hashes, organisations and people', async () => {
     await a1.reload(); await openRoom(a1, proj); await panel(a1, '成员');
@@ -208,17 +301,12 @@ const T = 30000;
     if (cf.length !== 2) throw new Error('confirmations ' + cf.length);
     if (!cf.every((c) => c.file_sha256 === sha(v2) && c.decision === 'confirmed')) throw new Error('confirmation hash mismatch');
     if (new Set(cf.map((c) => c.organization_name)).size !== 2) throw new Error('organisations');
-    if (f.length !== 3 || f.map((x) => x.sha256).join() !== [sha(v1), sha(v2), sha(v3)].join()) throw new Error('file hashes ' + f.map((x) => x.version_no + ':' + String(x.sha256).slice(0, 8)));
+    if (f.length !== 4 || f.map((x) => x.sha256).join() !== [sha(v1), sha(v2), sha(v3), sha(v1)].join()) throw new Error('file hashes ' + f.map((x) => x.version_no + ':' + String(x.sha256).slice(0, 8)));
     if (!cf.every((c) => f.some((x) => x.id === c.file_version_id && x.version_no === 2))) throw new Error('confirmation not bound to v2');
     if (!ev.some((e) => e.payload && e.payload.text === `hello from B ${stamp}`)) throw new Error('raw message missing');
     if (!cf.every((c) => ev.some((e) => e.id === c.source_event_id && e.actor_user_id === c.user_id))) throw new Error('confirmation events inconsistent');
   });
 
-  const rest = (p, q) => p.evaluate(async ([q, key, url]) => {
-    const tok = JSON.parse(localStorage.getItem('sr_p1_supabase_auth')).access_token;
-    const r = await fetch(`${url}/${q}`, { headers: { Authorization: `Bearer ${tok}`, apikey: key } });
-    return { status: r.status, body: await r.text() };
-  }, [q, process.env.B_ANON_KEY, process.env.B_SUPABASE_URL]);
   await check('T5 removed room member loses the room', async () => {
     await openRoom(a1, `Logistics ${stamp}`); await panel(a1, '成员');
     await a1.getByRole('button', { name: '移出', exact: true }).first().click();
@@ -228,7 +316,7 @@ const T = 30000;
   await check('T5 member removed from the organisation loses every room, file row and file object', async () => {
     const objectPath = evidence.files[0].object_path;
     const before = await rest(b2, 'rest/v1/room_file_versions?select=id');
-    if (JSON.parse(before.body).length < 3) throw new Error('precondition: B2 should see at least 3 versions, got ' + before.body.slice(0, 80));
+    if (JSON.parse(before.body).length < 4) throw new Error('precondition: B2 should see at least 3 versions, got ' + before.body.slice(0, 80));
     await openRoom(b1, proj); await panel(b1, '成员');
     await b1.getByRole('button', { name: '移出组织' }).first().click();
     await b1.waitForTimeout(1500);
@@ -239,7 +327,6 @@ const T = 30000;
     if (obj.status < 400) throw new Error('object still downloadable ' + obj.status);
     await b2.reload(); await b2.getByText(/创建你的组织|还没有项目/).first().waitFor({ timeout: T });
   });
-  notRun('T5 AI cannot read rooms the user cannot access', 'AI not configured on staging; the analyze API resolves events under the caller RLS (code path unchanged from A)');
 
   await check('T6 history paging on real data (70 extra messages)', async () => {
     await openRoom(a1, rev);

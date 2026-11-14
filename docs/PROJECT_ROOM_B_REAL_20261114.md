@@ -48,3 +48,26 @@ Also run on real Postgres with RLS (local and on staging, rolled back): `supabas
 ## Owner actions
 - AI provider key and worker secret on the preview project (never in chat).
 - Decide whether staging should keep e-mail confirmation (custom SMTP) for real pilots.
+
+## Update 2 (same day): files, AI — supersedes the rows above marked "not run"
+Acceptance now **32 passed, 0 failed, 2 not run** (`real-acceptance.json`).
+
+- **File gateway** deployed to staging from `supabase/functions/room-file-gateway` (+ `_shared`), `verify_jwt` on.
+  The app reaches it through `/api/project-room-b/gateway`, a same-origin relay that forwards the caller's token
+  (the function's CORS allow-list was left at its default). Uploads are re-hashed server-side and show `verified`;
+  an old version downloads with exactly its registered SHA-256.
+- **Compare**: two versions side by side (PDF/image) with a field table that marks what differs. No text-level diff.
+- **Restore**: an old version is re-uploaded as a new version (v1 → v4, same bytes, zero confirmations; v2 keeps its two).
+- **AI** `/api/project-room-b/assist`: summary (decided / open / to-dos / contradictions / version changes / follow-ups),
+  explain a message, translate, suggest sub rooms. It reads one room with the caller's token, writes nothing, and its
+  output appears only in the caller's private panel. A suggested room is created only after the user confirms the
+  prefilled dialog; names the model invents are ignored; source numbers that do not exist are dropped.
+  - Tested with real data, real RLS and the real route, **with the model replaced by a local stub**: prompt contains the
+    room's messages and none from the internal or sibling sub room; a non-member gets 403 before any model call.
+  - **Not run: the real model.** The test workspace cannot reach the preview site or the provider. Key is set on Vercel
+    by the owner (`SOURCERATING_DEEPSEEK_API_KEY`, production target of `sourcerating-room-lab`).
+- Verification status now refreshes while a file is pending.
+- One paging check failed once in five runs and passed on rerun without a code change; treated as test timing, not proven.
+
+Still open: real-model check on the preview, physical-phone keyboard, realtime vs. poll, role change / revoke-invite UI,
+server-side message search, cleanup of test storage objects, AI answers are not saved between sessions.

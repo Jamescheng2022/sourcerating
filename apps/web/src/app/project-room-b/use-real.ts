@@ -226,6 +226,8 @@ export function useReal() {
       await refresh();
       const cur = ref.current;
       const r = cur.rooms.find((x) => x.id === cur.roomId);
+      // Verification verdicts arrive without an event; pick them up while any file here is still pending.
+      if (r && cur.files.some((f) => f.roomId === r.id && f.verification === "pending")) void loadRoom(r.id);
       const top = Math.max(0, ...(cur.messages[cur.roomId] ?? []).map((m) => seqs.current.get(m.id) ?? 0));
       if (r && cur.messages[r.id] && r.lastSeq > top) {
         const { data } = await supabase.from("room_events").select("*").eq("room_id", r.id).gt("seq", top).order("seq").limit(200);

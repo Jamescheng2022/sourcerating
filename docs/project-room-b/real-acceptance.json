@@ -1,10 +1,10 @@
 {
   "kind": "REAL BACKEND (staging Supabase), not DEMO",
   "base": "http://localhost:3100/project-room-b",
-  "stamp": "11140049",
-  "passed": 25,
+  "stamp": "11140216",
+  "passed": 32,
   "failed": 0,
-  "notRun": 4,
+  "notRun": 2,
   "results": [
     {
       "name": "T1 A signs in and creates an organisation",
@@ -43,11 +43,6 @@
       "ok": true
     },
     {
-      "name": "T2 AI proposes the split",
-      "ok": null,
-      "error": "no AI provider key is configured on staging; sub rooms were created manually"
-    },
-    {
       "name": "T2 A creates a cross-company sub room with chosen members only",
       "ok": true
     },
@@ -68,6 +63,27 @@
       "ok": true
     },
     {
+      "name": "AI(stub model) summary is private, sectioned, and its sources jump to real messages",
+      "ok": true
+    },
+    {
+      "name": "AI(stub model) explains and translates one message for the reader only",
+      "ok": true
+    },
+    {
+      "name": "T2 AI(stub model) proposes a split; nothing is created until A confirms; unknown people are not added",
+      "ok": true
+    },
+    {
+      "name": "T5 AI refuses a room the caller cannot access (403 before any model call)",
+      "ok": true
+    },
+    {
+      "name": "AI with the real model (answer quality, latency)",
+      "ok": null,
+      "error": "the workspace cannot reach the preview site or the model provider; only the stubbed-model path was exercised"
+    },
+    {
       "name": "T3 B uploads v1 then v2 of the same file",
       "ok": true
     },
@@ -84,9 +100,16 @@
       "ok": true
     },
     {
-      "name": "T3 side-by-side version diff and original download",
-      "ok": null,
-      "error": "file gateway (verify/sign) is not deployed to staging yet"
+      "name": "T3 server verifies uploads; original bytes of an old version download with the registered hash",
+      "ok": true
+    },
+    {
+      "name": "T3 two versions open side by side with their differences marked",
+      "ok": true
+    },
+    {
+      "name": "T3 restoring v1 creates v4 with v1 bytes and no confirmations; v2 confirmations untouched",
+      "ok": true
     },
     {
       "name": "T4 evidence export matches messages, hashes, organisations and people",
@@ -99,11 +122,6 @@
     {
       "name": "T5 member removed from the organisation loses every room, file row and file object",
       "ok": true
-    },
-    {
-      "name": "T5 AI cannot read rooms the user cannot access",
-      "ok": null,
-      "error": "AI not configured on staging; the analyze API resolves events under the caller RLS (code path unchanged from A)"
     },
     {
       "name": "T6 history paging on real data (70 extra messages)",
