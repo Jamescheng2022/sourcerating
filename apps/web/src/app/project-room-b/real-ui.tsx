@@ -2,13 +2,13 @@
 
 import * as Dialog from "@radix-ui/react-dialog";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { Check, ChevronsUpDown, CornerDownRight, Download, FileUp, FolderPlus, GitBranch, Hash, LockKeyhole, LogOut, Plus, Send, ShieldCheck, UserPlus, X } from "lucide-react";
+import { Check, ChevronsUpDown, GitCompare, History, Sparkles, CornerDownRight, Download, FileUp, FolderPlus, GitBranch, Hash, LockKeyhole, LogOut, Plus, Send, ShieldCheck, UserPlus, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { OrgMark } from "../project-room-lab/message";
 import { formatSize, timeOf } from "../project-room-lab/demo/adapter";
 import css from "../project-room-lab/lab.module.css";
 import rc from "./real.module.css";
-import type { Real, RealFile } from "./use-real";
+import type { Real, RealFile, SplitSuggestion } from "./use-real";
 
 const msg = (e: unknown) => (e instanceof Error ? e.message : String((e as { message?: string })?.message ?? e));
 
@@ -116,9 +116,10 @@ export function NewProject({ real, open, onClose }: { real: Real; open: boolean;
   );
 }
 
-export function NewSubRoom({ real, open, onClose }: { real: Real; open: boolean; onClose: () => void }) {
+export function NewSubRoom({ real, open, onClose, preset }: { real: Real; open: boolean; onClose: () => void; preset?: SplitSuggestion }) {
   const { s, room, user, org, actions } = real;
-  const [name, setName] = useState(""), [purpose, setPurpose] = useState(""), [kind, setKind] = useState<"external" | "internal">("external"), [picked, setPicked] = useState<string[]>([]);
+  const [name, setName] = useState(preset?.name ?? ""), [purpose, setPurpose] = useState(preset?.purpose ?? ""), [kind, setKind] = useState<"external" | "internal">(preset?.kind ?? "external");
+  const [picked, setPicked] = useState<string[]>(() => (preset ? Object.values(s.users).filter((u) => preset.memberNames.includes(u.name)).map((u) => u.id) : []));
   const parent = s.rooms.find((r) => r.id === (room?.parentId ?? room?.id));
   const candidates = useMemo(() => {
     const ids = new Set<string>(parent?.memberIds ?? []);
@@ -143,7 +144,7 @@ export function NewSubRoom({ real, open, onClose }: { real: Real; open: boolean;
             </button>
           ))}
         </div>
-        <div className={css.dialogActs}><small>不会复制主房间的消息和文件</small><button type="button" className={css.ghost} onClick={onClose}>取消</button><button className={css.primary} disabled={name.trim().length < 2}>创建</button></div>
+        <div className={css.dialogActs}><small>{preset ? "AI 建议 · 由你确认后才创建" : "不会复制主房间的消息和文件"}</small><button type="button" className={css.ghost} onClick={onClose}>取消</button><button className={css.primary} disabled={name.trim().length < 2}>创建</button></div>
       </form>
     </Modal>
   );
@@ -258,7 +259,8 @@ export function RealSidebar({ real, onOpen }: { real: Real; onOpen: (id: string)
 
 function FileCard({ real, f, latest }: { real: Real; f: RealFile; latest: boolean }) {
   const { s, user, org, room, actions } = real;
-  const [note, setNote] = useState(""), [busy, setBusy] = useState(false), [err, setErr] = useState("");
+  const [note, setNote] = useState(""), [busy, setBusy] = useState(false), [err, setErr] = useState(""), [cmp, setCmp] = useState(false);
+  const prev = s.files.find((x) => x.id === f.supersedes) ?? s.files.find((x) => x.roomId === f.roomId && x.lineage === f.lineage && x.version === f.version - 1);
   const orgIds = Array.from(new Set((room?.memberIds ?? []).map((id) => user(id).orgId).filter(Boolean)));
   const state = (orgId: string) => s.confirmations.filter((c) => c.fileVersionId === f.id && c.orgId === orgId).at(-1);
   const mine = state(s.orgId);
@@ -282,15 +284,54 @@ function FileCard({ real, f, latest }: { real: Real; f: RealFile; latest: boolea
         <button type="button" className={rc.mini} disabled={busy} onClick={act(() => actions.requestReview(f.id, note))}><Send size={13} />请各方审核</button>
         <button type="button" className={rc.mini} disabled={busy} onClick={act(async () => { window.open(await actions.fileUrl(f.id), "_blank", "noopener"); })}><Download size={13} />下载</button>
         {f.sourceEventId && <button type="button" className={rc.mini} onClick={() => actions.jumpTo(f.sourceEventId!)}>来源消息</button>}
+        {prev && <button type="button" className={rc.mini} onClick={() => setCmp(true)}><GitCompare size={13} />对比 v{prev.version}</button>}
+        {!latest && <button type="button" className={rc.mini} disabled={busy} onClick={act(() => actions.restoreVersion(f))}><History size={13} />恢复为新版本</button>}
       </div>
+      {cmp && prev && <Compare real={real} a={prev} b={f} onClose={() => setCmp(false)} />}
       {err && <span className={rc.err}>{err}</span>}
     </article>
   );
 }
 
+function Compare({ real, a, b, onClose }: { real: Real; a: RealFile; b: RealFile; onClose: () => void }) {
+  const { s, user, org, actions } = real;
+  const [urls, setUrls] = useState<[string, string] | null>(null), [err, setErr] = useState("");
+  useEffect(() => {
+    Promise.all([actions.fileUrl(a.id), actions.fileUrl(b.id)]).then((u) => setUrls(u as [string, string])).catch((x) => setErr(msg(x)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [a.id, b.id]);
+  const note = (f: RealFile) => (s.messages[f.roomId] ?? []).find((m) => m.id === f.sourceEventId)?.text ?? "—";
+  const rows: [string, (f: RealFile) => string][] = [
+    ["上传", (f) => `${user(f.uploaderUserId).name} · ${org(f.uploaderOrgId).short}`], ["时间", (f) => new Date(f.createdAt).toLocaleString()],
+    ["大小", (f) => formatSize(f.size)], ["SHA-256", (f) => f.sha256.slice(0, 20) + "…"], ["说明", note],
+    ["已确认", (f) => Array.from(new Set(s.confirmations.filter((c) => c.fileVersionId === f.id && c.decision === "confirmed").map((c) => org(c.orgId).short))).join("、") || "无"],
+  ];
+  const view = (f: RealFile, url: string) => f.kind === "image"
+    // eslint-disable-next-line @next/next/no-img-element
+    ? <img src={url} alt={`${f.name} v${f.version}`} className={rc.pane} />
+    : f.kind === "pdf" ? <iframe src={url} title={`${f.name} v${f.version}`} className={rc.pane} /> : <div className={rc.pane}>此格式不能在页面内预览</div>;
+  return (
+    <Dialog.Root open onOpenChange={(v) => !v && onClose()}>
+      <Dialog.Portal>
+        <Dialog.Overlay className={css.overlay} />
+        <Dialog.Content className={`${css.dialog} ${rc.wide}`} aria-describedby={undefined} data-testid="compare">
+          <Dialog.Title className={css.dialogTitle}>{b.name} · v{a.version} → v{b.version}</Dialog.Title>
+          <table className={rc.cmp}>
+            <thead><tr><th /><th>v{a.version}</th><th>v{b.version}</th></tr></thead>
+            <tbody>{rows.map(([k, fn]) => <tr key={k} data-diff={fn(a) !== fn(b)}><th>{k}</th><td>{fn(a)}</td><td>{fn(b)}</td></tr>)}</tbody>
+          </table>
+          {err && <span className={rc.err}>{err}</span>}
+          {urls && <div className={rc.panes}>{view(a, urls[0])}{view(b, urls[1])}</div>}
+          <div className={css.dialogActs}><small>并排显示两份原文件；不做逐字差异</small><button type="button" className={css.ghost} onClick={onClose}>关闭</button></div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
 export function RealPanel({ real }: { real: Real }) {
   const { s, room, user, org, meId, actions } = real;
-  const [invite, setInvite] = useState(false), [share, setShare] = useState("");
+  const [invite, setInvite] = useState(false), [share, setShare] = useState(""), [preset, setPreset] = useState<SplitSuggestion | null>(null);
   const pick = useRef<HTMLInputElement>(null);
   const target = useRef<string | null>(null);
   if (!room) return null;
@@ -361,9 +402,43 @@ export function RealPanel({ real }: { real: Real }) {
         )}
         {tab === "ai" && (
           <>
-            <p className={css.hint}><LockKeyhole size={12} />仅你可见</p>
-            {turns.length === 0 && <p className={css.hint}>在消息上点「问 AI」。</p>}
-            {turns.map((t) => (<div key={t.id} className={css.card}><h4>{t.question}</h4><p>{t.answer ? t.answer.answer : "…"}</p></div>))}
+            <div className={rc.row}>
+              <span className={`${css.hint} ${rc.grow}`}><LockKeyhole size={12} />仅你可见 · 只读本房间</span>
+              <button type="button" className={rc.mini} onClick={() => void actions.ask({ type: "room", id: room.id }, "总结这个房间", "summary")}><Sparkles size={13} />总结</button>
+              {!room.parentId && <button type="button" className={rc.mini} onClick={() => void actions.ask({ type: "room", id: room.id }, "需要拆分子房间吗？", "split")}><GitBranch size={13} />建议拆分</button>}
+            </div>
+            {s.splits.filter((x) => x.roomId === room.id).map((x) => (
+              <div key={x.id} className={css.card} data-testid="split-suggestion">
+                <h4>{x.kind === "internal" ? <LockKeyhole size={13} /> : <Hash size={13} />} {x.name}</h4>
+                <p>{x.purpose}</p>
+                {x.memberNames.length > 0 && <p>成员：{x.memberNames.join("、")}</p>}
+                {x.fileNames.length > 0 && <p>文件：{x.fileNames.join("、")}</p>}
+                <p>{x.kind === "internal" ? "仅本组织可见" : "仅选中的成员可见"}</p>
+                <div className={rc.chips}>{x.sources.map((id, i) => <button key={id} type="button" className={rc.chip} onClick={() => actions.jumpTo(id)}>来源 {i + 1}</button>)}</div>
+                <div className={rc.row} style={{ marginTop: 8 }}>
+                  <button type="button" className={rc.mini} data-primary onClick={() => setPreset(x)}>创建…</button>
+                  <button type="button" className={rc.mini} onClick={() => actions.dismissSplit(x.id)}>忽略</button>
+                </div>
+              </div>
+            ))}
+            {turns.length === 0 && <p className={css.hint}>在消息上点「问 AI」或「翻译」。</p>}
+            {turns.map((t) => (
+              <div key={t.id} className={css.card} data-testid="ai-turn">
+                <h4>{t.question}</h4>
+                <p style={{ whiteSpace: "pre-wrap" }}>{t.answer ? t.answer.answer : "…"}</p>
+                {(s.aiSections[t.id] ?? []).map((sec) => (
+                  <div key={sec.title} style={{ marginTop: 8 }}>
+                    <h3>{sec.title}</h3>
+                    {sec.items.map((it, i) => (
+                      <p key={i}>· {it.text} {it.sources.map((id, j) => <button key={id + j} type="button" className={rc.chip} onClick={() => actions.jumpTo(id)}>来源</button>)}</p>
+                    ))}
+                  </div>
+                ))}
+                {t.answer && t.answer.sources.length > 0 && <div className={rc.chips}>{t.answer.sources.map((id, i) => <button key={id} type="button" className={rc.chip} onClick={() => actions.jumpTo(id)}>来源 {i + 1}</button>)}</div>}
+                {t.answer && <button type="button" className={rc.mini} style={{ marginTop: 8 }} onClick={() => actions.insertDraft(t.answer!.answer)}>放进输入框</button>}
+              </div>
+            ))}
+            {preset && <NewSubRoom key={preset.id} real={real} open onClose={() => { setPreset(null); }} preset={preset} />}
           </>
         )}
       </div>

@@ -35,3 +35,12 @@
 .banner button { color: #fff !important; font-weight: 700; }
 .empty { display: grid; place-items: center; align-content: center; gap: 12px; color: var(--ink3); background: var(--canvas, #eeede8); min-width: 0; }
 .copy { font: 12px ui-monospace, Menlo, monospace; word-break: break-all; background: #f5f4f0; border-radius: 8px; padding: 8px; user-select: all; }
+
+.wide { width: min(1100px, calc(100vw - 16px)) !important; top: 4% !important; max-height: 92dvh; overflow: auto; }
+.cmp { width: 100%; border-collapse: collapse; font-size: 13px; margin: 8px 0; }
+.cmp th, .cmp td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); vertical-align: top; word-break: break-word; }
+.cmp tbody th { color: var(--ink3); font-weight: 500; white-space: nowrap; width: 72px; }
+.cmp tr[data-diff="true"] td { background: #fff7e0; }
+.panes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.pane { width: 100%; height: 52dvh; border: 1px solid var(--line); border-radius: 10px; background: #faf9f6; object-fit: contain; display: grid; place-items: center; color: var(--ink3); }
+@media (max-width: 699px) { .panes { grid-template-columns: 1fr; } .pane { height: 38dvh; } }

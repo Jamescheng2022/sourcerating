@@ -88,7 +88,7 @@ export const MessageItem = memo(function MessageItem({ lab, m, prev, highlight, 
       key: "ai", label: "问 AI", icon: <Sparkles size={15} />, primary: true,
       run: () => actions.ask(file ? { type: "file", id: file.id } : { type: "message", id: m.id }, file ? "这份文件讲了什么？" : "解释这条消息"),
     });
-    if (m.tr) acts.push({ key: "tr", label: translated ? "隐藏译文" : "翻译", icon: <Languages size={15} />, run: () => actions.toggleTranslate(m.id), primary: !file });
+    if (m.tr || (lab.real && m.text)) acts.push({ key: "tr", label: translated ? "隐藏译文" : "翻译", icon: <Languages size={15} />, run: () => actions.toggleTranslate(m.id), primary: !file });
     if (file?.supersedes) acts.push({ key: "cmp", label: "比较版本", icon: <GitCompare size={15} />, run: () => actions.openFile(file.id, "compare") });
     if (file) acts.push({ key: "rel", label: "相关消息", icon: <MessagesSquare size={15} />, run: () => actions.openFile(file.id, "related") });
     if (m.text) acts.push({ key: "copy", label: "复制文字", icon: <Copy size={15} />, run: () => { void navigator.clipboard?.writeText(m.text!); toast("已复制"); } });

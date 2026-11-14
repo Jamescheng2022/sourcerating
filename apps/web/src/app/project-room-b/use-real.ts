@@ -7,8 +7,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { createRoomFileSignedUrl, uploadRoomAttachment } from "@/lib/room-files";
-import { analyzeRoomEvent } from "@/lib/staging";
+import { uploadRoomAttachment } from "@/lib/room-files";
 import type { PreviewMode } from "../project-room-lab/use-lab";
 import type { AiTurn, Msg, Org, PanelTab, Proposal, Room, RoomFile, User } from "../project-room-lab/demo/types";
 
@@ -16,6 +15,8 @@ export interface RealRoom extends Room { parentId: string | null; purpose: strin
 export interface RealFile extends RoomFile { sha256: string; uploaderOrgId: string; uploaderUserId: string; createdAt: string; verification: string; sourceEventId: string | null }
 export interface Confirmation { id: string; roomId: string; fileVersionId: string | null; sha: string | null; orgId: string; userId: string; decision: "confirmed" | "changes_requested"; comment: string | null; at: string }
 export interface Membership { orgId: string; role: string; displayName: string | null }
+export interface SplitSuggestion { id: string; roomId: string; name: string; purpose: string; kind: "external" | "internal"; memberNames: string[]; fileNames: string[]; reason: string; sources: string[]; dismissed?: boolean }
+export interface AiSection { title: string; items: { text: string; sources: string[] }[] }
 export interface Colleague { userId: string; orgId: string; name: string }
 
 interface EventRow {
@@ -37,6 +38,8 @@ interface State {
   files: RealFile[];
   proposals: Proposal[];
   confirmations: Confirmation[];
+  splits: SplitSuggestion[];
+  aiSections: Record<string, AiSection[]>;
   replyTo: string | null; translated: string[];
   panel: { open: boolean; tab: PanelTab };
   aiTurns: AiTurn[];
@@ -82,7 +85,7 @@ function toMsg(e: EventRow, files: RealFile[]): Msg | null {
 export function useReal() {
   const [s, set] = useState<State>({
     phase: "boot", me: null, memberships: [], colleagues: [], orgs: [], users: {}, orgId: "", roomId: "", view: "list", rooms: [],
-    messages: {}, older: {}, ended: {}, files: [], proposals: [], confirmations: [], replyTo: null, translated: [],
+    messages: {}, older: {}, ended: {}, files: [], proposals: [], confirmations: [], splits: [], aiSections: {}, replyTo: null, translated: [],
     panel: { open: false, tab: "overview" }, aiTurns: [], preview: null, jump: null, failNext: false, typing: null, draftInsert: null, error: null,
   });
   const ref = useRef(s);
@@ -252,6 +255,8 @@ export function useReal() {
         const res = await uploadRoomAttachment({ roomId: job.roomId, actingOrganizationId: orgId, file: job.file, clientMessageId: clientId, caption: job.text });
         eventId = res.event.id as string;
         seqs.current.set(eventId, res.event.seq as number);
+        // Server-side re-hash and type check; a file can only be opened once this says "verified".
+        if (res.verification?.status !== "verified") await api("gateway", { action: "verify", fileVersionId: res.file.id }).catch(() => null);
         await loadRoom(job.roomId);
       } else {
         const { data, error } = await supabase.rpc("append_room_event", {
@@ -275,6 +280,12 @@ export function useReal() {
     }
   };
 
+  const api = async (path: string, body: Record<string, unknown>) => {
+    const { data } = await supabase.auth.getSession();
+    const res = await fetch(`/api/project-room-b/${path}`, { method: "POST", headers: { Authorization: `Bearer ${data.session?.access_token ?? ""}`, "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    return (await res.json().catch(() => ({ ok: false, error: `HTTP ${res.status}` }))) as Record<string, unknown>;
+  };
+
   const rpc = async (fn: string, args: Record<string, unknown>) => {
     const { data, error } = await supabase.rpc(fn, args);
     if (error) { fail(error); throw error; }
@@ -291,7 +302,18 @@ export function useReal() {
     },
     backToList: () => set((p) => ({ ...p, view: "list" })),
     setReply: (id: string | null) => set((p) => ({ ...p, replyTo: id })),
-    toggleTranslate: () => {},
+    toggleTranslate: async (id: string) => {
+      if (!room) return;
+      const roomId = room.id;
+      if (ref.current.translated.includes(id)) return set((p) => ({ ...p, translated: p.translated.filter((x) => x !== id) }));
+      const m = (ref.current.messages[roomId] ?? []).find((x) => x.id === id);
+      if (m && !m.tr) {
+        patch(roomId, id, { tr: "…" });
+        set((p) => ({ ...p, translated: [...p.translated, id] }));
+        const r = await api("assist", { roomId, mode: "translate", eventId: id, language: navigator.language });
+        patch(roomId, id, { tr: r.ok ? String((r.result as { translation?: string })?.translation ?? "") : `翻译不可用：${r.error}` });
+      } else set((p) => ({ ...p, translated: [...p.translated, id] }));
+    },
     setFailNext: () => {},
     simulateIncoming: () => {},
     openPanel: (tab: PanelTab) => set((p) => ({ ...p, panel: { open: true, tab } })),
@@ -334,20 +356,37 @@ export function useReal() {
       return PAGE;
     },
 
-    ask: async (subject: AiTurn["subject"], question: string) => {
+    ask: async (subject: AiTurn["subject"], question: string, mode: "summary" | "explain" | "split" = subject.type === "message" ? "explain" : "summary") => {
       if (!room) return;
       const id = crypto.randomUUID(), roomId = room.id;
       set((p) => ({ ...p, panel: { open: true, tab: "ai" }, aiTurns: [...p.aiTurns, { id, roomId, subject, question }] }));
-      let answer = { answer: "这个入口的 AI 还没有接到真实后端。", sources: [] as string[] };
-      if (subject.type === "message") {
-        const res = await analyzeRoomEvent(roomId, subject.id).catch((e) => ({ ok: false, error: String(e) }));
-        answer = res.ok
-          ? { answer: "已分析这条消息。结果在“待确认”里，由你决定是否记录。", sources: [subject.id] }
-          : { answer: `AI 暂不可用：${res.error ?? "未配置"}`, sources: [subject.id] };
-        if (res.ok) void loadRoom(roomId);
+      const fileMsg = subject.type === "file" ? ref.current.files.find((f) => f.id === subject.id)?.sourceEventId : null;
+      const r = await api("assist", { roomId, mode, language: navigator.language, ...(mode === "explain" ? { eventId: fileMsg ?? subject.id } : {}) }).catch((e) => ({ ok: false, error: String(e) }) as Record<string, unknown>);
+      const res = (r.result ?? {}) as Record<string, unknown>;
+      type Item = { text: string; sources?: string[]; owner?: string };
+      const list = (k: string) => (Array.isArray(res[k]) ? (res[k] as Item[]) : []);
+      let answer = { answer: `AI 暂不可用：${r.error ?? "未知错误"}`, sources: [] as string[] };
+      if (r.ok && mode === "explain") answer = { answer: String(res.answer ?? ""), sources: (res.sources as string[]) ?? [] };
+      if (r.ok && mode === "summary") {
+        const sections: AiSection[] = ([["已达成", "decided"], ["未解决", "open_questions"], ["待办", "todos"], ["矛盾", "contradictions"], ["版本变化", "version_notes"]] as const)
+          .map(([title, k]) => ({ title, items: list(k).map((x) => ({ text: x.owner ? `${x.text}（${x.owner}）` : x.text, sources: x.sources ?? [] })) }))
+          .filter((x) => x.items.length);
+        const clarify = (Array.isArray(res.clarify) ? (res.clarify as string[]) : []).map((text) => ({ text, sources: [] }));
+        if (clarify.length) sections.push({ title: "建议追问", items: clarify });
+        answer = { answer: String(res.summary ?? ""), sources: [] };
+        set((p) => ({ ...p, aiSections: { ...p.aiSections, [id]: sections } }));
+      }
+      if (r.ok && mode === "split") {
+        const sug = (Array.isArray(res.suggestions) ? (res.suggestions as Record<string, unknown>[]) : []).map((x): SplitSuggestion => ({
+          id: crypto.randomUUID(), roomId, name: String(x.name ?? ""), purpose: String(x.purpose ?? ""), kind: x.kind === "internal" ? "internal" : "external",
+          memberNames: (x.member_names as string[]) ?? [], fileNames: (x.file_names as string[]) ?? [], reason: String(x.reason ?? ""), sources: (x.sources as string[]) ?? [],
+        })).filter((x) => x.name);
+        answer = { answer: sug.length ? `建议拆出 ${sug.length} 个子房间，由你决定是否创建。` : "目前看不出需要拆分的独立方向。", sources: [] };
+        set((p) => ({ ...p, splits: [...p.splits.filter((x) => x.roomId !== roomId || x.dismissed), ...sug] }));
       }
       set((p) => ({ ...p, aiTurns: p.aiTurns.map((t) => (t.id === id ? { ...t, answer } : t)) }));
     },
+    dismissSplit: (id: string) => set((p) => ({ ...p, splits: p.splits.filter((x) => x.id !== id) })),
     review: async (id: string, status: "confirmed" | "rejected" | "pending") => {
       if (!room || status === "pending") return;
       await rpc("review_staging_proposal", { p_proposal_id: id, p_action: status === "confirmed" ? "accept" : "dismiss", p_actor_organization_id: ref.current.orgId, p_payload_override: null }).catch(() => null);
@@ -395,7 +434,16 @@ export function useReal() {
       await rpc("sr_record_confirmation", { p_room_id: f.roomId, p_actor_organization_id: ref.current.orgId, p_client_msg_id: crypto.randomUUID(), p_decision: decision, p_file_version_id: f.id, p_file_sha256: f.sha256, p_comment: comment || null });
       await loadRoom(f.roomId);
     },
-    fileUrl: (fileId: string) => createRoomFileSignedUrl(fileId),
+    fileUrl: async (fileId: string) => {
+      let r = await api("gateway", { action: "sign", fileVersionId: fileId });
+      if (!r.ok && r.verificationStatus === "pending") { await api("gateway", { action: "verify", fileVersionId: fileId }); r = await api("gateway", { action: "sign", fileVersionId: fileId }); }
+      if (!r.ok || !r.signedUrl) throw new Error(String(r.error ?? "无法打开文件"));
+      return r.signedUrl as string;
+    },
+    restoreVersion: async (f: RealFile) => {
+      const blob = await (await fetch(await actions.fileUrl(f.id))).blob();
+      await actions.send(`恢复自 v${f.version}`, new File([blob], f.name, { type: blob.type || "application/pdf" }), f.name);
+    },
     exportEvidence: async () => {
       if (!room) return;
       const data = await rpc("sr_export_room_evidence", { p_room_id: room.id });
