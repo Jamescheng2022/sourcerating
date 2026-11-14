@@ -12,7 +12,7 @@ nothing was installed or run there and AGY never drove the tools. Everything bel
 ## What exists (branch `qa/windows-b-e2e-20261114`, only adds `qa/windows-b/` and docs)
 | Requirement | Delivered | State |
 |---|---|---|
-| 1 Verify repo / branch / commit / scripts, overwrite nothing | Baseline tag `qa-baseline-20261114` = `3c8584f`; existing E2E is unmodified and hash-pinned | done |
+| 1 Verify repo / branch / commit / scripts, overwrite nothing | Baseline = commit `3c8584f` (local tag `qa-baseline-20261114`; pushing the tag was refused by GitHub with 403, so it exists only in the cloud workspace); existing E2E is unmodified and hash-pinned | done |
 | 2 Isolated workspace | git worktree `sourcerating-e2e`, own build and server; production workspace untouched | done (cloud) |
 | 3 Fixed profile `sourcerating_playwright_e2e`, approved entrypoints only | `profile/…json` + `runner/run.cjs` (refuses anything else) | done |
 | 4 Restricted Playwright tools for AGY | `tools/playwright-mcp.cjs`: 18 tools, no shell, no JS eval, no free URL, no files outside `runs/`; typed e-mails must be synthetic personas | done; exercised with a real browser; **not connected to AGY** |
