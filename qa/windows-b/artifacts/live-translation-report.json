@@ -1,0 +1,68 @@
+{
+  "test": "Real DeepSeek AI Bidirectional Translation Acceptance",
+  "target": "https://sourcerating-room-lab.vercel.app/project-room-b",
+  "timestamp": "2026-11-15T20:41:25.164Z",
+  "provider": "deepseek-direct",
+  "assistResponses": [
+    {
+      "label": "a1 (zh-CN)",
+      "status": 200,
+      "body": {
+        "ok": true,
+        "mode": "translate",
+        "provider": "deepseek-direct",
+        "result": {
+          "translation": "P0 螺栓尺寸为 M20，板厚 12mm，总成本为 USD 1,200。"
+        },
+        "written": false
+      },
+      "at": "2026-11-15T20:41:19.881Z"
+    },
+    {
+      "label": "b1 (en-US)",
+      "status": 200,
+      "body": {
+        "ok": true,
+        "mode": "translate",
+        "provider": "deepseek-direct",
+        "result": {
+          "translation": "P0 specification requirements: bolt diameter 12mm, flange standard M20, total budget USD 1,200."
+        },
+        "written": false
+      },
+      "at": "2026-11-15T20:41:25.105Z"
+    }
+  ],
+  "results": [
+    {
+      "direction": "EN -> ZH",
+      "source": "P0 bolt size is M20, plate thickness 12mm, total cost USD 1,200.",
+      "translation": "P0 螺栓尺寸为 M20，板厚 12mm，总成本为 USD 1,200。",
+      "latencySeconds": 4.586,
+      "httpStatus": 200,
+      "checks": {
+        "m20_preserved": true,
+        "thickness_12mm_preserved": true,
+        "cost_usd_1200_preserved": true,
+        "private_bubble_rendered": true,
+        "counterparty_isolated": true
+      },
+      "pass": true
+    },
+    {
+      "direction": "ZH -> EN",
+      "source": "P0 规格要求：螺栓直径 12mm，法兰标准 M20，总预算 USD 1,200。",
+      "translation": "P0 specification requirements: bolt diameter 12mm, flange standard M20, total budget USD 1,200.",
+      "latencySeconds": 4.234,
+      "httpStatus": 200,
+      "checks": {
+        "diameter_12mm_preserved": true,
+        "flange_m20_preserved": true,
+        "budget_usd_1200_preserved": true,
+        "private_bubble_rendered": true
+      },
+      "pass": true
+    }
+  ],
+  "overallPass": true
+}

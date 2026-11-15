@@ -3,3 +3,5 @@ runs/*
 work/*
 !work/.gitkeep
 secrets/
+node_modules/
+
