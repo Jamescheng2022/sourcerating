@@ -74,6 +74,31 @@ async function main() {
     assert.equal(versions[2].uploader_organization_id,f.ob);
     assert.equal((await ctl.query('select count(*)::int as n from public.room_confirmations where file_version_id=$1',[versions[2].id])).rows[0].n,0);
     console.log('PASS cross-org concurrent RPCs: observed lock wait, v1 -> v2 -> v3, no inherited confirmations');
+    const reviewKey = randomUUID();
+    await one.query('begin');
+    await one.query("select set_config('request.jwt.claims',$1,true)", [claim(a,ea)]);
+    await one.query('set local role authenticated');
+    const review = await one.query("select (public.sr_request_file_review($1,$2,$3,$4)).id as id", [versions[2].id,f.oa,reviewKey,'please review']);
+    await two.query('begin');
+    await two.query("select set_config('request.jwt.claims',$1,true)", [claim(a,ea)]);
+    await two.query('set local role authenticated');
+    const retry = two.query("select (public.sr_request_file_review($1,$2,$3,$4)).id as id", [versions[2].id,f.oa,reviewKey,'please review']);
+    retry.catch(() => {});
+    blocked = false;
+    for (let i=0; i<100; i++) {
+      const state = await ctl.query("select exists(select 1 from pg_stat_activity where application_name=$1 and wait_event_type='Lock') as blocked",[app]);
+      if (state.rows[0].blocked) { blocked = true; break; }
+      await delay(100);
+    }
+    assert.ok(blocked, 'same-key review retry did not wait for the first transaction');
+    await one.query('commit');
+    const retried = await retry;
+    await two.query('commit');
+    assert.equal(retried.rows[0].id,review.rows[0].id);
+    assert.equal((await ctl.query('select count(*)::int as n from public.room_events where room_id=$1 and client_msg_id=$2',[f.room,reviewKey])).rows[0].n,1);
+    assert.equal((await ctl.query('select count(*)::int as n from public.needs_you where source_event_id=$1',[review.rows[0].id])).rows[0].n,1);
+    console.log('PASS concurrent same-key review RPC: observed lock wait, one event and one task');
+
   } finally {
     await Promise.allSettled([one.end(),two.end(),ctl.end()]);
   }

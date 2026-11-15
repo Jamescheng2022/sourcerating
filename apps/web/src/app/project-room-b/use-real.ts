@@ -431,7 +431,7 @@ export function useReal() {
     removeMember: async (userId: string) => { if (room) { await rpc("sr_remove_room_member", { p_room_id: room.id, p_actor_organization_id: ref.current.orgId, p_user_id: userId }); await refresh(); } },
     removeFromOrganization: async (userId: string) => { await rpc("sr_remove_org_member", { p_organization_id: ref.current.orgId, p_user_id: userId }); await refresh(); },
     shareToParent: async (text: string) => { if (room) await rpc("sr_share_to_parent", { p_room_id: room.id, p_actor_organization_id: ref.current.orgId, p_client_msg_id: crypto.randomUUID(), p_text: text, p_source_event_ids: [] }); },
-    requestReview: async (fileId: string, note: string) => { await rpc("sr_request_file_review", { p_file_version_id: fileId, p_actor_organization_id: ref.current.orgId, p_client_msg_id: crypto.randomUUID(), p_note: note || null }); },
+    requestReview: async (fileId: string, note: string, clientMessageId: string) => { await rpc("sr_request_file_review", { p_file_version_id: fileId, p_actor_organization_id: ref.current.orgId, p_client_msg_id: clientMessageId, p_note: note || null }); },
     confirmFile: async (f: RealFile, decision: "confirmed" | "changes_requested", comment: string) => {
       await rpc("sr_record_confirmation", { p_room_id: f.roomId, p_actor_organization_id: ref.current.orgId, p_client_msg_id: crypto.randomUUID(), p_decision: decision, p_file_version_id: f.id, p_file_sha256: f.sha256, p_comment: comment || null });
       await loadRoom(f.roomId);

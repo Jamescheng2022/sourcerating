@@ -257,14 +257,27 @@ export function RealSidebar({ real, onOpen }: { real: Real; onOpen: (id: string)
   );
 }
 
-function FileCard({ real, f, latest }: { real: Real; f: RealFile; latest: boolean }) {
+export function FileCard({ real, f, latest }: { real: Real; f: RealFile; latest: boolean }) {
   const { s, user, org, room, actions } = real;
   const [note, setNote] = useState(""), [busy, setBusy] = useState(false), [err, setErr] = useState(""), [cmp, setCmp] = useState(false);
   const prev = s.files.find((x) => x.id === f.supersedes) ?? s.files.find((x) => x.roomId === f.roomId && x.lineage === f.lineage && x.version === f.version - 1);
   const orgIds = Array.from(new Set((room?.memberIds ?? []).map((id) => user(id).orgId).filter(Boolean)));
   const state = (orgId: string) => s.confirmations.filter((c) => c.fileVersionId === f.id && c.orgId === orgId).at(-1);
   const mine = state(s.orgId);
-  const act = (fn: () => Promise<unknown>) => async () => { setBusy(true); setErr(""); try { await fn(); setNote(""); } catch (x) { setErr(msg(x)); } finally { setBusy(false); } };
+  const inFlight = useRef(false);
+  const reviewIntent = useRef<{ note: string; id: string } | null>(null);
+  const act = (fn: () => Promise<unknown>) => async () => {
+    if (inFlight.current) return;
+    inFlight.current = true; setBusy(true); setErr("");
+    try { await fn(); setNote(""); } catch (x) { setErr(msg(x)); } finally { inFlight.current = false; setBusy(false); }
+  };
+  const requestReview = act(async () => {
+    if (!reviewIntent.current || reviewIntent.current.note !== note) {
+      reviewIntent.current = { note, id: crypto.randomUUID() };
+    }
+    await actions.requestReview(f.id, note, reviewIntent.current.id);
+    reviewIntent.current = null;
+  });
   return (
     <article className={rc.file} data-old={!latest} data-testid="file-version">
       <header><span className={rc.ver}>v{f.version}</span><b className={rc.grow}>{f.name}</b>{!latest && <span className={css.hint}>旧版</span>}</header>
@@ -281,7 +294,7 @@ function FileCard({ real, f, latest }: { real: Real; f: RealFile; latest: boolea
         </div>
       )}
       <div className={rc.row}>
-        <button type="button" className={rc.mini} disabled={busy} onClick={act(() => actions.requestReview(f.id, note))}><Send size={13} />请各方审核</button>
+        <button type="button" className={rc.mini} disabled={busy} onClick={(event) => { if (event.detail <= 1) void requestReview(); }}><Send size={13} />请各方审核</button>
         <button type="button" className={rc.mini} disabled={busy} onClick={act(async () => { window.open(await actions.fileUrl(f.id), "_blank", "noopener"); })}><Download size={13} />下载</button>
         {f.sourceEventId && <button type="button" className={rc.mini} onClick={() => actions.jumpTo(f.sourceEventId!)}>来源消息</button>}
         {prev && <button type="button" className={rc.mini} onClick={() => setCmp(true)}><GitCompare size={13} />对比 v{prev.version}</button>}

@@ -48,6 +48,8 @@ try {
   console.log('PASS pre-existing cross-org fork rejected; transaction rolled back');
   await db.query(migration);
   console.log('APPLIED 202611150001_room_file_lineage_and_reason.sql');
+  await db.query(await load('supabase/migrations/202611150002_room_review_idempotency.sql'));
+  console.log('APPLIED 202611150002_room_review_idempotency.sql');
   await db.query(await load('supabase/tests/room_core_generalization.test.sql'));
   console.log('PASS room_core_generalization.test.sql');
   await db.end();

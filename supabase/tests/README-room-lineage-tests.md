@@ -30,3 +30,13 @@ SR_LINEAGE_TEST_DATABASE_URL to a postgresql URL with host 127.0.0.1 and the
 local postgres role. The script commits synthetic fixture data, so do not use a
 shared database. URLs with non-loopback hosts, query parameters, or other
 database names are rejected.
+
+For the review-button DOM regression, install a temporary test-only dependency
+and run the real FileCard component test:
+
+    npm install --prefix .localdb/ui --no-save --no-package-lock jsdom@26.1.0
+    cd apps/web
+    node scripts/project-room-review-button.test.cjs
+
+The PostgreSQL runner also applies 202611150002 and checks repeated and
+concurrent same-key review requests, task counts, and retries after resolution.
