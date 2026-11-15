@@ -12,28 +12,53 @@ const forms = (secrets) => secrets.filter(Boolean).flatMap((s) => [s, JSON.strin
 const Q = '\\\\*"'; // a double quote under any level of JSON escaping
 const HEADER = '(?:authorization|apikey|cookie|set-cookie|x-supabase-auth|proxy-authorization|x-api-key)';
 const TOKEN_KEY = '(?:access_token|refresh_token|provider_token|provider_refresh_token|password|token_hash|token|id_token|code_verifier)';
+// JSON string values of sensitive keys, at any escaping depth. Each prefix ends at the value's opening quote; if that
+// quote is preceded by n backslashes, the value ends at the first quote preceded by EXACTLY n backslashes (a quote
+// inside the value carries 2n+1). Redaction and scanning share this parser, so they cannot disagree.
+const VALUE_PREFIXES = [
+  Q + 'name' + Q + '\\s*:\\s*' + Q + HEADER + Q + '\\s*,\\s*' + Q + 'value' + Q + '\\s*:\\s*' + Q,
+  Q + HEADER + Q + '\\s*:\\s*' + Q,
+  TOKEN_KEY + Q + '\\s*:\\s*' + Q,
+];
+const jsonValues = (text) => {
+  const out = [];
+  for (const src of VALUE_PREFIXES) {
+    const re = new RegExp(src, 'gi'); let m;
+    while ((m = re.exec(text))) {
+      const start = m.index + m[0].length; let n = 0; while (text[start - 2 - n] === '\\') n++;
+      let end = -1;
+      for (let p = text.indexOf('"', start); p >= 0; p = text.indexOf('"', p + 1)) { let b = 0; while (p - 1 - b >= start && text[p - 1 - b] === '\\') b++; if (b === n) { end = p - n; break; } }
+      out.push({ start, end }); // end -1 = unterminated
+    }
+  }
+  return out;
+};
+const redactJsonValues = (text) => {
+  const spans = jsonValues(text).sort((a, b) => b.start - a.start); let t = text, last = Infinity;
+  for (const { start, end } of spans) { if (end < 0 || end > last) continue; if (t.slice(start, end) !== '[REDACTED]') t = t.slice(0, start) + '[REDACTED]' + t.slice(end); last = start; }
+  return t;
+};
 const rules = (secrets) => [
   ...[...new Set(forms(secrets))].map((s) => [new RegExp(esc(s), 'g'), '[REDACTED]']),
-  [new RegExp('(' + Q + 'name' + Q + '\\s*:\\s*' + Q + HEADER + Q + '\\s*,\\s*' + Q + 'value' + Q + '\\s*:\\s*' + Q + ')[^"\\\\]*', 'gi'), '$1[REDACTED]'], // stop at any backslash: never consume an escaped closing quote
-  [new RegExp('(' + Q + HEADER + Q + '\\s*:\\s*' + Q + ')[^"\\\\]*', 'gi'), '$1[REDACTED]'], // stop at any backslash: never consume an escaped closing quote
   // plain "name: value" header lines (console text, HTTP dumps)
   [new RegExp('((?:^|[\\s{,;\'(])' + HEADER + '\\s*:\\s*)(?!\\\\*")[^\\r\\n"\',}]+', 'gim'), '$1[REDACTED]'],
   [new RegExp('("selector":"(?:[^"\\\\]|\\\\.)*?(?:password|' + Buffer.from('密码').toString('latin1') + ')(?:[^"\\\\]|\\\\.)*"[^}]*?"value":")(?:[^"\\\\]|\\\\.)*"', 'gi'), '$1[REDACTED]"'],
   [/Bearer\s+[A-Za-z0-9._~+\/=-]+/g, 'Bearer [REDACTED]'],
   [/eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]*/g, '[REDACTED_JWT]'],
-  [new RegExp('(' + TOKEN_KEY + Q + '\\s*:\\s*' + Q + ')[^"\\\\]*', 'gi'), '$1[REDACTED]'], // stop at any backslash: never consume an escaped closing quote
   [/([?&](?:token|access_token|refresh_token|apikey|signature|sig|X-Amz-[A-Za-z-]+|X-Goog-[A-Za-z-]+)=)[^&"'\s\\<>]+/gi, '$1[REDACTED]'],
   [/(sb-[a-z0-9]+-auth-token(?:[.-][a-z0-9]+)*=)[^;"\s\\]+/gi, '$1[REDACTED]'],
   [/base64-[A-Za-z0-9+\/=_-]{40,}/g, '[REDACTED_B64]'],
 ];
-const redactText = (text, secrets) => { let t = String(text); for (const [re, rep] of rules(secrets)) t = t.replace(re, rep); return t; };
+const redactText = (text, secrets) => { let t = String(text); for (const [re, rep] of rules(secrets)) t = t.replace(re, rep); return redactJsonValues(t); };
 const leaks = (text, secrets) => {
   const hits = [];
   for (const s of new Set(forms(secrets))) if (text.includes(s)) hits.push('persona-password');
   if (/Bearer\s+(?!\[REDACTED)[A-Za-z0-9._-]{16,}/.test(text)) hits.push('bearer');
   if (/eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\./.test(text)) hits.push('jwt');
-  if (new RegExp(TOKEN_KEY + Q + '\\s*:\\s*' + Q + '(?!\\[REDACTED)[^"\\\\]{8,}', 'i').test(text)) hits.push('token-field');
-  if (new RegExp(Q + HEADER + Q + '\\s*(?:,\\s*' + Q + 'value' + Q + ')?\\s*:\\s*' + Q + '(?!\\[REDACTED)[^"\\\\]{4,}', 'i').test(text)) hits.push('header-value');
+  for (const { start, end } of jsonValues(text)) {
+    if (end < 0) { hits.push('unterminated-sensitive-value'); continue; }
+    const v = text.slice(start, end); if (v !== '[REDACTED]' && v !== '') hits.push('sensitive-json-value');
+  }
   if (new RegExp('(?:^|[\\s{,;\'(])' + HEADER + '\\s*:\\s*(?!\\\\*"|\\[REDACTED)[^\\r\\n"\',}\\s]{4,}', 'im').test(text)) hits.push('header-line');
   if (/[?&](?:token|access_token|refresh_token|apikey|signature|sig|X-Amz-[A-Za-z-]+|X-Goog-[A-Za-z-]+)=(?!\[REDACTED)[^&"'\s\\<>]{4,}/i.test(text)) hits.push('url-token');
   if (/sb-[a-z0-9]+-auth-token(?:[.-][a-z0-9]+)*=(?!\[REDACTED)[^;"\s\\]{8,}/i.test(text)) hits.push('auth-cookie');
