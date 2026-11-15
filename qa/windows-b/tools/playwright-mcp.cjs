@@ -63,6 +63,15 @@ const tools = {
   list_personas: { d: 'List synthetic personas (no credentials).', p: {}, run: async () => Object.values(users).map((u) => ({ key: u.key, email: u.email })) },
   open_session: { d: 'Open an isolated browser context for a persona and sign in at the Project Room B page.', p: { persona: 's', width: 'n?', height: 'n?' }, run: async ({ persona: k, width = 1440, height = 900 }) => {
     persona(k); if (S[k]) return 'already open';
+    // Evidence lifecycle is set up BEFORE any browser context exists, so a failure here can never leave an untraced
+    // session. The marker is removed only after the sanitized trace is promoted; any interruption leaves it in the raw
+    // folder, which verifyTraces reports. Existing evidence, raw trace or marker for this persona => STOP (never overwrite).
+    try {
+      if (fs.existsSync(path.join(RUN, 'traces', `director-${k}.zip`))) throw new Error('evidence trace for ' + k + ' already exists in this run');
+      fs.mkdirSync(RAW, { recursive: true });
+      if (fs.existsSync(path.join(RAW, `director-${k}.zip`))) throw new Error('unsanitized raw trace for ' + k + ' left by an interrupted session');
+      fs.writeFileSync(path.join(RAW, `director-${k}.zip.pending`), new Date().toISOString(), { flag: 'wx' });
+    } catch (e) { halted = 'trace lifecycle setup failed for ' + k; log({ stop: halted, why: redact(String(e.message).split('\n')[0]) }); throw new Error('STOP: ' + halted + ': ' + redact(String(e.message).split('\n')[0])); }
     const b = await ensureBrowser(); const ctx = await b.newContext({ viewport: { width, height }, acceptDownloads: true });
     await ctx.route('**/*', (route) => {
       const u = new URL(route.request().url()); if (['data:', 'blob:', 'about:'].includes(u.protocol)) return route.continue(); if ((u.protocol === 'chrome:' && u.hostname === 'resources') || (u.protocol === 'chrome-extension:' && u.hostname === 'mhjfbmdgcfjbbpaeojofohoefgiehjai')) return route.continue();
@@ -81,15 +90,8 @@ const tools = {
       await page.getByLabel('密码').waitFor({ state: 'detached', timeout: T });
     }
     // Tracing starts only after the credential form is gone, so typed passwords are never recorded.
-    // Lifecycle marker BEFORE tracing (throws => no tracing, sign-in fails). It is removed only after the sanitized trace
-    // is promoted, so any interruption while tracing or saving leaves it in the raw folder, which verifyTraces reports.
-    // A persona trace already present in this run's evidence folder would mask a lost trace: refuse.
-    if (fs.existsSync(path.join(RUN, 'traces', `director-${k}.zip`))) throw new Error('STOP: evidence trace for ' + k + ' already exists in this run');
-    fs.mkdirSync(RAW, { recursive: true });
-    // Never overwrite incomplete evidence: an existing marker or raw trace from an interrupted session is a STOP.
-    if (fs.existsSync(path.join(RAW, `director-${k}.zip`))) throw new Error('STOP: unsanitized raw trace for ' + k + ' left by an interrupted session');
-    fs.writeFileSync(path.join(RAW, `director-${k}.zip.pending`), new Date().toISOString(), { flag: 'wx' }); // EEXIST => STOP
-    await ctx.tracing.start({ screenshots: true, snapshots: true, sources: false }); S[k].tracing = true;
+    try { await ctx.tracing.start({ screenshots: true, snapshots: true, sources: false }); S[k].tracing = true; }
+    catch (e) { halted = 'tracing could not start for ' + k; log({ stop: halted }); try { await ctx.close(); } catch {} delete S[k]; throw new Error('STOP: ' + halted + ' (' + redact(String(e.message).split('\n')[0]) + ')'); }
     return 'signed in as ' + k; } },
   goto: { d: 'Navigate to a path on the target app (must start with "/"; other hosts are refused).', p: { persona: 's', path: 's' }, run: async ({ persona: k, path: p }) => { if (!/^\/[^/]/.test(p) && p !== '/') throw new Error('path must start with /'); const u = new URL(p, BASE); if (u.origin !== BASE.origin) throw new Error('other origins are refused'); await sess(k).goto(u.href); return u.pathname + u.search; } },
   snapshot: { d: 'Accessibility snapshot (text) of the current page, max 9000 chars.', p: { persona: 's' }, run: async ({ persona: k }) => (await sess(k).locator('body').ariaSnapshot()).slice(0, 9000) },
