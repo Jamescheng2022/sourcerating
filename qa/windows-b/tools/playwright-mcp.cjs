@@ -34,7 +34,7 @@ const RAW = path.join(QA, 'work', 'raw-traces', path.basename(RUN));
 const closeTrace = async (k, s) => {
   const name = `director-${k}.zip`, f = path.join(RAW, name), pending = f + '.pending'; let r;
   try {
-    s.tracing = false; fs.mkdirSync(RAW, { recursive: true }); fs.writeFileSync(pending, new Date().toISOString());
+    s.tracing = false; if (!fs.existsSync(pending)) throw new Error('lifecycle marker missing');
     await s.ctx.tracing.stop({ path: f }); r = await sanitize(f, secrets());
     if (r.ok) { fs.mkdirSync(path.join(RUN, 'traces'), { recursive: true }); renameRetry(f, path.join(RUN, 'traces', name)); fs.rmSync(pending); }
   }
@@ -81,6 +81,11 @@ const tools = {
       await page.getByLabel('密码').waitFor({ state: 'detached', timeout: T });
     }
     // Tracing starts only after the credential form is gone, so typed passwords are never recorded.
+    // Lifecycle marker BEFORE tracing (throws => no tracing, sign-in fails). It is removed only after the sanitized trace
+    // is promoted, so any interruption while tracing or saving leaves it in the raw folder, which verifyTraces reports.
+    // A persona trace already present in this run's evidence folder would mask a lost trace: refuse.
+    if (fs.existsSync(path.join(RUN, 'traces', `director-${k}.zip`))) throw new Error('STOP: evidence trace for ' + k + ' already exists in this run');
+    fs.mkdirSync(RAW, { recursive: true }); fs.writeFileSync(path.join(RAW, `director-${k}.zip.pending`), new Date().toISOString());
     await ctx.tracing.start({ screenshots: true, snapshots: true, sources: false }); S[k].tracing = true;
     return 'signed in as ' + k; } },
   goto: { d: 'Navigate to a path on the target app (must start with "/"; other hosts are refused).', p: { persona: 's', path: 's' }, run: async ({ persona: k, path: p }) => { if (!/^\/[^/]/.test(p) && p !== '/') throw new Error('path must start with /'); const u = new URL(p, BASE); if (u.origin !== BASE.origin) throw new Error('other origins are refused'); await sess(k).goto(u.href); return u.pathname + u.search; } },

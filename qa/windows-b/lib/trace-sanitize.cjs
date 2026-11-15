@@ -119,7 +119,8 @@ async function sanitize(zipPath, secrets) {
 }
 // Independent post-run verification: rescans every zip in an evidence folder and requires the raw holding folder to be
 // empty. Any unreadable zip, any surviving credential or any leftover raw file is a failure.
-async function verifyTraces(traceDir, rawDir, secrets) {
+// `expected` (optional): trace file names that must be present, so a lost trace cannot pass as "no problems".
+async function verifyTraces(traceDir, rawDir, secrets, expected = []) {
   const bad = [];
   const zips = fs.existsSync(traceDir) ? fs.readdirSync(traceDir) : [];
   for (const f of zips) {
@@ -130,6 +131,7 @@ async function verifyTraces(traceDir, rawDir, secrets) {
   }
   const raw = rawDir && fs.existsSync(rawDir) ? fs.readdirSync(rawDir) : [];
   for (const f of raw) bad.push('unsanitized-raw-left@' + path.join(rawDir, f));
+  for (const f of expected) if (!zips.includes(f)) bad.push('expected-trace-missing@' + f);
   return { ok: bad.length === 0, traces: zips.length, problems: bad };
 }
 const loadSecrets = (usersFile) => {
