@@ -63,6 +63,10 @@ const internal = (kind: string) => kind === "internal" || kind === "buyer_intern
 const str = (v: unknown) => (typeof v === "string" ? v : undefined);
 const PAGE = 50;
 const ORG_KEY = "sr_b_acting_org";
+const activeRoomFor = (state: State) =>
+  state.rooms.find((r) => r.id === state.roomId && r.unread[state.orgId] !== undefined)
+  ?? state.rooms.find((r) => r.unread[state.orgId] !== undefined);
+
 
 function toMsg(e: EventRow, files: RealFile[]): Msg | null {
   const p = e.payload ?? {};
@@ -210,6 +214,7 @@ export function useReal() {
     if (s.phase !== "ready" || !s.me) return;
     const onEvent = (e: EventRow) => {
       const cur = ref.current;
+      if (seqs.current.has(e.id)) return;
       seqs.current.set(e.id, e.seq);
       if (!cur.rooms.some((room) => room.id === e.room_id)) void refresh();
       if (e.event_type === "file.attached" || e.event_type === "confirmation.recorded") {
@@ -224,7 +229,7 @@ export function useReal() {
           return { ...p, users, messages: { ...p.messages, [e.room_id]: mine >= 0 ? list.map((x, i) => (i === mine ? m : x)) : [...list, m] } };
         });
       }
-      const viewing = cur.roomId === e.room_id && cur.view === "chat" && document.visibilityState === "visible";
+      const viewing = activeRoomFor(cur)?.id === e.room_id && cur.view === "chat" && document.visibilityState === "visible";
       if (viewing) void supabase.rpc("sr_mark_room_read", { p_room_id: e.room_id, p_seq: e.seq });
       set((p) => ({
         ...p, rooms: p.rooms.map((r) => r.id !== e.room_id ? r : {
@@ -243,7 +248,7 @@ export function useReal() {
       try {
       await refresh();
       const cur = ref.current;
-      const r = cur.rooms.find((x) => x.id === cur.roomId && x.unread[cur.orgId] !== undefined) ?? cur.rooms.find((x) => x.unread[cur.orgId] !== undefined);
+      const r = activeRoomFor(cur);
       if (r && cur.messages[r.id]) {
         const version = nextVersion(confirmationVersions.current, r.id);
         const { data, error } = await supabase.from("room_confirmations").select("*").eq("room_id", r.id).order("created_at");
@@ -259,7 +264,7 @@ export function useReal() {
       }
       // Verification verdicts arrive without an event; pick them up while any file here is still pending.
       if (r && cur.files.some((f) => f.roomId === r.id && f.verification === "pending")) void loadRoom(r.id);
-      const top = Math.max(0, ...(cur.messages[cur.roomId] ?? []).map((m) => seqs.current.get(m.id) ?? 0));
+      const top = Math.max(0, ...(r ? cur.messages[r.id] ?? [] : []).map((m) => seqs.current.get(m.id) ?? 0));
       if (r && cur.messages[r.id] && r.lastSeq > top) {
         const { data } = await supabase.from("room_events").select("*").eq("room_id", r.id).gt("seq", top).order("seq").limit(200);
         ((data ?? []) as EventRow[]).forEach(onEvent);
@@ -270,7 +275,7 @@ export function useReal() {
       if (document.visibilityState !== "visible") return;
       void refresh();
       const cur = ref.current;
-      const active = cur.rooms.find((r) => r.id === cur.roomId && r.unread[cur.orgId] !== undefined) ?? cur.rooms.find((r) => r.unread[cur.orgId] !== undefined);
+      const active = activeRoomFor(cur);
       if (active && cur.messages[active.id]) void loadRoom(active.id);
     };
     window.addEventListener("online", recover);

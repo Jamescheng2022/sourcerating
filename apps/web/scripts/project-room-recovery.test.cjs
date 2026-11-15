@@ -15,20 +15,27 @@ const uid='user-1', org='org-1', room='room-1';
 const model = {
  organization_memberships:[{organization_id:org,user_id:uid,role:'owner',display_name:'Bob'}],
  organizations:[{id:org,name:'Supplier'}],
- rooms:[{id:room,name:'Old project',kind:'main',project_id:'p1',owner_organization_id:org,parent_room_id:null,purpose:null,last_seq:1,projects:{name:'Old project'}}],
- room_members:[{room_id:room,user_id:uid,acting_organization_id:org,room_role:'admin',member_display_name:'Bob',last_read_seq:0}],
- room_events:[],
+ rooms:[{id:room,name:'Old project',kind:'main',project_id:'p1',owner_organization_id:org,parent_room_id:null,purpose:null,last_seq:250,projects:{name:'Old project'}}],
+ room_members:[{room_id:room,user_id:uid,acting_organization_id:org,room_role:'admin',member_display_name:'Bob',last_read_seq:250}],
+ room_events:Array.from({length:250},(_,i)=>({id:'history-'+(i+1),room_id:room,seq:i+1,client_msg_id:null,actor_user_id:'partner',actor_organization_id:'org-2',actor_display_name:'Partner',event_type:'message.posted',payload:{text:'message '+(i+1)},created_at:'2026-01-01T00:00:00Z'})),
  room_file_versions:[{room_id:room,id:'file-1',logical_name:'ep600.pdf',mime_type:'application/pdf',size_bytes:12,version_no:2,supersedes_version_id:null,sha256:'a'.repeat(64),uploader_organization_id:org,uploader_user_id:uid,created_at:'2026-01-01T00:00:00Z',verification_status:'verified'}],
  room_confirmations:[], staging_proposals:[]
 };
-let deferTable=null, deferred=null, eventCallback;
+let deferTable=null, deferred=null, eventCallback; const markReads=[]; const cursors=[];
 const query = table => {
-  let filters=[];
+  let filters=[], gt=null, lt=null, count=Infinity, sort=null;
   const chain = {
-    select(){return this},is(){return this},order(){return this},limit(){return this},
-    eq(key,value){filters.push([key,value]); return this},gt(){return this},lt(){return this},
+    select(){return this},is(){return this},
+    order(key,options={}){sort=[key,options.ascending!==false];return this},limit(n){count=n;return this},
+    eq(key,value){filters.push([key,value]); return this},
+    gt(key,value){gt=[key,value];if(table==='room_events') cursors.push(value);return this},
+    lt(key,value){lt=[key,value];return this},
     then(resolve,reject){
-      const rows = structuredClone(model[table] || []).filter(r => filters.every(([k,v])=>r[k]===v));
+      let rows = structuredClone(model[table] || []).filter(r => filters.every(([k,v])=>r[k]===v));
+      if(gt) rows=rows.filter(r=>r[gt[0]]>gt[1]);
+      if(lt) rows=rows.filter(r=>r[lt[0]]<lt[1]);
+      if(sort) rows.sort((a,b)=>(a[sort[0]]>b[sort[0]]?1:a[sort[0]]<b[sort[0]]?-1:0)*(sort[1]?1:-1));
+      rows=rows.slice(0,count);
       if (deferTable===table) { deferTable=null; return new Promise(r=>{deferred=()=>r({data:rows,error:null})}).then(resolve,reject); }
       return Promise.resolve({data:rows,error:null}).then(resolve,reject);
     }
@@ -39,7 +46,8 @@ const confirmation = {id:'confirm-1',room_id:room,file_version_id:'file-1',file_
 const supabase = {
  auth:{getSession:async()=>({data:{session:{user:{id:uid,email:'bob@example.test'}}}}),onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}})},
  from:query,
- rpc:async name => {
+ rpc:async (name,args) => {
+   if(name==='sr_mark_room_read') markReads.push(args);
    if(name==='sr_record_confirmation'){model.room_confirmations=[confirmation];return {data:confirmation,error:null};}
    return {data:{},error:null};
  },
@@ -81,6 +89,25 @@ const flush=async fn=>React.act(async()=>{if(fn) fn(); await new Promise(r=>setT
  assert.ok(current.myRooms.some(r=>r.id==='room-2'),'recovery discovers new membership');
  await flush(()=>oldResolve());
  assert.ok(current.myRooms.some(r=>r.id==='room-2'),'late stale room list cannot remove new membership');
+ // The displayed room can be implicit (roomId is empty). Historical events
+ // are loaded with a 50-row page; duplicate delivery must not add unread or
+ // trigger another mark-read, and a fresh event is treated as currently viewed.
+ await flush(()=>current.set(p=>({...p,view:'chat',roomId:''})));
+ const beforeUnread=current.room.unread[org];
+ const beforeMarks=markReads.length;
+ const duplicate=model.room_events[249];
+ await flush(()=>eventCallback({new:duplicate}));
+ assert.equal(markReads.length,beforeMarks,'duplicate historical event is ignored');
+ assert.equal(current.room.unread[org],beforeUnread,'duplicate event does not increment unread');
+ const live={...duplicate,id:'history-251',seq:251,payload:{text:'live'}};
+ model.room_events.push(live);
+ await flush(()=>{eventCallback({new:live});eventCallback({new:live});});
+ assert.equal(markReads.length,beforeMarks+1,'implicit active room marks a fresh event read once');
+ assert.equal(current.room.unread[org],0,'implicit active room stays read');
+ // Simulate one more lost frame in a room whose history exceeds 200 events.
+ model.room_events.push({...live,id:'history-252',seq:252,payload:{text:'missed'}});
+ model.rooms[0].last_seq=252;
+ await flush(()=>current.set(p=>({...p,rooms:p.rooms.map(r=>r.id===room?{...r,lastSeq:252}:r)})));
  // With no realtime frame or reconnect, the periodic fallback also refreshes
  // the implicitly selected room and discovers newly visible memberships.
  model.room_confirmations.push({...confirmation,id:'confirm-2',organization_id:'org-2',user_id:'user-2'});
@@ -89,6 +116,13 @@ const flush=async fn=>React.act(async()=>{if(fn) fn(); await new Promise(r=>setT
  await React.act(async()=>{await new Promise(resolve=>setTimeout(resolve,5300));});
  assert.ok(current.myRooms.some(r=>r.id==='room-3'),'poll discovers membership without realtime');
  assert.ok(current.s.confirmations.some(c=>c.id==='confirm-2'),'poll refreshes confirmations for fallback room');
+ assert.ok(cursors.some(value=>value===251),'gap fill uses the fallback room cursor rather than zero');
+ assert.ok(current.msgs.some(m=>m.id==='history-252'),'gap fill recovers a missed event after 250 historical events');
+ assert.equal(current.room.unread[org],0,'recovered event in the active fallback room stays read');
+ await flush(()=>current.set(p=>({...p,view:'list'})));
+ const unseen={...live,id:'history-253',seq:253,payload:{text:'unseen'}};
+ await flush(()=>{eventCallback({new:unseen});eventCallback({new:unseen});});
+ assert.equal(current.room.unread[org],1,'duplicate unseen delivery increments unread only once');
  await flush(()=>root.unmount());
- console.log('PASS confirmation out-of-order response, membership recovery, and missed-event polling');
+ console.log('PASS stale confirmation, membership recovery, fallback cursor and unread deduplication');
 })().catch(e=>{console.error(e);process.exitCode=1; root.unmount()});
