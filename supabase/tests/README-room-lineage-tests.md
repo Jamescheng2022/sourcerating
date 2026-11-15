@@ -37,6 +37,7 @@ and run the real FileCard component test:
     npm install --prefix .localdb/ui --no-save --no-package-lock jsdom@26.1.0
     cd apps/web
     node scripts/project-room-review-button.test.cjs
+    node scripts/project-room-recovery.test.cjs
 
 The PostgreSQL runner also applies 202611150002 and checks repeated and
 concurrent same-key review requests, task counts, and retries after resolution.

@@ -90,6 +90,14 @@ export function useReal() {
   });
   const ref = useRef(s);
   useEffect(() => { ref.current = s; });
+  const refreshVersion = useRef(0);
+  const roomVersions = useRef(new Map<string, number>());
+  const confirmationVersions = useRef(new Map<string, number>());
+  const nextVersion = (versions: Map<string, number>, id: string) => {
+    const version = (versions.get(id) ?? 0) + 1;
+    versions.set(id, version);
+    return version;
+  };
   const seqs = useRef(new Map<string, number>());
   const pending = useRef(new Map<string, { roomId: string; text: string; file?: File; replyTo?: string }>());
   const fail = (e: unknown) => set((p) => ({ ...p, error: e instanceof Error ? e.message : String((e as { message?: string })?.message ?? e) }));
@@ -101,12 +109,14 @@ export function useReal() {
   const refresh = useCallback(async (userId?: string) => {
     const uid = userId ?? ref.current.me?.id;
     if (!uid) return;
+    const version = ++refreshVersion.current;
     const [mem, orgs, rooms, members] = await Promise.all([
       supabase.from("organization_memberships").select("organization_id,user_id,role,display_name").is("removed_at", null),
       supabase.from("organizations").select("id,name"),
       supabase.from("rooms").select("id,name,kind,project_id,owner_organization_id,parent_room_id,purpose,last_seq,projects(name)").is("archived_at", null).order("created_at"),
       supabase.from("room_members").select("room_id,user_id,acting_organization_id,room_role,member_display_name,last_read_seq").is("removed_at", null),
     ]);
+    if (version !== refreshVersion.current) return;
     const err = mem.error ?? orgs.error ?? rooms.error ?? members.error;
     if (err) return fail(err);
     const orgList: Org[] = (orgs.data ?? []).map((o) => ({ id: o.id, name: o.name, short: shortOf(o.name), place: "", color: PALETTE[hash(o.id) % PALETTE.length] }));
@@ -129,16 +139,19 @@ export function useReal() {
         myRole: ms.find((m) => m.user_id === uid && m.acting_organization_id === orgId)?.room_role ?? "member",
       };
     });
-    set((p) => ({ ...p, phase: "ready", memberships, colleagues, orgs: orgList, users, rooms: list, orgId }));
+    set((p) => version !== refreshVersion.current ? p : ({ ...p, phase: "ready", memberships, colleagues, orgs: orgList, users, rooms: list, orgId }));
   }, []);
 
   const loadRoom = useCallback(async (roomId: string) => {
+    const version = nextVersion(roomVersions.current, roomId);
+    const confirmationVersion = nextVersion(confirmationVersions.current, roomId);
     const [ev, fv, cf, pr] = await Promise.all([
       supabase.from("room_events").select("*").eq("room_id", roomId).order("seq", { ascending: false }).limit(PAGE),
       supabase.from("room_file_versions").select("*").eq("room_id", roomId).order("created_at"),
       supabase.from("room_confirmations").select("*").eq("room_id", roomId).order("created_at"),
       supabase.from("staging_proposals").select("id,room_id,source_event_id,proposal_type,payload,status").eq("room_id", roomId).order("created_at"),
     ]);
+    if (version !== roomVersions.current.get(roomId)) return;
     const err = ev.error ?? fv.error ?? cf.error;
     if (err) return fail(err);
     const files: RealFile[] = (fv.data ?? []).map((f) => ({
@@ -162,12 +175,12 @@ export function useReal() {
     });
     const users = { ...ref.current.users };
     for (const e of rows) if (!users[e.actor_user_id]) users[e.actor_user_id] = { id: e.actor_user_id, name: e.actor_display_name ?? "成员", orgId: e.actor_organization_id, title: "" };
-    set((p) => ({
+    set((p) => version !== roomVersions.current.get(roomId) ? p : ({
       ...p, users,
       messages: { ...p.messages, [roomId]: [...msgs, ...(p.messages[roomId] ?? []).filter((m) => m.status !== "sent")] },
       older: { ...p.older, [roomId]: 0 }, ended: { ...p.ended, [roomId]: rows.length < PAGE || rows[0]?.seq === 1 },
       files: [...p.files.filter((f) => f.roomId !== roomId), ...files],
-      confirmations: [...p.confirmations.filter((c) => c.roomId !== roomId), ...confirmations],
+      confirmations: confirmationVersion === confirmationVersions.current.get(roomId) ? [...p.confirmations.filter((c) => c.roomId !== roomId), ...confirmations] : p.confirmations,
       proposals: [...p.proposals.filter((x) => x.roomId !== roomId), ...proposals],
     }));
     const last = rows.at(-1)?.seq;
@@ -182,7 +195,7 @@ export function useReal() {
     let live = true;
     const apply = (u: { id: string; email?: string } | null | undefined) => {
       if (!live) return;
-      if (!u) { set((p) => ({ ...p, phase: "signedOut", me: null, rooms: [], messages: {}, memberships: [] })); return; }
+      if (!u) { refreshVersion.current++; for (const [id, v] of roomVersions.current) roomVersions.current.set(id, v + 1); for (const [id, v] of confirmationVersions.current) confirmationVersions.current.set(id, v + 1); set((p) => ({ ...p, phase: "signedOut", me: null, rooms: [], messages: {}, memberships: [] })); return; }
       if (ref.current.me?.id === u.id) return;
       set((p) => ({ ...p, me: { id: u.id, email: u.email ?? "" } }));
       void refresh(u.id);
@@ -198,6 +211,7 @@ export function useReal() {
     const onEvent = (e: EventRow) => {
       const cur = ref.current;
       seqs.current.set(e.id, e.seq);
+      if (!cur.rooms.some((room) => room.id === e.room_id)) void refresh();
       if (e.event_type === "file.attached" || e.event_type === "confirmation.recorded") {
         if (cur.messages[e.room_id]) void loadRoom(e.room_id);
       } else if (cur.messages[e.room_id]) {
@@ -222,10 +236,27 @@ export function useReal() {
     const ch = supabase.channel(`sr_b:${s.me.id}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "room_events" }, (payload) => onEvent(payload.new as EventRow))
       .subscribe();
+    let polling = false;
     const poll = setInterval(async () => {
+      if (polling) return;
+      polling = true;
+      try {
       await refresh();
       const cur = ref.current;
-      const r = cur.rooms.find((x) => x.id === cur.roomId);
+      const r = cur.rooms.find((x) => x.id === cur.roomId && x.unread[cur.orgId] !== undefined) ?? cur.rooms.find((x) => x.unread[cur.orgId] !== undefined);
+      if (r && cur.messages[r.id]) {
+        const version = nextVersion(confirmationVersions.current, r.id);
+        const { data, error } = await supabase.from("room_confirmations").select("*").eq("room_id", r.id).order("created_at");
+        if (!error && version === confirmationVersions.current.get(r.id)) {
+          const confirmations: Confirmation[] = (data ?? []).map((c) => ({
+            id: c.id, roomId: r.id, fileVersionId: c.file_version_id, sha: c.file_sha256,
+            orgId: c.organization_id, userId: c.user_id, decision: c.decision, comment: c.comment, at: c.created_at,
+          }));
+          set((p) => version !== confirmationVersions.current.get(r.id) ? p : ({
+            ...p, confirmations: [...p.confirmations.filter((c) => c.roomId !== r.id), ...confirmations],
+          }));
+        }
+      }
       // Verification verdicts arrive without an event; pick them up while any file here is still pending.
       if (r && cur.files.some((f) => f.roomId === r.id && f.verification === "pending")) void loadRoom(r.id);
       const top = Math.max(0, ...(cur.messages[cur.roomId] ?? []).map((m) => seqs.current.get(m.id) ?? 0));
@@ -233,8 +264,18 @@ export function useReal() {
         const { data } = await supabase.from("room_events").select("*").eq("room_id", r.id).gt("seq", top).order("seq").limit(200);
         ((data ?? []) as EventRow[]).forEach(onEvent);
       }
-    }, 12000);
-    return () => { clearInterval(poll); void supabase.removeChannel(ch); };
+      } finally { polling = false; }
+    }, 5000);
+    const recover = () => {
+      if (document.visibilityState !== "visible") return;
+      void refresh();
+      const cur = ref.current;
+      const active = cur.rooms.find((r) => r.id === cur.roomId && r.unread[cur.orgId] !== undefined) ?? cur.rooms.find((r) => r.unread[cur.orgId] !== undefined);
+      if (active && cur.messages[active.id]) void loadRoom(active.id);
+    };
+    window.addEventListener("online", recover);
+    document.addEventListener("visibilitychange", recover);
+    return () => { clearInterval(poll); window.removeEventListener("online", recover); document.removeEventListener("visibilitychange", recover); void supabase.removeChannel(ch); };
   }, [s.phase, s.me, refresh, loadRoom]);
 
   const myRooms = useMemo(() => s.rooms.filter((r) => r.unread[s.orgId] !== undefined), [s.rooms, s.orgId]);
@@ -433,7 +474,14 @@ export function useReal() {
     shareToParent: async (text: string) => { if (room) await rpc("sr_share_to_parent", { p_room_id: room.id, p_actor_organization_id: ref.current.orgId, p_client_msg_id: crypto.randomUUID(), p_text: text, p_source_event_ids: [] }); },
     requestReview: async (fileId: string, note: string, clientMessageId: string) => { await rpc("sr_request_file_review", { p_file_version_id: fileId, p_actor_organization_id: ref.current.orgId, p_client_msg_id: clientMessageId, p_note: note || null }); },
     confirmFile: async (f: RealFile, decision: "confirmed" | "changes_requested", comment: string) => {
-      await rpc("sr_record_confirmation", { p_room_id: f.roomId, p_actor_organization_id: ref.current.orgId, p_client_msg_id: crypto.randomUUID(), p_decision: decision, p_file_version_id: f.id, p_file_sha256: f.sha256, p_comment: comment || null });
+      const row = await rpc("sr_record_confirmation", { p_room_id: f.roomId, p_actor_organization_id: ref.current.orgId, p_client_msg_id: crypto.randomUUID(), p_decision: decision, p_file_version_id: f.id, p_file_sha256: f.sha256, p_comment: comment || null });
+      nextVersion(confirmationVersions.current, f.roomId);
+      const confirmation: Confirmation = {
+        id: String(row.id), roomId: f.roomId, fileVersionId: f.id, sha: f.sha256,
+        orgId: String(row.organization_id), userId: String(row.user_id), decision,
+        comment: typeof row.comment === "string" ? row.comment : null, at: String(row.created_at),
+      };
+      set((p) => ({ ...p, confirmations: [...p.confirmations.filter((c) => c.id !== confirmation.id), confirmation].sort((a, b) => a.at.localeCompare(b.at)) }));
       await loadRoom(f.roomId);
     },
     fileUrl: async (fileId: string) => {
