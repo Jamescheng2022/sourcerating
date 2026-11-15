@@ -18,11 +18,15 @@ const jl = (f, o) => { try { fs.appendFileSync(path.join(dirs.logs, f), redactTe
 // and only then moved into <run>/traces. The runner independently re-verifies the evidence folder and requires the
 // raw folder to be empty (lib/trace-sanitize.cjs verifyTraces); otherwise the verdict is STOPPED.
 const rawDir = path.join(guard.ROOT, 'qa', 'windows-b', 'work', 'raw-traces', path.basename(runDir)); fs.mkdirSync(rawDir, { recursive: true });
+// Lifecycle marker: <name>.pending is written (synchronously, throwing on failure) BEFORE tracing starts and removed
+// only after the sanitized trace has been promoted. Any failure, crash or kill leaves the marker, which the runner's
+// independent verification treats as STOPPED — no log write is needed for a failure to be detected.
+const pendingMarker = (id) => path.join(rawDir, `${tag}-ctx${id}.zip.pending`);
 const saveTrace = async (ctx, id) => {
   const name = `${tag}-ctx${id}.zip`, raw = path.join(rawDir, name); let r;
-  try { await ctx.tracing.stop({ path: raw }); r = await sanitize(raw, secrets); if (r.ok) fs.renameSync(raw, path.join(dirs.traces, name)); }
+  try { await ctx.tracing.stop({ path: raw }); r = await sanitize(raw, secrets); if (r.ok) { fs.renameSync(raw, path.join(dirs.traces, name)); fs.rmSync(pendingMarker(id)); } }
   catch (e) { r = { ok: false, leaks: ['trace-stop-error: ' + String(e.message).split('\n')[0]], undeleted: wipeFiles([raw, raw + '.tmp']) }; }
-  if (!r.ok) jl('trace-stop.jsonl', { ctx: id, leaks: r.leaks, undeleted: (r.undeleted || []).map((x) => path.relative(guard.ROOT, x)) });
+  if (!r.ok) { process.exitCode = 5; jl('trace-stop.jsonl', { ctx: id, leaks: r.leaks, undeleted: (r.undeleted || []).map((x) => path.relative(guard.ROOT, x)) }); }
 };
 
 const webDir = path.join(guard.ROOT, 'apps', 'web');
@@ -43,6 +47,7 @@ chromium.launch = async (...a) => {
       jl('blocked-requests.jsonl', { ctx: id, url: route.request().url().split('?')[0], why: c.why, boundary: !!c.boundary });
       return route.abort('blockedbyclient');
     });
+    fs.writeFileSync(pendingMarker(id), new Date().toISOString()); // throws => no tracing, the suite fails
     await ctx.tracing.start({ screenshots: true, snapshots: true, sources: false, title: `${tag}-ctx${id}` });
     ctx.on('page', (p) => {
       p.on('console', (m) => { if (['error', 'warning'].includes(m.type())) jl('console.jsonl', { ctx: id, type: m.type(), text: m.text().slice(0, 500) }); });

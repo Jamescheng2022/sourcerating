@@ -34,7 +34,7 @@ function parseLines(text, suite) {
   return out;
 }
 
-function finalize(runDir, oracleResult, meta) {
+function finalize(runDir, oracleResult, meta, tv) {
   const crit = JSON.parse(fs.readFileSync(path.join(QA, 'acceptance', 'criteria.json'), 'utf8'));
   const results = JSON.parse(fs.readFileSync(path.join(runDir, 'results.json'), 'utf8')).results;
   const byName = new Map(); for (const r of results) byName.set(r.name, r);
@@ -68,8 +68,7 @@ function finalize(runDir, oracleResult, meta) {
   if (unlistedNotRun.length) { verdict = 'FAIL'; why.push('unlisted NOT RUN: ' + unlistedNotRun.map((r) => r.name).join('; ')); }
   if (boundary > crit.limits.maxBoundaryViolations) { verdict = 'FAIL'; why.push(`${boundary} request(s) to a forbidden host were attempted and blocked`); }
   if (blocked.length - boundary > crit.limits.maxBlockedUnexpectedRequests) { verdict = verdict === 'PASS' ? 'FAIL' : verdict; why.push(`${blocked.length - boundary} request(s) to non-allow-listed hosts were blocked`); }
-  // Trace evidence must be independently verified clean (verifyTraceEvidence); a missing or failed verification is STOPPED.
-  let tv = null; try { tv = JSON.parse(fs.readFileSync(path.join(runDir, 'logs', 'trace-verify.json'), 'utf8')); } catch {}
+  // Trace evidence must be independently verified clean in THIS invocation (tv from verifyTraceEvidence); otherwise STOPPED.
   const traceStops = fs.existsSync(path.join(runDir, 'logs', 'trace-stop.jsonl'));
   if (!tv || tv.ok !== true || traceStops) { verdict = 'STOPPED'; why.push('trace evidence not proven credential-free: ' + (!tv ? 'verification missing' : tv.ok !== true ? tv.problems.slice(0, 5).join('; ') : 'logs/trace-stop.jsonl present') + ' — evidence withheld'); }
   const out = { verdict, why, coverage: cov, requirements: reqs, notRun: notRun.map((r) => r.name), blockedRequests: blocked.length, boundaryViolations: boundary, meta };
@@ -101,7 +100,9 @@ async function verifyTraceEvidence(runDir) {
   const { verifyTraces, loadSecrets } = require('../lib/trace-sanitize.cjs');
   let res; try { res = await verifyTraces(path.join(runDir, 'traces'), path.join(QA, 'work', 'raw-traces', path.basename(runDir)), loadSecrets(process.env.B_USERS)); }
   catch (e) { res = { ok: false, problems: ['verification error: ' + String(e.message).split('\n')[0]] }; }
-  try { fs.writeFileSync(path.join(runDir, 'logs', 'trace-verify.json'), JSON.stringify(res, null, 2)); } catch {}
+  // the verdict uses this in-memory result (never a file from an earlier run); failing to persist it is itself a STOP
+  try { fs.writeFileSync(path.join(runDir, 'logs', 'trace-verify.json'), JSON.stringify(res, null, 2)); }
+  catch (e) { res = { ok: false, problems: [...(res.problems || []), 'trace-verify.json could not be written: ' + String(e.message).split('\n')[0]] }; }
   return res;
 }
 async function main() {
@@ -113,7 +114,7 @@ async function main() {
     const o = path.join(runDir, 'oracle-result.json');
     const r = cp.spawnSync('node', [path.join(QA, 'oracle', 'oracle.cjs'), '--stamp', meta.stamp, '--suites', meta.suites.join(','), '--mode', 'snapshot', '--rows', path.resolve(arg('oracle-rows')), '--out', o], { encoding: 'utf8' });
     fs.writeFileSync(path.join(runDir, 'logs', 'oracle.log'), r.stdout + r.stderr);
-    await verifyTraceEvidence(runDir); const res = finalize(runDir, fs.existsSync(o) ? JSON.parse(fs.readFileSync(o, 'utf8')) : null, meta);
+    const tv = await verifyTraceEvidence(runDir); const res = finalize(runDir, fs.existsSync(o) ? JSON.parse(fs.readFileSync(o, 'utf8')) : null, meta, tv);
     process.exit(res.verdict === 'PASS' ? 0 : 1);
   }
   const suites = String(arg('suites', Object.keys(profile.entrypoints).join(','))).split(',');
@@ -151,13 +152,13 @@ async function main() {
   }
   meta.stamp = stamp; meta.timedOut = timedOut; meta.finishedAt = new Date().toISOString();
   writeJson(path.join(runDir, 'results.json'), { results }); writeJson(path.join(runDir, 'meta.json'), meta);
-  if (!stamp) { console.log('RUNNER: no stamp from the baseline suite, oracle cannot be scoped'); await verifyTraceEvidence(runDir); const res = finalize(runDir, null, meta); process.exit(res.verdict === 'PASS' ? 0 : 1); }
+  if (!stamp) { console.log('RUNNER: no stamp from the baseline suite, oracle cannot be scoped'); const tv = await verifyTraceEvidence(runDir); const res = finalize(runDir, null, meta, tv); process.exit(res.verdict === 'PASS' ? 0 : 1); }
   fs.writeFileSync(path.join(runDir, 'db', 'oracle.sql'), cp.execFileSync('node', [path.join(QA, 'oracle', 'oracle.cjs'), '--stamp', stamp, '--print-sql'], { encoding: 'utf8' }));
   if (process.env.ORACLE_DATABASE_URL && !arg('oracle-rows')) {
     const o = path.join(runDir, 'oracle-result.json');
     const r = cp.spawnSync('node', [path.join(QA, 'oracle', 'oracle.cjs'), '--stamp', stamp, '--suites', suites.join(','), '--out', o], { encoding: 'utf8', env: { ...process.env } });
     fs.writeFileSync(path.join(runDir, 'logs', 'oracle.log'), r.stdout + r.stderr);
-    await verifyTraceEvidence(runDir); const res = finalize(runDir, fs.existsSync(o) ? JSON.parse(fs.readFileSync(o, 'utf8')) : null, meta); process.exit(res.verdict === 'PASS' ? 0 : 1);
+    const tv = await verifyTraceEvidence(runDir); const res = finalize(runDir, fs.existsSync(o) ? JSON.parse(fs.readFileSync(o, 'utf8')) : null, meta, tv); process.exit(res.verdict === 'PASS' ? 0 : 1);
   }
   console.log(`PHASE2 oracle pending: run  node qa/windows-b/runner/run.cjs --finalize ${path.relative(ROOT, runDir)} --oracle-rows <rows.json>   (SQL in ${path.relative(ROOT, path.join(runDir, 'db', 'oracle.sql'))}, stamp ${stamp})`);
 }
