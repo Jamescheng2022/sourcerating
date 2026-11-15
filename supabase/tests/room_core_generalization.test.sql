@@ -17,7 +17,7 @@ do $$
 declare
   a1 uuid := gen_random_uuid(); a2 uuid := gen_random_uuid(); b1 uuid := gen_random_uuid(); b2 uuid := gen_random_uuid();
   orgA uuid; orgB uuid; pA jsonb; pB jsonb; roomA uuid; roomB uuid; inv jsonb; sub jsonb; subInt jsonb;
-  f2 uuid; f3 uuid; ev public.room_events; n int; ex jsonb; c public.room_confirmations;
+  f2 uuid; f3 uuid; rev0 uuid; rev1 uuid; rev2 uuid; upload_path text; result jsonb; ev public.room_events; n int; ex jsonb; c public.room_confirmations;
 begin
   insert into auth.users(id,email) values (a1,'a1@a.test'),(a2,'a2@a.test'),(b1,'b1@b.test'),(b2,'b2@b.test');
 
@@ -109,6 +109,36 @@ begin
   assert (select bool_and(x->>'file_sha256' = repeat('2',64) and x->>'organization_name' in ('Org A','Org B')) from jsonb_array_elements(ex->'confirmations') x), 'hash and organization match';
   assert jsonb_array_length(ex->'events') = (select count(*) from public.room_events where room_id=roomA), 'every raw event exported';
   raise notice 'T4 evidence export PASS';
+
+  -- Exercise the real registration RPC as two organizations, including decisions.
+  perform set_config('role','postgres',true);
+  upload_path := roomA::text || '/' || gen_random_uuid()::text || '/chain.pdf';
+  insert into storage.objects(bucket_id,name,owner_id) values ('room-files',upload_path,a1::text);
+  perform pg_temp.as_user(a1,'a1@a.test');
+  result := public.register_room_file_version(roomA,upload_path,'chain.pdf','application/pdf',10,repeat('a',64),orgA,gen_random_uuid());
+  rev0 := (result->'file'->>'id')::uuid;
+  assert (result->'file'->>'version_no')::int = 1 and result->'file'->>'supersedes_version_id' is null, 'Rev0 is v1';
+  perform set_config('role','postgres',true);
+  upload_path := roomA::text || '/' || gen_random_uuid()::text || '/chain.pdf';
+  insert into storage.objects(bucket_id,name,owner_id) values ('room-files',upload_path,a1::text);
+  perform pg_temp.as_user(a1,'a1@a.test');
+  result := public.register_room_file_version(roomA,upload_path,'chain.pdf','application/pdf',11,repeat('b',64),orgA,gen_random_uuid());
+  rev1 := (result->'file'->>'id')::uuid;
+  assert (result->'file'->>'version_no')::int = 2 and (result->'file'->>'supersedes_version_id')::uuid = rev0, 'Rev1 supersedes Rev0';
+  perform public.sr_record_confirmation(roomA,orgA,gen_random_uuid(),'confirmed',rev1,repeat('b',64));
+  perform set_config('role','postgres',true);
+  upload_path := roomA::text || '/' || gen_random_uuid()::text || '/chain.pdf';
+  insert into storage.objects(bucket_id,name,owner_id) values ('room-files',upload_path,b1::text);
+  perform pg_temp.as_user(b1,'b1@b.test');
+  result := public.register_room_file_version(roomA,upload_path,'chain.pdf','application/pdf',12,repeat('c',64),orgB,gen_random_uuid());
+  rev2 := (result->'file'->>'id')::uuid;
+  assert (result->'file'->>'version_no')::int = 3 and (result->'file'->>'supersedes_version_id')::uuid = rev1, 'Rev2 is v3 and supersedes Rev1';
+  select count(*) into n from public.room_file_versions where room_id=roomA and logical_name='chain.pdf'; assert n=3, 'no gaps or extra versions';
+  select count(*) into n from public.room_confirmations where file_version_id=rev2; assert n=0, 'new version has no inherited confirmations';
+  perform pg_temp.denied(format('select public.sr_record_confirmation(%L,%L,gen_random_uuid(),%L,%L,%L,null,%L)',roomA,orgB,'changes_requested',rev2,repeat('c',64),''), 'room_confirmations_changes_reason_required');
+  perform pg_temp.denied(format('select public.sr_record_confirmation(%L,%L,gen_random_uuid(),%L,%L,%L,null,%L)',roomA,orgB,'changes_requested',rev2,repeat('c',64),E' \t\n'), 'room_confirmations_changes_reason_required');
+  perform public.sr_record_confirmation(roomA,orgB,gen_random_uuid(),'changes_requested',rev2,repeat('c',64),null,'change this');
+  raise notice 'cross-organization lineage and reason validation PASS';
 
   -- T5 revocation
   perform public.sr_remove_room_member((sub->>'room_id')::uuid, orgA, b1);

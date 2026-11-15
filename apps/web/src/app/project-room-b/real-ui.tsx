@@ -275,9 +275,9 @@ function FileCard({ real, f, latest }: { real: Real; f: RealFile; latest: boolea
       </div>
       {mine?.decision !== "confirmed" && (
         <div className={rc.row}>
-          <input className={`${css.field} ${rc.grow}`} style={{ height: 32, fontSize: 13 }} value={note} onChange={(e) => setNote(e.target.value)} placeholder="意见（可选）" aria-label="确认意见" />
+          <input className={`${css.field} ${rc.grow}`} style={{ height: 32, fontSize: 13 }} value={note} onChange={(e) => setNote(e.target.value)} placeholder="确认可选；要求修改请填写原因" aria-label="确认意见" />
           <button type="button" className={rc.mini} data-primary disabled={busy} onClick={act(() => actions.confirmFile(f, "confirmed", note))}><ShieldCheck size={14} />确认此版本</button>
-          <button type="button" className={rc.mini} disabled={busy} onClick={act(() => actions.confirmFile(f, "changes_requested", note))}>要求修改</button>
+          <button type="button" className={rc.mini} disabled={busy || !note.trim()} onClick={act(() => actions.confirmFile(f, "changes_requested", note))}>要求修改</button>
         </div>
       )}
       <div className={rc.row}>
