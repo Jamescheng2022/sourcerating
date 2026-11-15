@@ -5,7 +5,7 @@
 // no arbitrary URL, no file access outside runs/, and typed e-mail addresses must be synthetic personas.
 const fs = require('fs'), path = require('path'), cp = require('child_process');
 const guard = require('../lib/guard.cjs');
-const { sanitize, redactText, wipeFiles } = require('../lib/trace-sanitize.cjs');
+const { sanitize, redactText, wipeFiles, renameRetry } = require('../lib/trace-sanitize.cjs');
 const { ROOT, profile } = guard;
 const QA = path.join(ROOT, 'qa', 'windows-b');
 const { chromium } = require(require.resolve('@playwright/test', { paths: [path.join(ROOT, 'apps', 'web')] }));
@@ -26,9 +26,18 @@ const { FIXTURES } = require('../lib/fixtures.cjs');
 const UPLOAD_TARGETS = { composer: 'file-input', version: 'version-input' };
 // Fail-closed: STOP is set before anything else can fail; a trace that cannot be proven clean is deleted, and any
 // file that cannot be deleted is named in the STOP message for manual quarantine.
+// The raw trace is written to work/raw-traces/<run>/ (never the evidence folder) and only promoted into <run>/traces
+// after sanitize + rescan succeed. A <name>.pending marker is written synchronously before the raw file can exist and
+// removed only after promotion, so a kill mid-sanitize leaves the raw file and marker outside the evidence folder,
+// where verifyTraces (raw folder must be empty) reports it.
+const RAW = path.join(QA, 'work', 'raw-traces', path.basename(RUN));
 const closeTrace = async (k, s) => {
-  const f = path.join(RUN, 'traces', `director-${k}.zip`); let r;
-  try { s.tracing = false; await s.ctx.tracing.stop({ path: f }); r = await sanitize(f, secrets()); }
+  const name = `director-${k}.zip`, f = path.join(RAW, name), pending = f + '.pending'; let r;
+  try {
+    s.tracing = false; fs.mkdirSync(RAW, { recursive: true }); fs.writeFileSync(pending, new Date().toISOString());
+    await s.ctx.tracing.stop({ path: f }); r = await sanitize(f, secrets());
+    if (r.ok) { renameRetry(f, path.join(RUN, 'traces', name)); fs.rmSync(pending); }
+  }
   catch (e) { r = { ok: false, leaks: ['trace-stop-error: ' + String(e.message).split('\n')[0]], undeleted: wipeFiles([f, f + '.tmp']) }; }
   if (r.ok) { log({ trace: k, sanitized: true }); return 'trace saved (sanitized, scan clean)'; }
   halted = 'trace sanitization failed for ' + k;
