@@ -1,29 +1,109 @@
 {
   "_doc": "Pinned P0 pass criteria for the four-persona journey (handoff DEEPSEEK_AGY_CLAUDE_REAL_USER_QA_20261114, Gate 4/5). The Test Director (AGY) and any model may not edit this file; it is hash-pinned.",
-  "verdictRule": "A scenario is PASS only with screenshot + sanitized trace + console log + its oracle checks passing (oracle --set p0). Missing evidence = NOT RUN. Any 'Maximum update depth exceeded' / React error #185 in logs/console.jsonl = FAIL for P0-02. 'Recovers after reload' is not a pass.",
+  "verdictRule": "A scenario is PASS only with screenshot + sanitized trace + console log + its oracle checks passing (oracle --set p0). Missing evidence = NOT RUN. Any 'Maximum update depth exceeded' / React error #185 in logs/console.jsonl = FAIL for P0-02. 'Recovers after reload' is not a pass. Oracle results count only from live pg mode (oracle.cjs refuses snapshot mode for --set p0). Browser-only items (UI 'historical' badge, key-by-key typing, receiver view, 10 upload cycles, AI answer) are judged by the independent auditor from screenshots + sanitized trace + console.jsonl; an operator's self-report alone is NOT RUN.",
   "project": "QA P0 <stamp>",
   "scenarios": [
-    { "id": "P0-01", "title": "Renamed upload Rev0 -> Rev1 (-> Rev2) stays one file lineage",
-      "browser": ["A1 uploads fixture rev0 via composer", "A2 uploads fixture rev1 via the Rev0 card's version action (upload_fixture target=version)", "B2 uploads fixture rev2 via the Rev1 card's version action", "UI shows one file card with versions 1..3, not separate files"],
-      "oracle": ["p0.files.rev0_count", "p0.files.rev1_count", "p0.files.rev2_count", "p0.lineage.distinct_logical_assets", "p0.lineage.rev1_supersedes_rev0", "p0.lineage.rev2_supersedes_rev1", "p0.lineage.version_gaps", "p0.files.not_verified", "p0.files.object_missing"] },
-    { "id": "P0-05", "title": "Approval semantics: old approval is history only; new version starts unconfirmed",
-      "browser": ["A2 and B1 confirm Rev0 for their own organisations", "after Rev1, Rev0 approval shown as historical/superseded, not current", "Rev1 shown unconfirmed", "change request requires a reason", "double-click on request review creates one request"],
-      "oracle": ["p0.confirm.rev0_distinct_confirming_orgs", "p0.confirm.inherited_by_new_version", "p0.confirm.change_request_without_reason", "p0.confirm.duplicate_review_requests"] },
-    { "id": "P0-02", "title": "No React #185 during uploads",
-      "browser": ["at least 10 upload / version-upload cycles", "preview and panel buttons still operable after each upload", "logs/console.jsonl contains no 'Maximum update depth' and no React error #185"],
-      "oracle": [] },
-    { "id": "P0-03", "title": "Own messages never count as own unread",
-      "browser": ["A1 sends, uploads and requests review: A1 sidebar unread stays 0", "same after reload, room switch and fresh sign-in", "B1 unread follows real reading"],
-      "oracle": ["p0.unread.self_authored_unread"] },
-    { "id": "P0-04", "title": "No first-character loss; numbers exact",
-      "browser": ["at least 30 messages typed key by key with press, immediately after switching room, exact text 'P0T-<n> 12mm M20 USD 1,200'", "sender view, receiver view identical"],
-      "oracle": ["p0.text.probe_messages", "p0.text.malformed_probe_messages"] },
-    { "id": "P0-06", "title": "AI uses the corrected value",
-      "browser": ["a wrong value is posted then corrected in a later message", "AI summary/answer cites the corrected value and its source message"],
-      "oracle": [] },
-    { "id": "P0-LOG", "title": "Event log integrity for the P0 project",
+    {
+      "id": "P0-01",
+      "title": "Renamed upload Rev0 -> Rev1 (-> Rev2) stays one file lineage",
+      "browser": [
+        "A1 uploads fixture rev0 via composer",
+        "A2 uploads fixture rev1 via the Rev0 card's version action (upload_fixture target=version)",
+        "B2 uploads fixture rev2 via the Rev1 card's version action",
+        "UI shows one file card with versions 1..3, not separate files"
+      ],
+      "oracle": [
+        "p0.files.rev0_count",
+        "p0.files.rev1_count",
+        "p0.files.rev2_count",
+        "p0.lineage.distinct_logical_assets",
+        "p0.lineage.rev1_supersedes_rev0",
+        "p0.lineage.rev2_supersedes_rev1",
+        "p0.lineage.version_gaps",
+        "p0.files.not_verified",
+        "p0.files.object_missing"
+      ]
+    },
+    {
+      "id": "P0-05",
+      "title": "Approval semantics: old approval is history only; new version starts unconfirmed",
+      "browser": [
+        "A2 and B1 confirm Rev0 for their own organisations",
+        "after Rev1, Rev0 approval shown as historical/superseded, not current",
+        "Rev1 shown unconfirmed",
+        "change request requires a reason",
+        "double-click on request review creates one request"
+      ],
+      "oracle": [
+        "p0.confirm.rev0_distinct_confirming_orgs",
+        "p0.confirm.without_valid_source_event",
+        "p0.confirm.inherited_by_new_version",
+        "p0.confirm.rev0_history_rebound",
+        "p0.confirm.change_requests_with_reason",
+        "p0.confirm.change_request_without_reason",
+        "p0.review.requests",
+        "p0.review.double_click_duplicates"
+      ]
+    },
+    {
+      "id": "P0-02",
+      "title": "No React #185 during uploads",
+      "browser": [
+        "at least 10 upload / version-upload cycles",
+        "preview and panel buttons still operable after each upload",
+        "logs/console.jsonl contains no 'Maximum update depth' and no React error #185"
+      ],
+      "oracle": []
+    },
+    {
+      "id": "P0-03",
+      "title": "Own messages never count as own unread",
+      "browser": [
+        "A1 sends, uploads and requests review: A1 sidebar unread stays 0",
+        "same after reload, room switch and fresh sign-in",
+        "B1 unread follows real reading"
+      ],
+      "oracle": [
+        "p0.unread.members_with_own_events",
+        "p0.unread.own_events_counted_unread"
+      ]
+    },
+    {
+      "id": "P0-04",
+      "title": "No first-character loss; numbers exact",
+      "browser": [
+        "at least 30 messages typed key by key with press, immediately after switching room, exact text 'P0T-<n> 12mm M20 USD 1,200'",
+        "sender view, receiver view identical"
+      ],
+      "oracle": [
+        "p0.text.probe_distinct_n_1_30",
+        "p0.text.probe_duplicates",
+        "p0.text.malformed_probe_messages"
+      ]
+    },
+    {
+      "id": "P0-06",
+      "title": "AI uses the corrected value",
+      "browser": [
+        "a wrong value is posted then corrected in a later message",
+        "AI summary/answer cites the corrected value and its source message"
+      ],
+      "oracle": []
+    },
+    {
+      "id": "P0-LOG",
+      "title": "Event log integrity for the P0 project",
       "browser": [],
-      "oracle": ["p0.events.seq_contiguous_violations", "p0.events.hash_chain_breaks", "p0.events.duplicate_client_msg"] }
+      "oracle": [
+        "p0.scope.projects",
+        "p0.events.seq_contiguous_violations",
+        "p0.events.hash_chain_breaks",
+        "p0.events.duplicate_client_msg"
+      ]
+    }
   ],
-  "knownToolLimits": ["IME composition input cannot be produced by the restricted tool (press sends key events only); P0-04 IME sub-case is NOT RUN unless a reviewed tool is added"]
+  "knownToolLimits": [
+    "IME composition input cannot be produced by the restricted tool (press sends key events only); P0-04 IME sub-case is NOT RUN unless a reviewed tool is added",
+    "Credentials rendered as page pixels cannot be detected; mitigated by tracing only after login and browser-masked password inputs. Trace image entries are scanned and fail closed but not rewritten."
+  ]
 }

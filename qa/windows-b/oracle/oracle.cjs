@@ -19,6 +19,7 @@ if (arg('print-sql')) { process.stdout.write(sql); process.exit(0); }
 const expect = JSON.parse(fs.readFileSync(path.join(__dirname, set === 'p0' ? 'expectations-p0.json' : 'expectations.json'), 'utf8'));
 const suites = String(arg('suites', '')).split(',').filter(Boolean);
 const mode = arg('mode', 'pg');
+if (set === 'p0' && mode !== 'pg') { console.error('oracle: the p0 set runs only in live pg mode (snapshot rows are operator-supplied and cannot be acceptance evidence)'); process.exit(2); }
 
 async function rows() {
   if (mode === 'snapshot') return JSON.parse(fs.readFileSync(arg('rows'), 'utf8'));
