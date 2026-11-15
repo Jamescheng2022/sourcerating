@@ -10,7 +10,7 @@ const runDir = process.env.QA_RUN_DIR; if (!runDir) throw new Error('QA_RUN_DIR 
 const dirs = { traces: path.join(runDir, 'traces'), shots: path.join(runDir, 'screenshots'), logs: path.join(runDir, 'logs') };
 for (const d of Object.values(dirs)) fs.mkdirSync(d, { recursive: true });
 const tag = process.env.QA_PRELOAD_PROFILE || 'suite';
-const { sanitize, redactText, wipeFiles, loadSecrets } = require('./trace-sanitize.cjs');
+const { sanitize, redactText, wipeFiles, loadSecrets, renameRetry } = require('./trace-sanitize.cjs');
 // Fail closed before any browser starts: without the persona passwords a trace cannot be proven clean.
 const secrets = loadSecrets(process.env.B_USERS);
 const jl = (f, o) => { try { fs.appendFileSync(path.join(dirs.logs, f), redactText(JSON.stringify({ t: new Date().toISOString(), ...o }), secrets) + '\n'); } catch {} };
@@ -24,7 +24,7 @@ const rawDir = path.join(guard.ROOT, 'qa', 'windows-b', 'work', 'raw-traces', pa
 const pendingMarker = (id) => path.join(rawDir, `${tag}-ctx${id}.zip.pending`);
 const saveTrace = async (ctx, id) => {
   const name = `${tag}-ctx${id}.zip`, raw = path.join(rawDir, name); let r;
-  try { await ctx.tracing.stop({ path: raw }); r = await sanitize(raw, secrets); if (r.ok) { fs.renameSync(raw, path.join(dirs.traces, name)); fs.rmSync(pendingMarker(id)); } }
+  try { await ctx.tracing.stop({ path: raw }); r = await sanitize(raw, secrets); if (r.ok) { renameRetry(raw, path.join(dirs.traces, name)); fs.rmSync(pendingMarker(id)); } }
   catch (e) { r = { ok: false, leaks: ['trace-stop-error: ' + String(e.message).split('\n')[0]], undeleted: wipeFiles([raw, raw + '.tmp']) }; }
   if (!r.ok) { process.exitCode = 5; jl('trace-stop.jsonl', { ctx: id, leaks: r.leaks, undeleted: (r.undeleted || []).map((x) => path.relative(guard.ROOT, x)) }); }
 };
@@ -42,6 +42,8 @@ chromium.launch = async (...a) => {
     await ctx.route('**/*', (route) => {
       const u = new URL(route.request().url());
       if (u.protocol === 'data:' || u.protocol === 'blob:' || u.protocol === 'about:') return route.continue();
+      // Chrome's built-in PDF viewer: browser-internal resources, exact origins only
+      if ((u.protocol === 'chrome:' && u.hostname === 'resources') || (u.protocol === 'chrome-extension:' && u.hostname === 'mhjfbmdgcfjbbpaeojofohoefgiehjai')) return route.continue();
       const c = guard.classifyHost(u.hostname);
       if (c.ok) return route.continue();
       jl('blocked-requests.jsonl', { ctx: id, url: route.request().url().split('?')[0], why: c.why, boundary: !!c.boundary });

@@ -56,7 +56,7 @@ const tools = {
     persona(k); if (S[k]) return 'already open';
     const b = await ensureBrowser(); const ctx = await b.newContext({ viewport: { width, height }, acceptDownloads: true });
     await ctx.route('**/*', (route) => {
-      const u = new URL(route.request().url()); if (['data:', 'blob:', 'about:'].includes(u.protocol)) return route.continue();
+      const u = new URL(route.request().url()); if (['data:', 'blob:', 'about:'].includes(u.protocol)) return route.continue(); if ((u.protocol === 'chrome:' && u.hostname === 'resources') || (u.protocol === 'chrome-extension:' && u.hostname === 'mhjfbmdgcfjbbpaeojofohoefgiehjai')) return route.continue();
       const c = guard.classifyHost(u.hostname); if (c.ok) return route.continue();
       blocked++; log({ blocked: route.request().url().split('?')[0], why: c.why, boundary: !!c.boundary }); return route.abort('blockedbyclient');
     });

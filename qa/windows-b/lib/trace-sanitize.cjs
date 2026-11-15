@@ -87,6 +87,14 @@ const structureBroken = (before, after) => {
   return a.some((l, i) => l !== b[i] && parses(l) && !parses(b[i]));
 };
 
+// Windows: antivirus or a just-closed handle can briefly lock a file; retry transient errors, never skip the move.
+function renameRetry(from, to) {
+  for (let i = 0; ; i++) {
+    try { fs.renameSync(from, to); return; }
+    catch (e) { if (i >= 20 || !['EPERM', 'EBUSY', 'EACCES'].includes(e.code)) throw e; Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100 * (i + 1)); }
+  }
+}
+
 async function sanitize(zipPath, secrets) {
   const tmp = zipPath + '.tmp';
   // returns the files that could NOT be deleted (caller must report them for manual quarantine)
@@ -102,7 +110,7 @@ async function sanitize(zipPath, secrets) {
     }
     if (broken.length) return fail(broken);
     await new Promise((res, rej) => { z.outputStream.on('error', rej).pipe(fs.createWriteStream(tmp)).on('close', res).on('error', rej); z.end(); });
-    fs.renameSync(tmp, zipPath);
+    renameRetry(tmp, zipPath);
     const found = new Set();
     for (const [name, buf] of await readAll(zipPath)) for (const h of leaks(buf.toString('latin1'), secrets)) found.add(h + '@' + name);
     if (found.size) return fail([...found]);
@@ -129,4 +137,4 @@ const loadSecrets = (usersFile) => {
   if (!Array.isArray(u) || !u.length || u.some((x) => typeof x.pw !== 'string' || x.pw.length < 8)) throw new Error('persona credential file is not a non-empty array of {pw}');
   return u.map((x) => x.pw);
 };
-module.exports = { sanitize, verifyTraces, loadSecrets, leaks, redactText, structureBroken, wipeFiles: (files) => files.filter((f) => { try { fs.rmSync(f, { force: true }); } catch {} return fs.existsSync(f); }) };
+module.exports = { renameRetry, sanitize, verifyTraces, loadSecrets, leaks, redactText, structureBroken, wipeFiles: (files) => files.filter((f) => { try { fs.rmSync(f, { force: true }); } catch {} return fs.existsSync(f); }) };
