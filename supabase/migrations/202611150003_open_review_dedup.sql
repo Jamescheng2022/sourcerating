@@ -9,6 +9,15 @@ create table public.room_review_request_keys (
 alter table public.room_review_request_keys enable row level security;
 revoke all on public.room_review_request_keys from public, anon, authenticated;
 
+-- Bind each request event to the actual task generation(s) it observes.
+create table public.room_review_event_tasks (
+  event_id uuid not null references public.room_events(id) on delete cascade,
+  task_id uuid not null references public.needs_you(id) on delete cascade,
+  primary key (event_id, task_id)
+);
+alter table public.room_review_event_tasks enable row level security;
+revoke all on public.room_review_event_tasks from public, anon, authenticated;
+
 create or replace function public.sr_request_file_review(
   p_file_version_id uuid, p_actor_organization_id uuid, p_client_msg_id uuid, p_note text default null)
 returns public.room_events language plpgsql security definer set search_path = public, extensions as $$
@@ -60,15 +69,16 @@ begin
 
   -- Separate clicks are one request while the same actor's identical review
   -- remains outstanding. Serialize even when the client keys differ.
-  perform pg_advisory_xact_lock(hashtextextended(v_f.room_id::text || '::open-review::' || v_f.id::text || '::' || auth.uid()::text || '::' || p_actor_organization_id::text, 0));
+  perform pg_advisory_xact_lock(hashtextextended(v_f.room_id::text || '::open-review::' || v_f.id::text, 0));
   select e.* into v_event from public.room_events e
   where e.room_id = v_f.room_id and e.event_type = 'file.review_requested'
     and e.actor_user_id = auth.uid() and e.actor_organization_id = p_actor_organization_id
     and e.payload->>'file_version_id' = v_f.id::text
     and e.payload->>'note' is not distinct from public.sr_clean_name(p_note, 1000)
     and exists (
-      select 1 from public.needs_you n
-      where n.room_id = v_f.room_id and n.detail = 'file_version:' || v_f.id::text
+      select 1 from public.room_review_event_tasks et
+      join public.needs_you n on n.id = et.task_id
+      where et.event_id = e.id and n.room_id = v_f.room_id and n.detail = 'file_version:' || v_f.id::text
         and n.status = 'open' and n.target_organization_id <> p_actor_organization_id
         and exists (select 1 from public.room_members rm
           where rm.room_id = v_f.room_id and rm.removed_at is null
@@ -94,5 +104,15 @@ begin
    where not exists (select 1 from public.needs_you n
                       where n.room_id = v_f.room_id and n.target_organization_id = o.org
                         and n.detail = 'file_version:' || v_f.id::text and n.status = 'open');
+  -- A task may predate this event. Link the event to exactly the tasks that
+  -- were outstanding in this cycle, not to future tasks for the same file.
+  insert into public.room_review_event_tasks(event_id, task_id)
+  select v_event.id, n.id from public.needs_you n
+  where n.room_id = v_f.room_id and n.detail = 'file_version:' || v_f.id::text
+    and n.status = 'open' and n.target_organization_id <> p_actor_organization_id
+    and exists (select 1 from public.room_members rm
+      where rm.room_id = v_f.room_id and rm.removed_at is null
+        and rm.acting_organization_id = n.target_organization_id)
+  on conflict do nothing;
   return v_event;
 end; $$;

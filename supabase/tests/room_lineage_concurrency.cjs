@@ -122,6 +122,44 @@ async function main() {
     assert.equal(secondResult.rows[0].id,review.rows[0].id);
     assert.equal((await ctl.query("select count(*)::int as n from public.room_events where room_id=$1 and event_type='file.review_requested' and payload->>'file_version_id'=$2",[f.room,versions[2].id])).rows[0].n,1);
     console.log('PASS concurrent different-key clicks reuse one outstanding review');
+    // A second user in the same org races the first on a fresh file. Both
+    // intents are legitimate, but they must share one recipient task.
+    const colleague=randomUUID(), emailC='lineage-c-'+tag+'@example.test', freshFile=randomUUID();
+    await ctl.query("insert into auth.users(id,email) values($1,$2)",[colleague,emailC]);
+    await ctl.query("select set_config('request.jwt.claims',$1,false)",[claim(a,ea)]);
+    const invite=(await ctl.query("select public.sr_create_invite($1,$2,$3,'org_member') as data",[f.room,f.oa,emailC])).rows[0].data;
+    await ctl.query("select set_config('request.jwt.claims',$1,false)",[claim(colleague,emailC)]);
+    await ctl.query("select public.sr_accept_invite($1,null,null,'Colleague')",[invite.token]);
+    await ctl.query("insert into public.room_file_versions(id,room_id,logical_name,version_no,object_path,mime_type,size_bytes,sha256,uploader_user_id,uploader_organization_id) values($1,$2,'parallel.pdf',1,$3,'application/pdf',1,repeat('d',64),$4,$5)",[freshFile,f.room,f.room+'/parallel-'+freshFile,a,f.oa]);
+    await one.query('begin');
+    await one.query("select set_config('request.jwt.claims',$1,true)",[claim(a,ea)]);
+    await one.query('set local role authenticated');
+    const firstActor=await one.query("select (public.sr_request_file_review($1,$2,$3,$4)).id as id",[freshFile,f.oa,randomUUID(),'actor A']);
+    await two.query('begin');
+    await two.query("select set_config('request.jwt.claims',$1,true)",[claim(colleague,emailC)]);
+    await two.query('set local role authenticated');
+    const otherActor=two.query("select (public.sr_request_file_review($1,$2,$3,$4)).id as id",[freshFile,f.oa,randomUUID(),'actor B']);
+    otherActor.catch(()=>{});
+    blocked=false;
+    for(let i=0;i<100;i++) {
+      const state=await ctl.query("select exists(select 1 from pg_stat_activity where application_name=$1 and wait_event_type='Lock') as blocked",[app]);
+      if(state.rows[0].blocked){blocked=true;break;}
+      await delay(100);
+    }
+    assert.ok(blocked,'different actors must serialize file review task creation');
+    await one.query('commit');
+    const actorResult=await otherActor;
+    await two.query('commit');
+    assert.notEqual(firstActor.rows[0].id,actorResult.rows[0].id);
+    assert.equal((await ctl.query("select count(*)::int as n from public.needs_you where room_id=$1 and detail=$2 and status='open'",[f.room,'file_version:'+freshFile])).rows[0].n,1);
+    await two.query('begin');
+    await two.query("select set_config('request.jwt.claims',$1,true)",[claim(colleague,emailC)]);
+    await two.query('set local role authenticated');
+    const actorRepeat=await two.query("select (public.sr_request_file_review($1,$2,$3,$4)).id as id",[freshFile,f.oa,randomUUID(),'actor B']);
+    await two.query('commit');
+    assert.equal(actorRepeat.rows[0].id,actorResult.rows[0].id);
+    console.log('PASS cross-actor review requests serialize to one task and preserve distinct intents');
+
 
 
   } finally {

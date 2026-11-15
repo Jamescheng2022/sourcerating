@@ -122,12 +122,20 @@ begin
   perform pg_temp.as_user(a1,'a1@a.test');
   select count(*) into n from public.needs_you where source_event_id=review_event.id;
   assert n = 1, 'retry after resolution does not reopen review task';
+  -- Another actor starts a new cycle after the original task is resolved.
+  perform pg_temp.as_user(b2,'b2@b.test');
+  review_alt := public.sr_request_file_review(f2, orgB, gen_random_uuid(), 'colleague starts new cycle');
   perform pg_temp.as_user(b1,'b1@b.test');
   review_retry := public.sr_request_file_review(f2, orgB, gen_random_uuid(), 'thickness 20 to 22');
-  assert review_retry.id <> review_event.id, 'new intent after resolution opens a new review';
+  assert review_retry.id <> review_event.id, 'a different actor reopening a review cannot revive the old event';
+  assert review_retry.id <> review_alt.id, 'new actor intent has its own event';
+  review_alt := public.sr_request_file_review(f2, orgB, gen_random_uuid(), 'thickness 20 to 22');
+  assert review_alt.id = review_retry.id, 'repeat in the new cycle reuses the new event';
+  review_alt := public.sr_request_file_review(f2, orgB, alias_key, 'thickness 20 to 22');
+  assert review_alt.id = review_event.id, 'old alias remains bound to the original resolved event';
   perform pg_temp.as_user(a1,'a1@a.test');
-  select count(*) into n from public.needs_you where source_event_id=review_retry.id and status='open';
-  assert n = 1, 'new review after resolution creates a task';
+  select count(*) into n from public.needs_you where room_id=roomA and detail='file_version:'||f2::text and status='open';
+  assert n = 1, 'the new cycle retains exactly one open recipient task';
   perform pg_temp.as_user(a1,'a1@a.test');
   perform pg_temp.as_user(b1,'b1@b.test');
   perform public.sr_record_confirmation(roomA, orgB, gen_random_uuid(), 'confirmed', f2, repeat('2',64));
