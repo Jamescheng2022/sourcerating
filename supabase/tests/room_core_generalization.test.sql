@@ -135,6 +135,11 @@ begin
   assert (result->'file'->>'version_no')::int = 3 and (result->'file'->>'supersedes_version_id')::uuid = rev1, 'Rev2 is v3 and supersedes Rev1';
   select count(*) into n from public.room_file_versions where room_id=roomA and logical_name='chain.pdf'; assert n=3, 'no gaps or extra versions';
   select count(*) into n from public.room_confirmations where file_version_id=rev2; assert n=0, 'new version has no inherited confirmations';
+  -- Even a privileged writer cannot insert a duplicate room/name/version under
+  -- a different organization; ordinary users have no INSERT table grant.
+  perform set_config('role','postgres',true);
+  perform pg_temp.denied(format('insert into public.room_file_versions(room_id,logical_name,version_no,object_path,mime_type,size_bytes,sha256,uploader_user_id,uploader_organization_id) values (%L,%L,3,%L,%L,1,%L,%L,%L)',roomA,'chain.pdf',roomA||'/duplicate','application/pdf',repeat('d',64),a1,orgA), 'room_file_versions_room_name_version_key');
+  perform pg_temp.as_user(b1,'b1@b.test');
   perform pg_temp.denied(format('select public.sr_record_confirmation(%L,%L,gen_random_uuid(),%L,%L,%L,null,%L)',roomA,orgB,'changes_requested',rev2,repeat('c',64),''), 'room_confirmations_changes_reason_required');
   perform pg_temp.denied(format('select public.sr_record_confirmation(%L,%L,gen_random_uuid(),%L,%L,%L,null,%L)',roomA,orgB,'changes_requested',rev2,repeat('c',64),E' \t\n'), 'room_confirmations_changes_reason_required');
   perform public.sr_record_confirmation(roomA,orgB,gen_random_uuid(),'changes_requested',rev2,repeat('c',64),null,'change this');

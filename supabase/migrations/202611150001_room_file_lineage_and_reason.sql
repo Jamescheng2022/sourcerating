@@ -1,3 +1,30 @@
+-- Fail closed before changing the RPC: older releases allowed organization-scoped
+-- forks. Do not pick a head or rewrite historical evidence without review.
+-- The table lock keeps the preflight and new room-wide uniqueness atomic.
+begin;
+lock table public.room_file_versions in access exclusive mode;
+do $$
+begin
+  if exists (
+    select 1 from (
+      select version_no, supersedes_version_id,
+             row_number() over lineage as expected_no,
+             lag(id) over lineage as expected_previous
+      from public.room_file_versions
+      window lineage as (partition by room_id, logical_name order by version_no, id)
+    ) history
+    where version_no <> expected_no
+       or supersedes_version_id is distinct from expected_previous
+  ) then
+    raise exception 'room_file_lineage_requires_reconciliation'
+      using hint = 'Inspect and reconcile historical room/name lineages before retrying; no rows were changed.';
+  end if;
+end $$;
+
+alter table public.room_file_versions
+  add constraint room_file_versions_room_name_version_key
+  unique (room_id, logical_name, version_no);
+
 -- Fix advisory lock key: PostgreSQL text cannot contain NUL from chr(0).
 create or replace function public.register_room_file_version(
   p_room_id uuid,
@@ -239,3 +266,5 @@ grant execute on function public.register_room_file_version(
 alter table public.room_confirmations
   add constraint room_confirmations_changes_reason_required
   check (decision <> 'changes_requested' or coalesce(comment, '') ~ '[^[:space:]]') not valid;
+
+commit;
