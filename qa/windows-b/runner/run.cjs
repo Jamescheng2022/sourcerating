@@ -68,6 +68,8 @@ function finalize(runDir, oracleResult, meta) {
   if (unlistedNotRun.length) { verdict = 'FAIL'; why.push('unlisted NOT RUN: ' + unlistedNotRun.map((r) => r.name).join('; ')); }
   if (boundary > crit.limits.maxBoundaryViolations) { verdict = 'FAIL'; why.push(`${boundary} request(s) to a forbidden host were attempted and blocked`); }
   if (blocked.length - boundary > crit.limits.maxBlockedUnexpectedRequests) { verdict = verdict === 'PASS' ? 'FAIL' : verdict; why.push(`${blocked.length - boundary} request(s) to non-allow-listed hosts were blocked`); }
+  const traceStops = fs.existsSync(path.join(runDir, 'logs', 'trace-stop.jsonl')) ? fs.readFileSync(path.join(runDir, 'logs', 'trace-stop.jsonl'), 'utf8').trim().split('\n').filter(Boolean).length : 0;
+  if (traceStops) { verdict = 'STOPPED'; why.push(`${traceStops} trace(s) could not be proven credential-free (logs/trace-stop.jsonl); evidence withheld`); }
   const out = { verdict, why, coverage: cov, requirements: reqs, notRun: notRun.map((r) => r.name), blockedRequests: blocked.length, boundaryViolations: boundary, meta };
   writeJson(path.join(runDir, 'verdict.json'), out);
 

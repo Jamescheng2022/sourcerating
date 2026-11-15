@@ -10,7 +10,17 @@ const runDir = process.env.QA_RUN_DIR; if (!runDir) throw new Error('QA_RUN_DIR 
 const dirs = { traces: path.join(runDir, 'traces'), shots: path.join(runDir, 'screenshots'), logs: path.join(runDir, 'logs') };
 for (const d of Object.values(dirs)) fs.mkdirSync(d, { recursive: true });
 const tag = process.env.QA_PRELOAD_PROFILE || 'suite';
-const jl = (f, o) => fs.appendFileSync(path.join(dirs.logs, f), JSON.stringify({ t: new Date().toISOString(), ...o }) + '\n');
+const { sanitize, redactText, wipeFiles } = require('./trace-sanitize.cjs');
+const secrets = (() => { try { return JSON.parse(fs.readFileSync(process.env.B_USERS, 'utf8')).map((u) => u.pw); } catch { return []; } })();
+const jl = (f, o) => fs.appendFileSync(path.join(dirs.logs, f), redactText(JSON.stringify({ t: new Date().toISOString(), ...o }), secrets) + '\n');
+// Every trace is sanitized and re-scanned (lib/trace-sanitize.cjs). A trace that cannot be proven credential-free is
+// deleted and recorded in logs/trace-stop.jsonl, which makes the runner verdict STOPPED.
+const saveTrace = async (ctx, id) => {
+  const f = path.join(dirs.traces, `${tag}-ctx${id}.zip`); let r;
+  try { await ctx.tracing.stop({ path: f }); r = await sanitize(f, secrets); }
+  catch (e) { r = { ok: false, leaks: ['trace-stop-error: ' + String(e.message).split('\n')[0]], undeleted: wipeFiles([f, f + '.tmp']) }; }
+  if (!r.ok) jl('trace-stop.jsonl', { ctx: id, leaks: r.leaks, undeleted: (r.undeleted || []).map((x) => path.relative(runDir, x)) });
+};
 
 const webDir = path.join(guard.ROOT, 'apps', 'web');
 const { chromium } = require(require.resolve('@playwright/test', { paths: [webDir] }));
@@ -40,7 +50,7 @@ chromium.launch = async (...a) => {
   };
   const origClose = browser.close.bind(browser);
   browser.close = async (...c) => {
-    for (const { id, ctx } of contexts) { try { await ctx.tracing.stop({ path: path.join(dirs.traces, `${tag}-ctx${id}.zip`) }); } catch (e) { jl('preload-errors.jsonl', { where: 'trace', id, e: String(e.message) }); } }
+    for (const { id, ctx } of contexts) await saveTrace(ctx, id);
     return origClose(...c);
   };
   return browser;
