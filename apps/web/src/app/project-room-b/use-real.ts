@@ -66,6 +66,9 @@ const ORG_KEY = "sr_b_acting_org";
 const activeRoomFor = (state: State) =>
   state.rooms.find((r) => r.id === state.roomId && r.unread[state.orgId] !== undefined)
   ?? state.rooms.find((r) => r.unread[state.orgId] !== undefined);
+const isViewingRoom = (state: State, roomId: string) =>
+  typeof document !== "undefined" && document.visibilityState === "visible"
+  && (state.view === "chat" || window.innerWidth >= 700) && activeRoomFor(state)?.id === roomId;
 
 
 function toMsg(e: EventRow, files: RealFile[]): Msg | null {
@@ -143,6 +146,13 @@ export function useReal() {
         myRole: ms.find((m) => m.user_id === uid && m.acting_organization_id === orgId)?.room_role ?? "member",
       };
     });
+    const projected = { ...ref.current, rooms: list, orgId };
+    const active = activeRoomFor(projected);
+    if (active && isViewingRoom(projected, active.id)) {
+      active.unread[orgId] = 0;
+      const seen = Math.max(0, ...(ref.current.messages[active.id] ?? []).map((m) => seqs.current.get(m.id) ?? 0));
+      if (seen > 0) void supabase.rpc("sr_mark_room_read", { p_room_id: active.id, p_seq: Math.min(seen, active.lastSeq) });
+    }
     set((p) => version !== refreshVersion.current ? p : ({ ...p, phase: "ready", memberships, colleagues, orgs: orgList, users, rooms: list, orgId }));
   }, []);
 
@@ -229,7 +239,7 @@ export function useReal() {
           return { ...p, users, messages: { ...p.messages, [e.room_id]: mine >= 0 ? list.map((x, i) => (i === mine ? m : x)) : [...list, m] } };
         });
       }
-      const viewing = activeRoomFor(cur)?.id === e.room_id && cur.view === "chat" && document.visibilityState === "visible";
+      const viewing = isViewingRoom(cur, e.room_id);
       if (viewing) void supabase.rpc("sr_mark_room_read", { p_room_id: e.room_id, p_seq: e.seq });
       set((p) => ({
         ...p, rooms: p.rooms.map((r) => r.id !== e.room_id ? r : {

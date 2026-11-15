@@ -84,17 +84,18 @@ export async function POST(request: Request) {
       e.event_type === "room.summary_shared" ? `[summary from ${pl.from_room_name ?? "a sub room"}] ${pl.text ?? ""}` : "";
     return body ? `[#${e.seq}] ${e.created_at.slice(0, 16)} ${who}: ${body.slice(0, 1500)}` : "";
   };
-  const transcript = rows.map(line).filter(Boolean).join("\n").slice(-24000);
+  const transcript = rows.map(line).filter(Boolean).join("\n").slice(mode === "summary" ? -12000 : -24000);
   const targetText = target ? String((target.payload as Record<string, unknown>)?.text ?? "") : "";
   if ((mode === "explain" || mode === "translate") && !targetText.trim()) return Response.json({ ok: false, error: "No text to work on" }, { status: 422 });
 
   const prompt = [
     `ROOM: ${room.name}${room.purpose ? ` — ${room.purpose}` : ""} (${room.kind})`,
-    `MEMBERS: ${(members.data ?? []).map((m) => `${m.member_display_name ?? "member"} (${orgName(m.acting_organization_id)})`).join("; ")}`,
-    `FILES: ${(files.data ?? []).map((f) => `${f.logical_name} v${f.version_no} sha256:${f.sha256.slice(0, 10)} ${f.created_at.slice(0, 10)}`).join("; ") || "none"}`,
+    `MEMBERS: ${(members.data ?? []).slice(0, 80).map((m) => `${m.member_display_name ?? "member"} (${orgName(m.acting_organization_id)})`).join("; ")}`,
+    `FILES: ${(files.data ?? []).slice(-80).map((f) => `${f.logical_name} v${f.version_no} sha256:${f.sha256.slice(0, 10)} ${f.created_at.slice(0, 10)}`).join("; ") || "none"}`,
     mode === "translate" ? "" : `TRANSCRIPT (each line starts with its sequence number):\n${transcript}`,
     target ? `TARGET [#${target.seq}]: ${targetText.slice(0, 6000)}` : "",
     `TASK: ${TASKS[mode]}`,
+    mode === "summary" ? "Keep the summary under 200 words and each list to at most 4 short items; omit unsupported items." : "",
     `Answer in ${language || "the language the reader's colleagues use in this room"}.`,
     `Use only what is written above. Do not invent facts, prices, dates or commitments. "sources" are the #numbers of the lines that support the item.`,
     `Return JSON only, exactly this shape: ${SHAPES[mode]}`,
@@ -103,18 +104,34 @@ export async function POST(request: Request) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 40000);
   try {
-    const res = await fetch(p.endpoint, {
-      method: "POST", cache: "no-store", signal: controller.signal,
-      headers: { Authorization: `Bearer ${p.key}`, "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({
-        model: p.model, temperature: 0.1, max_tokens: 2000, response_format: { type: "json_object" },
-        messages: [{ role: "system", content: "You are a careful project-room assistant for engineering companies. Output valid JSON only." }, { role: "user", content: prompt }],
-      }),
-    });
-    if (!res.ok) return Response.json({ ok: false, error: `AI provider returned ${res.status}` }, { status: 502 });
-    const content = (await res.json())?.choices?.[0]?.message?.content;
-    const result = JSON.parse(typeof content === "string" ? content : "null");
-    if (!result || typeof result !== "object") return Response.json({ ok: false, error: "AI returned no usable answer" }, { status: 502 });
+    let result: unknown = null;
+    let invalidReason = "AI returned invalid JSON";
+    // Retry an incomplete summary once, using a smaller context and one overall timeout.
+    const attempts = mode === "summary" ? 2 : 1;
+    for (let attempt = 0; attempt < attempts; attempt++) {
+      const attemptPrompt = attempt === 0 ? prompt : prompt.replace(transcript, transcript.slice(-4000)) + "\nKeep each list to at most 2 items and keep the complete JSON concise.";
+      const res = await fetch(p.endpoint, {
+        method: "POST", cache: "no-store", signal: controller.signal,
+        headers: { Authorization: `Bearer ${p.key}`, "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          model: p.model, temperature: 0.1, max_tokens: 2000, response_format: { type: "json_object" },
+          messages: [{ role: "system", content: "You are a careful project-room assistant for engineering companies. Output valid JSON only." }, { role: "user", content: attemptPrompt }],
+        }),
+      });
+      if (!res.ok) return Response.json({ ok: false, error: `AI provider returned ${res.status}` }, { status: 502 });
+      const envelope = await res.json().catch(() => null);
+      const choice = envelope?.choices?.[0];
+      const content = choice?.message?.content;
+      if (choice?.finish_reason === "length") {
+        invalidReason = "AI response exceeded its output limit";
+        continue;
+      }
+      try { result = typeof content === "string" ? JSON.parse(content) : null; }
+      catch { result = null; }
+      if (result && typeof result === "object" && !Array.isArray(result)) break;
+      result = null;
+    }
+    if (!result) return Response.json({ ok: false, error: invalidReason }, { status: 502 });
     // Sequence numbers become event ids the client can jump to; anything the model made up is dropped.
     const bySeq = new Map(rows.map((e) => [e.seq, e.id]));
     if (target) bySeq.set(target.seq, target.id);
@@ -129,6 +146,6 @@ export async function POST(request: Request) {
     };
     return Response.json({ ok: true, mode, provider: p.name, result: fix(result), written: false });
   } catch (e) {
-    return Response.json({ ok: false, error: e instanceof Error && e.name === "AbortError" ? "AI timed out" : "AI request failed" }, { status: 502 });
+    return Response.json({ ok: false, error: e instanceof Error && e.name === "AbortError" ? "AI timed out" : "AI provider connection failed" }, { status: 502 });
   } finally { clearTimeout(timer); }
 }

@@ -10,14 +10,14 @@ export function allowedOrigins(): string[] {
   return raw.split(",").map((value) => value.trim()).filter(Boolean);
 }
 
-export function corsHeaders(req: Request): Record<string, string> {
+export function corsHeaders(req: Request, additionalOrigins: readonly string[] = []): Record<string, string> {
   const headers: Record<string, string> = {
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Vary": "Origin",
   };
   const origin = req.headers.get("origin");
-  if (origin && allowedOrigins().includes(origin)) {
+  if (origin && [...allowedOrigins(), ...additionalOrigins].includes(origin)) {
     headers["Access-Control-Allow-Origin"] = origin;
   }
   return headers;

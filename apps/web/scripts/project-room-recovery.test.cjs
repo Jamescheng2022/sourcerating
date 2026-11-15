@@ -119,7 +119,15 @@ const flush=async fn=>React.act(async()=>{if(fn) fn(); await new Promise(r=>setT
  assert.ok(cursors.some(value=>value===251),'gap fill uses the fallback room cursor rather than zero');
  assert.ok(current.msgs.some(m=>m.id==='history-252'),'gap fill recovers a missed event after 250 historical events');
  assert.equal(current.room.unread[org],0,'recovered event in the active fallback room stays read');
+ // On wide layouts list mode still displays the chat; a stale server read
+ // marker must not restore an unread badge while that room is visible.
  await flush(()=>current.set(p=>({...p,view:'list'})));
+ model.rooms[0].last_seq=282;
+ model.room_members[0].last_read_seq=250;
+ await flush(()=>window.dispatchEvent(new dom.window.Event('online')));
+ assert.equal(current.room.unread[org],0,'wide displayed room stays read after refresh');
+ assert.ok(markReads.some(x=>x.p_room_id===room && x.p_seq===252),'refresh marks only observed events as read');
+ Object.defineProperty(window,'innerWidth',{value:390,configurable:true});
  const unseen={...live,id:'history-253',seq:253,payload:{text:'unseen'}};
  await flush(()=>{eventCallback({new:unseen});eventCallback({new:unseen});});
  assert.equal(current.room.unread[org],1,'duplicate unseen delivery increments unread only once');

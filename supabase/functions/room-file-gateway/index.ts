@@ -72,7 +72,7 @@ async function loadAccessibleFile(
 }
 
 Deno.serve(async (req) => {
-  const cors = corsHeaders(req);
+  const cors = corsHeaders(req, ["https://sourcerating-room-lab.vercel.app", "http://localhost:3000", "http://127.0.0.1:3000"]);
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ ok: false, error: "method_not_allowed" }, 405, cors);
 
@@ -100,11 +100,10 @@ Deno.serve(async (req) => {
     return json({ ok: false, error: "server_config_missing" }, 500, cors);
   }
 
-  const { data: userData, error: userError } = await userClient.auth.getUser();
-  const user = userData?.user;
-  if (userError || !user) return json({ ok: false, error: "authentication_required" }, 401, cors);
-
   try {
+    const { data: userData, error: userError } = await userClient.auth.getUser();
+    const user = userData?.user;
+    if (userError || !user) return json({ ok: false, error: "authentication_required" }, 401, cors);
     switch (body.action) {
       case "verify": {
         if (!isUuid(body.fileVersionId)) return json({ ok: false, error: "invalid_file_version_id" }, 400, cors);
