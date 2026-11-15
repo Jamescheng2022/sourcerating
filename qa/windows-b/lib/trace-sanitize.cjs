@@ -38,6 +38,8 @@ const leaks = (text, secrets) => {
   if (/[?&](?:token|access_token|refresh_token|apikey|signature|sig|X-Amz-[A-Za-z-]+|X-Goog-[A-Za-z-]+)=(?!\[REDACTED)[^&"'\s\\<>]{4,}/i.test(text)) hits.push('url-token');
   if (/sb-[a-z0-9]+-auth-token(?:[.-][a-z0-9]+)*=(?!\[REDACTED)[^;"\s\\]{8,}/i.test(text)) hits.push('auth-cookie');
   if (/base64-[A-Za-z0-9+\/=_-]{40,}/.test(text)) hits.push('b64-session');
+  // a value cut at a backslash leaves its remainder after the marker: anything but an (escaped) closing quote fails closed
+  if (/\[REDACTED\]\\+(?!\\*")/.test(text)) hits.push('redacted-remainder');
   return hits;
 };
 
