@@ -84,15 +84,27 @@ export async function POST(request: Request) {
       e.event_type === "room.summary_shared" ? `[summary from ${pl.from_room_name ?? "a sub room"}] ${pl.text ?? ""}` : "";
     return body ? `[#${e.seq}] ${e.created_at.slice(0, 16)} ${who}: ${body.slice(0, 1500)}` : "";
   };
-  const transcript = rows.map(line).filter(Boolean).join("\n").slice(mode === "summary" ? -12000 : -24000);
+  const transcriptLines = rows.map((event) => ({ seq: event.seq, id: event.id, text: line(event) })).filter((entry) => entry.text);
+  const packTranscript = (limit: number) => {
+    const selected: typeof transcriptLines = [];
+    let size = 0;
+    for (let i = transcriptLines.length - 1; i >= 0; i--) {
+      const entry = transcriptLines[i];
+      if (size + entry.text.length + (selected.length ? 1 : 0) > limit) break;
+      selected.unshift(entry);
+      size += entry.text.length + (selected.length > 1 ? 1 : 0);
+    }
+    return { text: selected.map((entry) => entry.text).join("\n"), selected };
+  };
+  const initialTranscript = packTranscript(mode === "summary" ? 12000 : 24000);
   const targetText = target ? String((target.payload as Record<string, unknown>)?.text ?? "") : "";
   if ((mode === "explain" || mode === "translate") && !targetText.trim()) return Response.json({ ok: false, error: "No text to work on" }, { status: 422 });
 
-  const prompt = [
+  const buildPrompt = (bodyTranscript: string) => [
     `ROOM: ${room.name}${room.purpose ? ` — ${room.purpose}` : ""} (${room.kind})`,
     `MEMBERS: ${(members.data ?? []).slice(0, 80).map((m) => `${m.member_display_name ?? "member"} (${orgName(m.acting_organization_id)})`).join("; ")}`,
     `FILES: ${(files.data ?? []).slice(-80).map((f) => `${f.logical_name} v${f.version_no} sha256:${f.sha256.slice(0, 10)} ${f.created_at.slice(0, 10)}`).join("; ") || "none"}`,
-    mode === "translate" ? "" : `TRANSCRIPT (each line starts with its sequence number):\n${transcript}`,
+    mode === "translate" ? "" : `TRANSCRIPT (each line starts with its sequence number):\n${bodyTranscript}`,
     target ? `TARGET [#${target.seq}]: ${targetText.slice(0, 6000)}` : "",
     `TASK: ${TASKS[mode]}`,
     mode === "summary" ? "Keep the summary under 200 words and each list to at most 4 short items; omit unsupported items." : "",
@@ -105,11 +117,13 @@ export async function POST(request: Request) {
   const timer = setTimeout(() => controller.abort(), 40000);
   try {
     let result: unknown = null;
+    let successfulTranscript = initialTranscript.selected;
     let invalidReason = "AI returned invalid JSON";
     // Retry an incomplete summary once, using a smaller context and one overall timeout.
     const attempts = mode === "summary" ? 2 : 1;
     for (let attempt = 0; attempt < attempts; attempt++) {
-      const attemptPrompt = attempt === 0 ? prompt : prompt.replace(transcript, transcript.slice(-4000)) + "\nKeep each list to at most 2 items and keep the complete JSON concise.";
+      const selected = attempt === 0 ? initialTranscript : packTranscript(4000);
+      const attemptPrompt = buildPrompt(selected.text) + (attempt ? "\nKeep each list to at most 2 items and keep the complete JSON concise." : "");
       const res = await fetch(p.endpoint, {
         method: "POST", cache: "no-store", signal: controller.signal,
         headers: { Authorization: `Bearer ${p.key}`, "Content-Type": "application/json", Accept: "application/json" },
@@ -128,12 +142,15 @@ export async function POST(request: Request) {
       }
       try { result = typeof content === "string" ? JSON.parse(content) : null; }
       catch { result = null; }
-      if (result && typeof result === "object" && !Array.isArray(result)) break;
+      if (result && typeof result === "object" && !Array.isArray(result)) {
+        successfulTranscript = selected.selected;
+        break;
+      }
       result = null;
     }
     if (!result) return Response.json({ ok: false, error: invalidReason }, { status: 502 });
     // Sequence numbers become event ids the client can jump to; anything the model made up is dropped.
-    const bySeq = new Map(rows.map((e) => [e.seq, e.id]));
+    const bySeq = new Map((mode === "translate" ? [] : successfulTranscript).map((entry) => [entry.seq, entry.id]));
     if (target) bySeq.set(target.seq, target.id);
     const fix = (v: unknown): unknown => {
       if (Array.isArray(v)) return v.map(fix);

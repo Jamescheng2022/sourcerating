@@ -20,13 +20,14 @@ const request=()=>new Request('http://localhost',{method:'POST',headers:{authori
  global.fetch=async(_url,opts)=>{
   calls.push(JSON.parse(opts.body));
   if(calls.length===1) return Response.json({choices:[{finish_reason:'length',message:{content:'{"summary":"cut'}}]});
-  return Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify({summary:'ok',decided:[{text:'x',sources:[80,999]}]})}}]});
+  return Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify({summary:'ok',decided:[{text:'x',sources:[1,80,999]}]})}}]});
  };
  let r=await POST(request()), out=await r.json();
  assert.equal(r.status,200);assert.equal(calls.length,2);
  assert.ok(calls[0].messages[1].content.length<18000,'first prompt is bounded');
  assert.ok(calls[1].messages[1].content.length<calls[0].messages[1].content.length,'retry reduces context');
- assert.deepEqual(out.result.decided[0].sources,['event-79']);
+ assert.deepEqual(out.result.decided[0].sources,['event-0'],'omitted real rows and invented rows are not cited');
+ assert.ok(!calls[1].messages[1].content.includes('[#80]'),'retry omits the real seq 80');
  calls=[];global.fetch=async()=>{calls.push(1);return Response.json({choices:[{message:{content:'not json'}}]})};
  r=await POST(request());out=await r.json();
  assert.equal(r.status,502);assert.equal(out.error,'AI returned invalid JSON');assert.equal(calls.length,2);
