@@ -14,7 +14,7 @@ const HEADER = '(?:authorization|apikey|cookie|set-cookie|x-supabase-auth|proxy-
 const TOKEN_KEY = '(?:access_token|refresh_token|provider_token|provider_refresh_token|password|token_hash|token|id_token|code_verifier)';
 // JSON string values of sensitive keys, at any escaping depth. Each prefix ends at the value's opening quote; if that
 // quote is preceded by n backslashes, the value ends at the first quote preceded by EXACTLY n backslashes (a quote
-// inside the value carries 2n+1). Redaction and scanning share this parser, so they cannot disagree.
+// inside the value carries 2n+1, see below). Redaction and scanning share this parser, so they cannot disagree.
 const VALUE_PREFIXES = [
   Q + 'name' + Q + '\\s*:\\s*' + Q + HEADER + Q + '\\s*,\\s*' + Q + 'value' + Q + '\\s*:\\s*' + Q,
   Q + HEADER + Q + '\\s*:\\s*' + Q,
@@ -27,7 +27,9 @@ const jsonValues = (text) => {
     while ((m = re.exec(text))) {
       const start = m.index + m[0].length; let n = 0; while (text[start - 2 - n] === '\\') n++;
       let end = -1;
-      for (let p = text.indexOf('"', start); p >= 0; p = text.indexOf('"', p + 1)) { let b = 0; while (p - 1 - b >= start && text[p - 1 - b] === '\\') b++; if (b === n) { end = p - n; break; } }
+      // at this level a literal content backslash costs 2(n+1) backslashes and a content quote 2n+1, so a quote closes the
+      // value exactly when the backslash run before it is n modulo 2(n+1)
+      for (let p = text.indexOf('"', start); p >= 0; p = text.indexOf('"', p + 1)) { let b = 0; while (p - 1 - b >= start && text[p - 1 - b] === '\\') b++; if (b % (2 * (n + 1)) === n) { end = p - n; break; } }
       out.push({ start, end }); // end -1 = unterminated
     }
   }
@@ -76,14 +78,29 @@ const readAll = (zipPath) => new Promise((res, rej) => yauzl.open(zipPath, { laz
   z.on('end', () => { if (z.isOpen) z.close(); }); z.on('close', () => res(out)); z.on('error', rej); z.readEntry();
 }));
 
+// Redaction must never break evidence: every whole entry and every line that parsed as JSON before must still parse.
+const parses = (s) => { try { JSON.parse(s); return true; } catch { return false; } };
+const structureBroken = (before, after) => {
+  if (before === after) return false;
+  if (parses(before) && !parses(after)) return true;
+  const a = before.split('\n'), b = after.split('\n'); if (a.length !== b.length) return true;
+  return a.some((l, i) => l !== b[i] && parses(l) && !parses(b[i]));
+};
+
 async function sanitize(zipPath, secrets) {
   const tmp = zipPath + '.tmp';
   // returns the files that could NOT be deleted (caller must report them for manual quarantine)
   const wipe = () => [zipPath, tmp].filter((f) => { try { fs.rmSync(f, { force: true }); } catch {} return fs.existsSync(f); });
   const fail = (why) => { const left = wipe(); return { ok: false, leaks: why, undeleted: left }; };
   try {
-    const z = new yazl.ZipFile();
-    for (const [name, buf] of await readAll(zipPath)) z.addBuffer(isImage(buf) ? buf : Buffer.from(redactText(buf.toString('latin1'), secrets), 'latin1'), name);
+    const z = new yazl.ZipFile(); const broken = [];
+    for (const [name, buf] of await readAll(zipPath)) {
+      if (isImage(buf)) { z.addBuffer(buf, name); continue; }
+      const before = buf.toString('latin1'), after = redactText(before, secrets);
+      if (structureBroken(before, after)) broken.push('json-structure-broken@' + name);
+      z.addBuffer(Buffer.from(after, 'latin1'), name);
+    }
+    if (broken.length) return fail(broken);
     await new Promise((res, rej) => { z.outputStream.on('error', rej).pipe(fs.createWriteStream(tmp)).on('close', res).on('error', rej); z.end(); });
     fs.renameSync(tmp, zipPath);
     const found = new Set();
@@ -92,4 +109,4 @@ async function sanitize(zipPath, secrets) {
     return { ok: true };
   } catch (e) { return fail(['sanitizer-error: ' + String(e.message).split('\n')[0]]); }
 }
-module.exports = { sanitize, leaks, redactText, wipeFiles: (files) => files.filter((f) => { try { fs.rmSync(f, { force: true }); } catch {} return fs.existsSync(f); }) };
+module.exports = { sanitize, leaks, redactText, structureBroken, wipeFiles: (files) => files.filter((f) => { try { fs.rmSync(f, { force: true }); } catch {} return fs.existsSync(f); }) };
