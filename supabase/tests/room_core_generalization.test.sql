@@ -145,6 +145,7 @@ begin
   perform public.sr_record_confirmation(roomA,orgB,gen_random_uuid(),'changes_requested',rev2,repeat('c',64),null,'change this');
   raise notice 'cross-organization lineage and reason validation PASS';
 
+  perform pg_temp.as_user(a1,'a1@a.test');
   -- T5 revocation
   perform public.sr_remove_room_member((sub->>'room_id')::uuid, orgA, b1);
   perform pg_temp.as_user(b1,'b1@b.test');
