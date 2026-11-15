@@ -128,7 +128,7 @@ export async function POST(request: Request) {
         method: "POST", cache: "no-store", signal: controller.signal,
         headers: { Authorization: `Bearer ${p.key}`, "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({
-          model: p.model, temperature: 0.1, max_tokens: 2000, response_format: { type: "json_object" },
+          model: p.model, temperature: 0.1, max_tokens: mode === "summary" ? (attempt === 0 ? 4096 : 8192) : 2000, response_format: { type: "json_object" },
           messages: [{ role: "system", content: "You are a careful project-room assistant for engineering companies. Output valid JSON only." }, { role: "user", content: attemptPrompt }],
         }),
       });
@@ -137,6 +137,7 @@ export async function POST(request: Request) {
       const choice = envelope?.choices?.[0];
       const content = choice?.message?.content;
       if (choice?.finish_reason === "length") {
+        console.warn("room-assist-output-limit", { provider: p.name, model: p.model, mode, attempt: attempt + 1 });
         invalidReason = "AI response exceeded its output limit";
         continue;
       }

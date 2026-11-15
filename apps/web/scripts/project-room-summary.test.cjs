@@ -24,6 +24,7 @@ const request=()=>new Request('http://localhost',{method:'POST',headers:{authori
  };
  let r=await POST(request()), out=await r.json();
  assert.equal(r.status,200);assert.equal(calls.length,2);
+ assert.equal(calls[0].max_tokens,4096); assert.equal(calls[1].max_tokens,8192,'retry has a larger bounded output budget');
  assert.ok(calls[0].messages[1].content.length<18000,'first prompt is bounded');
  assert.ok(calls[1].messages[1].content.length<calls[0].messages[1].content.length,'retry reduces context');
  assert.deepEqual(out.result.decided[0].sources,['event-0'],'omitted real rows and invented rows are not cited');

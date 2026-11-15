@@ -98,6 +98,31 @@ async function main() {
     assert.equal((await ctl.query('select count(*)::int as n from public.room_events where room_id=$1 and client_msg_id=$2',[f.room,reviewKey])).rows[0].n,1);
     assert.equal((await ctl.query('select count(*)::int as n from public.needs_you where source_event_id=$1',[review.rows[0].id])).rows[0].n,1);
     console.log('PASS concurrent same-key review RPC: observed lock wait, one event and one task');
+    const alias1=randomUUID(), alias2=randomUUID();
+    await one.query('begin');
+    await one.query("select set_config('request.jwt.claims',$1,true)", [claim(a,ea)]);
+    await one.query('set local role authenticated');
+    const firstAlias = await one.query("select (public.sr_request_file_review($1,$2,$3,$4)).id as id", [versions[2].id,f.oa,alias1,'please review']);
+    await two.query('begin');
+    await two.query("select set_config('request.jwt.claims',$1,true)", [claim(a,ea)]);
+    await two.query('set local role authenticated');
+    const secondAlias = two.query("select (public.sr_request_file_review($1,$2,$3,$4)).id as id", [versions[2].id,f.oa,alias2,'please review']);
+    secondAlias.catch(() => {});
+    blocked=false;
+    for(let i=0;i<100;i++) {
+      const state=await ctl.query("select exists(select 1 from pg_stat_activity where application_name=$1 and wait_event_type='Lock') as blocked",[app]);
+      if(state.rows[0].blocked){blocked=true;break;}
+      await delay(100);
+    }
+    assert.ok(blocked,'different-key duplicate did not wait for the open-review lock');
+    await one.query('commit');
+    const secondResult=await secondAlias;
+    await two.query('commit');
+    assert.equal(firstAlias.rows[0].id,review.rows[0].id);
+    assert.equal(secondResult.rows[0].id,review.rows[0].id);
+    assert.equal((await ctl.query("select count(*)::int as n from public.room_events where room_id=$1 and event_type='file.review_requested' and payload->>'file_version_id'=$2",[f.room,versions[2].id])).rows[0].n,1);
+    console.log('PASS concurrent different-key clicks reuse one outstanding review');
+
 
   } finally {
     await Promise.allSettled([one.end(),two.end(),ctl.end()]);

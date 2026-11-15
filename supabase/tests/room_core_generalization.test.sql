@@ -17,7 +17,7 @@ do $$
 declare
   a1 uuid := gen_random_uuid(); a2 uuid := gen_random_uuid(); b1 uuid := gen_random_uuid(); b2 uuid := gen_random_uuid();
   orgA uuid; orgB uuid; pA jsonb; pB jsonb; roomA uuid; roomB uuid; inv jsonb; sub jsonb; subInt jsonb;
-  review_key uuid := gen_random_uuid(); review_event public.room_events; review_retry public.room_events;
+  review_key uuid := gen_random_uuid(); alias_key uuid := gen_random_uuid(); review_event public.room_events; review_retry public.room_events;
   f2 uuid; f3 uuid; rev0 uuid; rev1 uuid; rev2 uuid; upload_path text; result jsonb; ev public.room_events; n int; ex jsonb; c public.room_confirmations;
 begin
   insert into auth.users(id,email) values (a1,'a1@a.test'),(a2,'a2@a.test'),(b1,'b1@b.test'),(b2,'b2@b.test');
@@ -87,6 +87,9 @@ begin
   review_event := public.sr_request_file_review(f2, orgB, review_key, 'thickness 20 to 22');
   review_retry := public.sr_request_file_review(f2, orgB, review_key, 'thickness 20 to 22');
   assert review_event.id = review_retry.id, 'same review intent returns original event';
+  review_retry := public.sr_request_file_review(f2, orgB, alias_key, 'thickness 20 to 22');
+  assert review_event.id = review_retry.id, 'separate click reuses identical outstanding review';
+  perform pg_temp.denied(format('select public.sr_request_file_review(%L,%L,%L,%L)',f2,orgB,alias_key,'different note'), 'idempotency_conflict');
   select count(*) into n from public.room_events where room_id=roomA and client_msg_id=review_key;
   assert n = 1, 'duplicate review intent creates one event';
   perform pg_temp.as_user(a1,'a1@a.test');
@@ -103,9 +106,17 @@ begin
   perform pg_temp.as_user(b1,'b1@b.test');
   review_retry := public.sr_request_file_review(f2, orgB, review_key, 'thickness 20 to 22');
   assert review_retry.id = review_event.id, 'retry after resolution returns original event';
+  review_retry := public.sr_request_file_review(f2, orgB, alias_key, 'thickness 20 to 22');
+  assert review_retry.id = review_event.id, 'alias retry after resolution returns original event';
   perform pg_temp.as_user(a1,'a1@a.test');
   select count(*) into n from public.needs_you where source_event_id=review_event.id;
   assert n = 1, 'retry after resolution does not reopen review task';
+  perform pg_temp.as_user(b1,'b1@b.test');
+  review_retry := public.sr_request_file_review(f2, orgB, gen_random_uuid(), 'thickness 20 to 22');
+  assert review_retry.id <> review_event.id, 'new intent after resolution opens a new review';
+  perform pg_temp.as_user(a1,'a1@a.test');
+  select count(*) into n from public.needs_you where source_event_id=review_retry.id and status='open';
+  assert n = 1, 'new review after resolution creates a task';
   perform pg_temp.as_user(a1,'a1@a.test');
   perform pg_temp.as_user(b1,'b1@b.test');
   perform public.sr_record_confirmation(roomA, orgB, gen_random_uuid(), 'confirmed', f2, repeat('2',64));
