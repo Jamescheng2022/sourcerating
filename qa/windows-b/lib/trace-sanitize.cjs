@@ -14,14 +14,14 @@ const HEADER = '(?:authorization|apikey|cookie|set-cookie|x-supabase-auth|proxy-
 const TOKEN_KEY = '(?:access_token|refresh_token|provider_token|provider_refresh_token|password|token_hash|token|id_token|code_verifier)';
 const rules = (secrets) => [
   ...[...new Set(forms(secrets))].map((s) => [new RegExp(esc(s), 'g'), '[REDACTED]']),
-  [new RegExp('(' + Q + 'name' + Q + '\\s*:\\s*' + Q + HEADER + Q + '\\s*,\\s*' + Q + 'value' + Q + '\\s*:\\s*' + Q + ')(?:[^"\\\\]|\\\\[^"])*', 'gi'), '$1[REDACTED]'],
-  [new RegExp('(' + Q + HEADER + Q + '\\s*:\\s*' + Q + ')(?:[^"\\\\]|\\\\[^"])*', 'gi'), '$1[REDACTED]'],
+  [new RegExp('(' + Q + 'name' + Q + '\\s*:\\s*' + Q + HEADER + Q + '\\s*,\\s*' + Q + 'value' + Q + '\\s*:\\s*' + Q + ')[^"\\\\]*', 'gi'), '$1[REDACTED]'], // stop at any backslash: never consume an escaped closing quote
+  [new RegExp('(' + Q + HEADER + Q + '\\s*:\\s*' + Q + ')[^"\\\\]*', 'gi'), '$1[REDACTED]'], // stop at any backslash: never consume an escaped closing quote
   // plain "name: value" header lines (console text, HTTP dumps)
   [new RegExp('((?:^|[\\s{,;\'(])' + HEADER + '\\s*:\\s*)(?!\\\\*")[^\\r\\n"\',}]+', 'gim'), '$1[REDACTED]'],
   [new RegExp('("selector":"(?:[^"\\\\]|\\\\.)*?(?:password|' + Buffer.from('密码').toString('latin1') + ')(?:[^"\\\\]|\\\\.)*"[^}]*?"value":")(?:[^"\\\\]|\\\\.)*"', 'gi'), '$1[REDACTED]"'],
   [/Bearer\s+[A-Za-z0-9._~+\/=-]+/g, 'Bearer [REDACTED]'],
   [/eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]*/g, '[REDACTED_JWT]'],
-  [new RegExp('(' + TOKEN_KEY + Q + '\\s*:\\s*' + Q + ')(?:[^"\\\\]|\\\\[^"])*', 'gi'), '$1[REDACTED]'],
+  [new RegExp('(' + TOKEN_KEY + Q + '\\s*:\\s*' + Q + ')[^"\\\\]*', 'gi'), '$1[REDACTED]'], // stop at any backslash: never consume an escaped closing quote
   [/([?&](?:token|access_token|refresh_token|apikey|signature|sig|X-Amz-[A-Za-z-]+|X-Goog-[A-Za-z-]+)=)[^&"'\s\\<>]+/gi, '$1[REDACTED]'],
   [/(sb-[a-z0-9]+-auth-token(?:[.-][a-z0-9]+)*=)[^;"\s\\]+/gi, '$1[REDACTED]'],
   [/base64-[A-Za-z0-9+\/=_-]{40,}/g, '[REDACTED_B64]'],

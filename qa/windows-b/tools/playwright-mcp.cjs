@@ -95,11 +95,13 @@ const tools = {
 const schema = (p) => ({ type: 'object', properties: Object.fromEntries(Object.entries(p).map(([k, v]) => [k, { type: v[0] === 'n' ? 'number' : v[0] === 'b' ? 'boolean' : 'string' }])), required: Object.entries(p).filter(([, v]) => !v.endsWith('?')).map(([k]) => k) });
 const send = (o) => process.stdout.write(JSON.stringify(o) + '\n');
 let buf = ''; let queue = Promise.resolve(); // tool calls run strictly one at a time
+let shuttingDown = false;
 process.stdin.on('data', (c) => {
   buf += c; let i;
   while ((i = buf.indexOf('\n')) >= 0) {
     const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1); if (!line) continue;
     let m; try { m = JSON.parse(line); } catch { continue; }
+    if (shuttingDown) { if (m.id !== undefined) send({ jsonrpc: '2.0', id: m.id, result: { isError: true, content: [{ type: 'text', text: 'STOPPED: tool server is shutting down' }] } }); continue; }
     queue = queue.then(() => handle(m)).catch((e) => process.stderr.write('handler error: ' + redact(e.message) + '\n'));
   }
 });
@@ -117,4 +119,4 @@ async function handle(m) {
     } else if (m.id !== undefined) send({ jsonrpc: '2.0', id: m.id, result: {} });
   }
 }
-process.on('SIGTERM', async () => { await queue.catch(() => {}); let code = 0; for (const k of Object.keys(S)) { try { if (S[k].tracing) await closeTrace(k, S[k]); } catch (e) { code = 4; log({ trace: k, stop: redact(e.message) }); } try { await S[k].ctx.close(); } catch {} } try { if (browser) await browser.close(); } catch {} process.exit(halted ? 4 : code); });
+process.on('SIGTERM', async () => { shuttingDown = true; await queue.catch(() => {}); let code = 0; for (const k of Object.keys(S)) { try { if (S[k].tracing) await closeTrace(k, S[k]); } catch (e) { code = 4; log({ trace: k, stop: redact(e.message) }); } try { await S[k].ctx.close(); } catch {} } try { if (browser) await browser.close(); } catch {} process.exit(halted ? 4 : code); });
