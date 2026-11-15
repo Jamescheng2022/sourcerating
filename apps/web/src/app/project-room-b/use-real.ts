@@ -11,7 +11,7 @@ import { uploadRoomAttachment } from "@/lib/room-files";
 import type { PreviewMode } from "../project-room-lab/use-lab";
 import type { AiTurn, Msg, Org, PanelTab, Proposal, Room, RoomFile, User } from "../project-room-lab/demo/types";
 
-export interface RealRoom extends Room { parentId: string | null; purpose: string | null; projectId: string; lastSeq: number; myRole: string; rawKind: string }
+export interface RealRoom extends Room { parentId: string | null; purpose: string | null; projectId: string; lastSeq: number; myRole: string; rawKind: string; roomMembers: { userId: string; orgId: string; displayName: string | null; role: string }[] }
 export interface RealFile extends RoomFile { sha256: string; uploaderOrgId: string; uploaderUserId: string; createdAt: string; verification: string; sourceEventId: string | null }
 export interface Confirmation { id: string; roomId: string; fileVersionId: string | null; sha: string | null; orgId: string; userId: string; decision: "confirmed" | "changes_requested"; comment: string | null; at: string }
 export interface Membership { orgId: string; role: string; displayName: string | null }
@@ -142,6 +142,7 @@ export function useReal() {
       return {
         id: r.id, name: r.name, kind: internal(r.kind) ? "internal" : "external", rawKind: r.kind, project: (project as { name?: string } | null)?.name ?? "项目",
         projectId: r.project_id, ownerOrgId: r.owner_organization_id, memberIds: Array.from(new Set(ms.map((m) => m.user_id))), unread,
+        roomMembers: ms.map((m) => ({ userId: m.user_id, orgId: m.acting_organization_id, displayName: m.member_display_name, role: m.room_role })),
         parentId: r.parent_room_id, purpose: r.purpose, lastSeq: Number(r.last_seq),
         myRole: ms.find((m) => m.user_id === uid && m.acting_organization_id === orgId)?.room_role ?? "member",
       };

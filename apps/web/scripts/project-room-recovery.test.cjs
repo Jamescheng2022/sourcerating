@@ -42,6 +42,8 @@ const query = table => {
   };
   return chain;
 };
+// Repeated user ID in another room must not alter this room's membership.
+model.room_members.push({room_id:'other-room',user_id:uid,acting_organization_id:'other-supplier',room_role:'member',member_display_name:'Bob',last_read_seq:0});
 const confirmation = {id:'confirm-1',room_id:room,file_version_id:'file-1',file_sha256:'a'.repeat(64),organization_id:org,user_id:uid,decision:'confirmed',comment:null,created_at:'2026-11-15T04:00:00Z'};
 const supabase = {
  auth:{getSession:async()=>({data:{session:{user:{id:uid,email:'bob@example.test'}}}}),onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}})},
@@ -71,6 +73,8 @@ const flush=async fn=>React.act(async()=>{if(fn) fn(); await new Promise(r=>setT
  await flush(()=>root.render(React.createElement(Harness)));
  for(let i=0;i<20 && (!current.s.files.length || !eventCallback);i++) await flush();
  assert.equal(current.s.files.length,1,'initial room loaded');
+ assert.equal(current.s.users[uid].orgId,'other-supplier','fixture exposes global user overwrite');
+ assert.equal(current.room.roomMembers.find(m=>m.userId===uid).orgId,org,'room keeps its own acting organization');
  deferTable='room_confirmations';
  await flush(()=>eventCallback({new:{id:'event-old',room_id:room,seq:2,client_msg_id:null,actor_user_id:uid,actor_organization_id:org,actor_display_name:'Bob',event_type:'confirmation.recorded',payload:{},created_at:'2026-01-01T00:00:01Z'}}));
  assert.ok(deferred,'older confirmation fetch was held');

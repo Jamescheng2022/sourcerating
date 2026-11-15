@@ -232,7 +232,7 @@ export function RealSidebar({ real, onOpen }: { real: Real; onOpen: (id: string)
             {g.rooms.map((r) => {
               const last = (s.messages[r.id] ?? []).at(-1);
               const unread = r.unread[s.orgId] ?? 0;
-              const partners = Array.from(new Set(r.memberIds.map((id) => user(id).orgId))).filter((o) => o && o !== s.orgId).map(org);
+              const partners = Array.from(new Set(r.roomMembers.map((m) => m.orgId))).filter((o) => o && o !== s.orgId).map(org);
               return (
                 <button key={r.id} type="button" className={`${css.room} ${r.parentId ? rc.sub : ""}`} data-active={r.id === room?.id} data-internal={r.kind === "internal"} onClick={() => onOpen(r.id)} data-testid="room">
                   <span className={css.roomIcon}>{r.kind === "internal" ? <LockKeyhole size={16} /> : r.parentId ? <CornerDownRight size={16} /> : <Hash size={16} />}</span>
@@ -261,7 +261,7 @@ export function FileCard({ real, f, latest }: { real: Real; f: RealFile; latest:
   const { s, user, org, room, actions } = real;
   const [note, setNote] = useState(""), [busy, setBusy] = useState(false), [err, setErr] = useState(""), [cmp, setCmp] = useState(false);
   const prev = s.files.find((x) => x.id === f.supersedes) ?? s.files.find((x) => x.roomId === f.roomId && x.lineage === f.lineage && x.version === f.version - 1);
-  const orgIds = Array.from(new Set((room?.memberIds ?? []).map((id) => user(id).orgId).filter(Boolean)));
+  const orgIds = Array.from(new Set((room?.roomMembers ?? []).map((m) => m.orgId).filter(Boolean)));
   const state = (orgId: string) => s.confirmations.filter((c) => c.fileVersionId === f.id && c.orgId === orgId).at(-1);
   const mine = state(s.orgId);
   const inFlight = useRef(false);
@@ -369,17 +369,18 @@ export function RealPanel({ real }: { real: Real }) {
           <>
             {room.purpose && <p className={css.hint}>{room.purpose}</p>}
             <section>
-              {Array.from(new Set(room.memberIds.map((id) => user(id).orgId))).map((oid) => (
+              {Array.from(new Set(room.roomMembers.map((m) => m.orgId))).map((oid) => (
                 <div key={oid}>
                   <h3>{org(oid).name}</h3>
-                  {room.memberIds.filter((id) => user(id).orgId === oid).map((id) => (
-                    <div key={id} className={css.person}>
-                      <OrgMark color={org(oid).color} short={user(id).name.slice(0, 1)} size={28} />
-                      <span className={rc.grow}><b>{user(id).name}{id === meId && <em>你</em>}</b><small>{user(id).title}</small></span>
+                  {room.roomMembers.filter((m) => m.orgId === oid).map((member) => {
+                    const id = member.userId, name = member.displayName ?? user(id).name;
+                    return <div key={id} className={css.person}>
+                      <OrgMark color={org(oid).color} short={name.slice(0, 1)} size={28} />
+                      <span className={rc.grow}><b>{name}{id === meId && <em>你</em>}</b><small>{member.role}</small></span>
                       {admin && id !== meId && <button type="button" className={rc.mini} data-danger onClick={() => void actions.removeMember(id).catch(() => null)}>移出</button>}
                       {orgAdmin && oid === s.orgId && id !== meId && <button type="button" className={rc.mini} data-danger onClick={() => void actions.removeFromOrganization(id).catch(() => null)}>移出组织</button>}
-                    </div>
-                  ))}
+                    </div>;
+                  })}
                 </div>
               ))}
             </section>
