@@ -1,5 +1,5 @@
 {
-  "createdAt": "2026-11-15T06:47:23.146Z",
+  "createdAt": "2026-11-15T06:48:45.688Z",
   "files": {
     "qa/windows-b/profile/sourcerating_playwright_e2e.json": "c504a481949c7812235bffb3a7a8785072d1289e553c3e9e7991572bf18aa98d",
     "qa/windows-b/acceptance/criteria.json": "78475ffbdf1bf93cf6f09a2883b63723f93f5b34fb57cac8543133adb343c211",
@@ -8,13 +8,13 @@
     "qa/windows-b/oracle/oracle.cjs": "5068446862ce709be413d19c60b729ccca579042d685db284637dcbd631205fd",
     "qa/windows-b/lib/guard.cjs": "abeb4e9c39ff7fffed67c76d94f601b702fa27a114dd24c93a74c4d35dc80ca3",
     "qa/windows-b/lib/preload.cjs": "673efb24bbbb77a1e5aa439321aed9d3746d31dc58177dc49ad7c9a4a210ce44",
-    "qa/windows-b/lib/trace-sanitize.cjs": "75c95c75a20daf9559e91018fd6e39ef5d91002097a14bfdd03b74dd6b60d093",
+    "qa/windows-b/lib/trace-sanitize.cjs": "89f72bd3f4e58a2b5a0a6f85099829bfd4551c3d402d4bc3a07cfb653d438311",
     "qa/windows-b/lib/fixtures.cjs": "7982bc3d08e2e7d6c031479850f62fc099ae77acc5f8f3a808cca2bd6cb60b0a",
     "qa/windows-b/acceptance/criteria-p0.json": "a91b60cae50b9367dbb88b61e5d6a2b731f4f9b5251c79bdeaec675bff38ad0b",
     "qa/windows-b/oracle/queries/p0.sql": "e4a336523c27e2f3fc1ea28928f7ced7d078d820aecab7d7ebd2bf141aa6139f",
     "qa/windows-b/oracle/expectations-p0.json": "205e31c39bf01fd91469c347072cccb0e4f62348539829e34c054011fd99970e",
     "qa/windows-b/runner/run.cjs": "d71bd391f0b0965bf3a93c7aabf054a3053c9c3548d0a0cf4ed751179003147f",
-    "qa/windows-b/tools/playwright-mcp.cjs": "1f5e31ff0437d8e0b45f459f8c0d4c3971c5ece60b4da11539c9c174267d7155",
+    "qa/windows-b/tools/playwright-mcp.cjs": "925f7e28a4a27a04c6cca446f260725d443649375913d730bbab3c6ae93a3fc9",
     "qa/windows-b/scenarios/offline-recovery.cjs": "58e624e1fef685fbf5da991eba2522567737e3ae899e877f5194a4fd5179cc16",
     "apps/web/scripts/project-room-b-real-e2e.cjs": "2d026631c38bb8a1a7da65c1ccbb06e67b8a364bf41f239123877cc0d65b3353"
   }
