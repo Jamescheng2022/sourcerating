@@ -85,7 +85,10 @@ const tools = {
     // is promoted, so any interruption while tracing or saving leaves it in the raw folder, which verifyTraces reports.
     // A persona trace already present in this run's evidence folder would mask a lost trace: refuse.
     if (fs.existsSync(path.join(RUN, 'traces', `director-${k}.zip`))) throw new Error('STOP: evidence trace for ' + k + ' already exists in this run');
-    fs.mkdirSync(RAW, { recursive: true }); fs.writeFileSync(path.join(RAW, `director-${k}.zip.pending`), new Date().toISOString());
+    fs.mkdirSync(RAW, { recursive: true });
+    // Never overwrite incomplete evidence: an existing marker or raw trace from an interrupted session is a STOP.
+    if (fs.existsSync(path.join(RAW, `director-${k}.zip`))) throw new Error('STOP: unsanitized raw trace for ' + k + ' left by an interrupted session');
+    fs.writeFileSync(path.join(RAW, `director-${k}.zip.pending`), new Date().toISOString(), { flag: 'wx' }); // EEXIST => STOP
     await ctx.tracing.start({ screenshots: true, snapshots: true, sources: false }); S[k].tracing = true;
     return 'signed in as ' + k; } },
   goto: { d: 'Navigate to a path on the target app (must start with "/"; other hosts are refused).', p: { persona: 's', path: 's' }, run: async ({ persona: k, path: p }) => { if (!/^\/[^/]/.test(p) && p !== '/') throw new Error('path must start with /'); const u = new URL(p, BASE); if (u.origin !== BASE.origin) throw new Error('other origins are refused'); await sess(k).goto(u.href); return u.pathname + u.search; } },
