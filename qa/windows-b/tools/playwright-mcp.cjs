@@ -36,7 +36,7 @@ const closeTrace = async (k, s) => {
   try {
     s.tracing = false; fs.mkdirSync(RAW, { recursive: true }); fs.writeFileSync(pending, new Date().toISOString());
     await s.ctx.tracing.stop({ path: f }); r = await sanitize(f, secrets());
-    if (r.ok) { renameRetry(f, path.join(RUN, 'traces', name)); fs.rmSync(pending); }
+    if (r.ok) { fs.mkdirSync(path.join(RUN, 'traces'), { recursive: true }); renameRetry(f, path.join(RUN, 'traces', name)); fs.rmSync(pending); }
   }
   catch (e) { r = { ok: false, leaks: ['trace-stop-error: ' + String(e.message).split('\n')[0]], undeleted: wipeFiles([f, f + '.tmp']) }; }
   if (r.ok) { log({ trace: k, sanitized: true }); return 'trace saved (sanitized, scan clean)'; }
