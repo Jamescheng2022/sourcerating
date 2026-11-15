@@ -1,6 +1,6 @@
 {
   "_doc": "Pinned P0 pass criteria for the four-persona journey (handoff DEEPSEEK_AGY_CLAUDE_REAL_USER_QA_20261114, Gate 4/5). The Test Director (AGY) and any model may not edit this file; it is hash-pinned.",
-  "verdictRule": "A scenario is PASS only with screenshot + sanitized trace + console log + its oracle checks passing (oracle --set p0). Missing evidence = NOT RUN. Any 'Maximum update depth exceeded' / React error #185 in logs/console.jsonl = FAIL for P0-02. 'Recovers after reload' is not a pass. Oracle results count only from live pg mode (oracle.cjs refuses snapshot mode for --set p0). Browser-only items (UI 'historical' badge, key-by-key typing, receiver view, 10 upload cycles, AI answer) are judged by the independent auditor from screenshots + sanitized trace + console.jsonl; an operator's self-report alone is NOT RUN.",
+  "verdictRule": "A scenario is PASS only with screenshot + sanitized trace + console log + its oracle checks passing (oracle --set p0). Missing evidence = NOT RUN. Any 'Maximum update depth exceeded' / React error #185 in logs/console.jsonl = FAIL for P0-02. 'Recovers after reload' is not a pass. Oracle results count only from live pg mode (oracle.cjs refuses snapshot mode for --set p0). Browser-only items (UI 'historical' badge, exact sidebar unread values for A1 and B1 observed after send, upload, review request, reload, room switch and fresh sign-in, empty-reason rejection, actual double-click attempt, key-by-key typing, receiver view, 10 upload cycles, AI answer) are judged by the independent auditor from screenshots + sanitized trace + console.jsonl; an operator's self-report alone is NOT RUN.",
   "project": "QA P0 <stamp>",
   "scenarios": [
     {
@@ -104,6 +104,6 @@
   ],
   "knownToolLimits": [
     "IME composition input cannot be produced by the restricted tool (press sends key events only); P0-04 IME sub-case is NOT RUN unless a reviewed tool is added",
-    "Credentials rendered as page pixels cannot be detected; mitigated by tracing only after login and browser-masked password inputs. Trace image entries are scanned and fail closed but not rewritten."
+    "Evidence guarantee is limited to TEXT: no credential in text form in traces, logs or tool output (sanitized, re-scanned, fail-closed). Credentials rendered as pixels in screenshots cannot be detected; mitigated by tracing only after login, browser-masked password inputs, and the journey never navigating back to a sign-in form while tracing. Any screenshot showing a sign-in form with typed content is a STOP for manual review."
   ]
 }

@@ -9,13 +9,15 @@ const { yauzl, yazl } = require(require.resolve('playwright-core/lib/zipBundle',
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 // Every secret is matched in its UTF-8 bytes read as latin1 (how entries are processed) plus its JSON-escaped form.
 const forms = (secrets) => secrets.filter(Boolean).flatMap((s) => [s, JSON.stringify(s).slice(1, -1)]).flatMap((s) => [s, Buffer.from(s, 'utf8').toString('latin1')]);
-const Q = '\\\\?"'; // an optionally JSON-escaped double quote
+const Q = '\\\\*"'; // a double quote under any level of JSON escaping
 const HEADER = '(?:authorization|apikey|cookie|set-cookie|x-supabase-auth|proxy-authorization|x-api-key)';
 const TOKEN_KEY = '(?:access_token|refresh_token|provider_token|provider_refresh_token|password|token_hash|token|id_token|code_verifier)';
 const rules = (secrets) => [
   ...[...new Set(forms(secrets))].map((s) => [new RegExp(esc(s), 'g'), '[REDACTED]']),
   [new RegExp('(' + Q + 'name' + Q + '\\s*:\\s*' + Q + HEADER + Q + '\\s*,\\s*' + Q + 'value' + Q + '\\s*:\\s*' + Q + ')(?:[^"\\\\]|\\\\[^"])*', 'gi'), '$1[REDACTED]'],
   [new RegExp('(' + Q + HEADER + Q + '\\s*:\\s*' + Q + ')(?:[^"\\\\]|\\\\[^"])*', 'gi'), '$1[REDACTED]'],
+  // plain "name: value" header lines (console text, HTTP dumps)
+  [new RegExp('((?:^|[\\s{,;\'(])' + HEADER + '\\s*:\\s*)(?!\\\\*")[^\\r\\n"\',}]+', 'gim'), '$1[REDACTED]'],
   [new RegExp('("selector":"(?:[^"\\\\]|\\\\.)*?(?:password|' + Buffer.from('密码').toString('latin1') + ')(?:[^"\\\\]|\\\\.)*"[^}]*?"value":")(?:[^"\\\\]|\\\\.)*"', 'gi'), '$1[REDACTED]"'],
   [/Bearer\s+[A-Za-z0-9._~+\/=-]+/g, 'Bearer [REDACTED]'],
   [/eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]*/g, '[REDACTED_JWT]'],
@@ -31,8 +33,9 @@ const leaks = (text, secrets) => {
   if (/Bearer\s+(?!\[REDACTED)[A-Za-z0-9._-]{16,}/.test(text)) hits.push('bearer');
   if (/eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\./.test(text)) hits.push('jwt');
   if (new RegExp(TOKEN_KEY + Q + '\\s*:\\s*' + Q + '(?!\\[REDACTED)[^"\\\\]{8,}', 'i').test(text)) hits.push('token-field');
-  if (new RegExp(Q + HEADER + Q + '\\s*(?:,\\s*' + Q + 'value' + Q + ')?\\s*:\\s*' + Q + '(?!\\[REDACTED)[^"\\\\]{8,}', 'i').test(text)) hits.push('header-value');
-  if (/[?&](?:token|access_token|refresh_token|signature|sig|X-Amz-Signature|X-Amz-Credential)=(?!\[REDACTED)[^&"'\s\\<>]{8,}/i.test(text)) hits.push('url-token');
+  if (new RegExp(Q + HEADER + Q + '\\s*(?:,\\s*' + Q + 'value' + Q + ')?\\s*:\\s*' + Q + '(?!\\[REDACTED)[^"\\\\]{4,}', 'i').test(text)) hits.push('header-value');
+  if (new RegExp('(?:^|[\\s{,;\'(])' + HEADER + '\\s*:\\s*(?!\\\\*"|\\[REDACTED)[^\\r\\n"\',}\\s]{4,}', 'im').test(text)) hits.push('header-line');
+  if (/[?&](?:token|access_token|refresh_token|apikey|signature|sig|X-Amz-[A-Za-z-]+|X-Goog-[A-Za-z-]+)=(?!\[REDACTED)[^&"'\s\\<>]{4,}/i.test(text)) hits.push('url-token');
   if (/sb-[a-z0-9]+-auth-token(?:[.-][a-z0-9]+)*=(?!\[REDACTED)[^;"\s\\]{8,}/i.test(text)) hits.push('auth-cookie');
   if (/base64-[A-Za-z0-9+\/=_-]{40,}/.test(text)) hits.push('b64-session');
   return hits;
@@ -48,7 +51,9 @@ const readAll = (zipPath) => new Promise((res, rej) => yauzl.open(zipPath, { laz
 
 async function sanitize(zipPath, secrets) {
   const tmp = zipPath + '.tmp';
-  const wipe = () => { for (const f of [zipPath, tmp]) try { fs.rmSync(f, { force: true }); } catch {} };
+  // returns the files that could NOT be deleted (caller must report them for manual quarantine)
+  const wipe = () => [zipPath, tmp].filter((f) => { try { fs.rmSync(f, { force: true }); } catch {} return fs.existsSync(f); });
+  const fail = (why) => { const left = wipe(); return { ok: false, leaks: why, undeleted: left }; };
   try {
     const z = new yazl.ZipFile();
     for (const [name, buf] of await readAll(zipPath)) z.addBuffer(isImage(buf) ? buf : Buffer.from(redactText(buf.toString('latin1'), secrets), 'latin1'), name);
@@ -56,8 +61,8 @@ async function sanitize(zipPath, secrets) {
     fs.renameSync(tmp, zipPath);
     const found = new Set();
     for (const [name, buf] of await readAll(zipPath)) for (const h of leaks(buf.toString('latin1'), secrets)) found.add(h + '@' + name);
-    if (found.size) { wipe(); return { ok: false, leaks: [...found] }; }
+    if (found.size) return fail([...found]);
     return { ok: true };
-  } catch (e) { wipe(); return { ok: false, leaks: ['sanitizer-error: ' + String(e.message).split('\n')[0]] }; }
+  } catch (e) { return fail(['sanitizer-error: ' + String(e.message).split('\n')[0]]); }
 }
-module.exports = { sanitize, leaks, redactText };
+module.exports = { sanitize, leaks, redactText, wipeFiles: (files) => files.filter((f) => { try { fs.rmSync(f, { force: true }); } catch {} return fs.existsSync(f); }) };

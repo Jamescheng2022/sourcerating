@@ -5,7 +5,7 @@
 // no arbitrary URL, no file access outside runs/, and typed e-mail addresses must be synthetic personas.
 const fs = require('fs'), path = require('path'), cp = require('child_process');
 const guard = require('../lib/guard.cjs');
-const { sanitize, redactText } = require('../lib/trace-sanitize.cjs');
+const { sanitize, redactText, wipeFiles } = require('../lib/trace-sanitize.cjs');
 const { ROOT, profile } = guard;
 const QA = path.join(ROOT, 'qa', 'windows-b');
 const { chromium } = require(require.resolve('@playwright/test', { paths: [path.join(ROOT, 'apps', 'web')] }));
@@ -17,18 +17,24 @@ const emails = new Set(Object.values(users).map((u) => u.email.toLowerCase()));
 const RUN = process.env.QA_RUN_DIR || path.join(QA, 'runs', 'director-' + new Date().toISOString().replace(/[-:]/g, '').slice(0, 15));
 for (const d of ['screenshots', 'traces', 'logs']) fs.mkdirSync(path.join(RUN, d), { recursive: true });
 const secrets = () => Object.values(users).map((u) => u.pw);
-const redact = (t) => redactText(t, secrets()).slice(0, 2000);
-const clog = (o) => fs.appendFileSync(path.join(RUN, 'logs', 'console.jsonl'), JSON.stringify({ t: new Date().toISOString(), ...o }) + '\n');
-const log = (o) => fs.appendFileSync(path.join(RUN, 'logs', 'director-actions.jsonl'), redactText(JSON.stringify({ t: new Date().toISOString(), ...o }), secrets()) + '\n');
+const redact = (t) => redactText(t, secrets());
+const clog = (o) => fs.appendFileSync(path.join(RUN, 'logs', 'console.jsonl'), redactText(JSON.stringify({ t: new Date().toISOString(), ...o }), secrets()) + '\n');
+const log = (o) => { try { fs.appendFileSync(path.join(RUN, 'logs', 'director-actions.jsonl'), redactText(JSON.stringify({ t: new Date().toISOString(), ...o }), secrets()) + '\n'); } catch (e) { process.stderr.write('action log write failed: ' + e.message + '\n'); } };
 let browser; const S = {}; const T = 20000; let blocked = 0; let halted = null; // set on STOP: every later tool call is refused
 
 const { FIXTURES } = require('../lib/fixtures.cjs');
 const UPLOAD_TARGETS = { composer: 'file-input', version: 'version-input' };
+// Fail-closed: STOP is set before anything else can fail; a trace that cannot be proven clean is deleted, and any
+// file that cannot be deleted is named in the STOP message for manual quarantine.
 const closeTrace = async (k, s) => {
-  const f = path.join(RUN, 'traces', `director-${k}.zip`); await s.ctx.tracing.stop({ path: f });
-  const r = await sanitize(f, secrets()); log({ trace: k, sanitized: r.ok, leaks: r.leaks });
-  if (!r.ok) { halted = 'trace sanitization failed for ' + k; log({ stop: halted, leaks: r.leaks }); throw new Error('STOP: credential material survived trace sanitization; trace deleted (' + r.leaks.join(', ') + ')'); }
-  return 'trace saved (sanitized, scan clean)';
+  const f = path.join(RUN, 'traces', `director-${k}.zip`); let r;
+  try { s.tracing = false; await s.ctx.tracing.stop({ path: f }); r = await sanitize(f, secrets()); }
+  catch (e) { r = { ok: false, leaks: ['trace-stop-error: ' + String(e.message).split('\n')[0]], undeleted: wipeFiles([f, f + '.tmp']) }; }
+  if (r.ok) { log({ trace: k, sanitized: true }); return 'trace saved (sanitized, scan clean)'; }
+  halted = 'trace sanitization failed for ' + k;
+  const left = r.undeleted && r.undeleted.length ? 'NOT deleted, quarantine manually: ' + r.undeleted.map((x) => path.relative(QA, x)).join(', ') : 'trace deleted';
+  log({ stop: halted, leaks: r.leaks, left });
+  throw new Error('STOP: trace could not be proven credential-free; ' + left + ' (' + r.leaks.join(', ') + ')');
 };
 
 const ensureBrowser = async () => {
@@ -88,21 +94,27 @@ const tools = {
 
 const schema = (p) => ({ type: 'object', properties: Object.fromEntries(Object.entries(p).map(([k, v]) => [k, { type: v[0] === 'n' ? 'number' : v[0] === 'b' ? 'boolean' : 'string' }])), required: Object.entries(p).filter(([, v]) => !v.endsWith('?')).map(([k]) => k) });
 const send = (o) => process.stdout.write(JSON.stringify(o) + '\n');
-let buf = '';
-process.stdin.on('data', async (c) => {
+let buf = ''; let queue = Promise.resolve(); // tool calls run strictly one at a time
+process.stdin.on('data', (c) => {
   buf += c; let i;
   while ((i = buf.indexOf('\n')) >= 0) {
     const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1); if (!line) continue;
     let m; try { m = JSON.parse(line); } catch { continue; }
+    queue = queue.then(() => handle(m)).catch((e) => process.stderr.write('handler error: ' + redact(e.message) + '\n'));
+  }
+});
+const stopped = (id) => send({ jsonrpc: '2.0', id, result: { isError: true, content: [{ type: 'text', text: 'STOPPED: ' + halted + ' — the run is halted; report STOPPED and end.' }] } });
+async function handle(m) {
+  {
     if (m.method === 'initialize') send({ jsonrpc: '2.0', id: m.id, result: { protocolVersion: '2024-11-05', capabilities: { tools: {} }, serverInfo: { name: 'sourcerating-playwright-restricted', version: '1' } } });
     else if (m.method === 'tools/list') send({ jsonrpc: '2.0', id: m.id, result: { tools: Object.entries(tools).map(([name, t]) => ({ name, description: t.d, inputSchema: schema(t.p) })) } });
     else if (m.method === 'tools/call') {
       const t = tools[m.params.name]; const a = m.params.arguments || {};
-      if (halted && m.params.name !== 'close_session') { send({ jsonrpc: '2.0', id: m.id, result: { isError: true, content: [{ type: 'text', text: 'STOPPED: ' + halted + ' — the run is halted; report STOPPED and end.' }] } }); continue; }
-      if (!t) { send({ jsonrpc: '2.0', id: m.id, error: { code: -32601, message: 'unknown tool' } }); continue; }
-      try { const r = await t.run(a); log({ tool: m.params.name, args: { ...a, value: a.value ? '[typed]' : undefined }, ok: true }); send({ jsonrpc: '2.0', id: m.id, result: { content: [{ type: 'text', text: redact(typeof r === 'string' ? r : JSON.stringify(r, null, 2)) }] } }); }
+      if (halted && m.params.name !== 'close_session') return stopped(m.id);
+      if (!t) return send({ jsonrpc: '2.0', id: m.id, error: { code: -32601, message: 'unknown tool' } });
+      try { const r = await t.run(a); log({ tool: m.params.name, args: { ...a, value: a.value ? '[typed]' : undefined }, ok: true }); if (halted && m.params.name !== 'close_session') return stopped(m.id); send({ jsonrpc: '2.0', id: m.id, result: { content: [{ type: 'text', text: redact(typeof r === 'string' ? r : JSON.stringify(r, null, 2)) }] } }); }
       catch (e) { const em = redact(String(e.message).split('\n')[0]); log({ tool: m.params.name, ok: false, error: em }); send({ jsonrpc: '2.0', id: m.id, result: { isError: true, content: [{ type: 'text', text: em }] } }); }
     } else if (m.id !== undefined) send({ jsonrpc: '2.0', id: m.id, result: {} });
   }
-});
-process.on('SIGTERM', async () => { let code = 0; for (const k of Object.keys(S)) { try { if (S[k].tracing) await closeTrace(k, S[k]); } catch (e) { code = 4; log({ trace: k, stop: redact(e.message) }); } try { await S[k].ctx.close(); } catch {} } try { if (browser) await browser.close(); } catch {} process.exit(halted ? 4 : code); });
+}
+process.on('SIGTERM', async () => { await queue.catch(() => {}); let code = 0; for (const k of Object.keys(S)) { try { if (S[k].tracing) await closeTrace(k, S[k]); } catch (e) { code = 4; log({ trace: k, stop: redact(e.message) }); } try { await S[k].ctx.close(); } catch {} } try { if (browser) await browser.close(); } catch {} process.exit(halted ? 4 : code); });
