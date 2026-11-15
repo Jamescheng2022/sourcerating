@@ -10,16 +10,19 @@ const runDir = process.env.QA_RUN_DIR; if (!runDir) throw new Error('QA_RUN_DIR 
 const dirs = { traces: path.join(runDir, 'traces'), shots: path.join(runDir, 'screenshots'), logs: path.join(runDir, 'logs') };
 for (const d of Object.values(dirs)) fs.mkdirSync(d, { recursive: true });
 const tag = process.env.QA_PRELOAD_PROFILE || 'suite';
-const { sanitize, redactText, wipeFiles } = require('./trace-sanitize.cjs');
-const secrets = (() => { try { return JSON.parse(fs.readFileSync(process.env.B_USERS, 'utf8')).map((u) => u.pw); } catch { return []; } })();
-const jl = (f, o) => fs.appendFileSync(path.join(dirs.logs, f), redactText(JSON.stringify({ t: new Date().toISOString(), ...o }), secrets) + '\n');
-// Every trace is sanitized and re-scanned (lib/trace-sanitize.cjs). A trace that cannot be proven credential-free is
-// deleted and recorded in logs/trace-stop.jsonl, which makes the runner verdict STOPPED.
+const { sanitize, redactText, wipeFiles, loadSecrets } = require('./trace-sanitize.cjs');
+// Fail closed before any browser starts: without the persona passwords a trace cannot be proven clean.
+const secrets = loadSecrets(process.env.B_USERS);
+const jl = (f, o) => { try { fs.appendFileSync(path.join(dirs.logs, f), redactText(JSON.stringify({ t: new Date().toISOString(), ...o }), secrets) + '\n'); } catch {} };
+// Raw traces are written to work/raw-traces/<run>/ (never to the evidence folder), sanitized and re-scanned there,
+// and only then moved into <run>/traces. The runner independently re-verifies the evidence folder and requires the
+// raw folder to be empty (lib/trace-sanitize.cjs verifyTraces); otherwise the verdict is STOPPED.
+const rawDir = path.join(guard.ROOT, 'qa', 'windows-b', 'work', 'raw-traces', path.basename(runDir)); fs.mkdirSync(rawDir, { recursive: true });
 const saveTrace = async (ctx, id) => {
-  const f = path.join(dirs.traces, `${tag}-ctx${id}.zip`); let r;
-  try { await ctx.tracing.stop({ path: f }); r = await sanitize(f, secrets); }
-  catch (e) { r = { ok: false, leaks: ['trace-stop-error: ' + String(e.message).split('\n')[0]], undeleted: wipeFiles([f, f + '.tmp']) }; }
-  if (!r.ok) jl('trace-stop.jsonl', { ctx: id, leaks: r.leaks, undeleted: (r.undeleted || []).map((x) => path.relative(runDir, x)) });
+  const name = `${tag}-ctx${id}.zip`, raw = path.join(rawDir, name); let r;
+  try { await ctx.tracing.stop({ path: raw }); r = await sanitize(raw, secrets); if (r.ok) fs.renameSync(raw, path.join(dirs.traces, name)); }
+  catch (e) { r = { ok: false, leaks: ['trace-stop-error: ' + String(e.message).split('\n')[0]], undeleted: wipeFiles([raw, raw + '.tmp']) }; }
+  if (!r.ok) jl('trace-stop.jsonl', { ctx: id, leaks: r.leaks, undeleted: (r.undeleted || []).map((x) => path.relative(guard.ROOT, x)) });
 };
 
 const webDir = path.join(guard.ROOT, 'apps', 'web');

@@ -109,4 +109,24 @@ async function sanitize(zipPath, secrets) {
     return { ok: true };
   } catch (e) { return fail(['sanitizer-error: ' + String(e.message).split('\n')[0]]); }
 }
-module.exports = { sanitize, leaks, redactText, structureBroken, wipeFiles: (files) => files.filter((f) => { try { fs.rmSync(f, { force: true }); } catch {} return fs.existsSync(f); }) };
+// Independent post-run verification: rescans every zip in an evidence folder and requires the raw holding folder to be
+// empty. Any unreadable zip, any surviving credential or any leftover raw file is a failure.
+async function verifyTraces(traceDir, rawDir, secrets) {
+  const bad = [];
+  const zips = fs.existsSync(traceDir) ? fs.readdirSync(traceDir) : [];
+  for (const f of zips) {
+    const p = path.join(traceDir, f);
+    if (!f.endsWith('.zip')) { bad.push('unexpected-file@' + f); continue; }
+    try { for (const [name, buf] of await readAll(p)) for (const h of leaks(buf.toString('latin1'), secrets)) bad.push(h + '@' + f + ':' + name); }
+    catch (e) { bad.push('unreadable@' + f + ': ' + String(e.message).split('\n')[0]); }
+  }
+  const raw = rawDir && fs.existsSync(rawDir) ? fs.readdirSync(rawDir) : [];
+  for (const f of raw) bad.push('unsanitized-raw-left@' + path.join(rawDir, f));
+  return { ok: bad.length === 0, traces: zips.length, problems: bad };
+}
+const loadSecrets = (usersFile) => {
+  const u = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
+  if (!Array.isArray(u) || !u.length || u.some((x) => typeof x.pw !== 'string' || x.pw.length < 8)) throw new Error('persona credential file is not a non-empty array of {pw}');
+  return u.map((x) => x.pw);
+};
+module.exports = { sanitize, verifyTraces, loadSecrets, leaks, redactText, structureBroken, wipeFiles: (files) => files.filter((f) => { try { fs.rmSync(f, { force: true }); } catch {} return fs.existsSync(f); }) };
