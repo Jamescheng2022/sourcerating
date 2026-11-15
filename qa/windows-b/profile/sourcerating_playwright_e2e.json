@@ -14,6 +14,10 @@
       "description": "Network loss and recovery during two-party chat"
     }
   },
+  "journeys": {
+    "p0_file_lineage": { "criteria": "qa/windows-b/acceptance/criteria-p0.json", "scenarios": ["P0-01", "P0-02", "P0-05"], "oracle": "oracle.cjs --set p0", "description": "Four-persona browser journey via the restricted tool server (not a runner suite)" },
+    "p0_message_integrity": { "criteria": "qa/windows-b/acceptance/criteria-p0.json", "scenarios": ["P0-03", "P0-04", "P0-06", "P0-LOG"], "oracle": "oracle.cjs --set p0", "description": "Four-persona browser journey via the restricted tool server (not a runner suite)" }
+  },
   "targets": {
     "localHosts": ["localhost", "127.0.0.1"],
     "previewHosts": ["sourcerating-room-lab.vercel.app"],

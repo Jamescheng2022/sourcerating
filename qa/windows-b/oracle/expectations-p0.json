@@ -1,0 +1,23 @@
+{
+  "_doc": "Pinned P0 oracle expectations, locked before the P0 journey. Operators: eq, gte. The Test Director may not edit this file (hash-pinned).",
+  "p0.scope.projects":                          { "op": "eq",  "value": 1 },
+  "p0.files.rev0_count":                        { "op": "eq",  "value": 1 },
+  "p0.files.rev1_count":                        { "op": "eq",  "value": 1 },
+  "p0.files.rev2_count":                        { "op": "eq",  "value": 1 },
+  "p0.lineage.distinct_logical_assets":         { "op": "eq",  "value": 1 },
+  "p0.lineage.rev1_supersedes_rev0":            { "op": "eq",  "value": 1 },
+  "p0.lineage.rev2_supersedes_rev1":            { "op": "eq",  "value": 1 },
+  "p0.lineage.version_gaps":                    { "op": "eq",  "value": 0 },
+  "p0.files.not_verified":                      { "op": "eq",  "value": 0 },
+  "p0.files.object_missing":                    { "op": "eq",  "value": 0 },
+  "p0.confirm.rev0_distinct_confirming_orgs":   { "op": "eq",  "value": 2 },
+  "p0.confirm.inherited_by_new_version":        { "op": "eq",  "value": 0 },
+  "p0.confirm.change_request_without_reason":   { "op": "eq",  "value": 0 },
+  "p0.confirm.duplicate_review_requests":       { "op": "eq",  "value": 0 },
+  "p0.unread.self_authored_unread":             { "op": "eq",  "value": 0 },
+  "p0.text.probe_messages":                     { "op": "gte", "value": 30 },
+  "p0.text.malformed_probe_messages":           { "op": "eq",  "value": 0 },
+  "p0.events.seq_contiguous_violations":        { "op": "eq",  "value": 0 },
+  "p0.events.hash_chain_breaks":                { "op": "eq",  "value": 0 },
+  "p0.events.duplicate_client_msg":             { "op": "eq",  "value": 0 }
+}

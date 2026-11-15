@@ -3,15 +3,20 @@
 // Independent oracle. Usage:
 //   oracle.cjs --stamp 11140216 --suites baseline_real_e2e,offline_recovery --out result.json [--mode pg]
 //   oracle.cjs --stamp ... --mode snapshot --rows rows.json --out result.json     (rows = [{check_id, actual}])
+//   oracle.cjs --set p0 --stamp ... --out p0.json                                 (P0 journey project "QA P0 <stamp>")
 //   oracle.cjs --stamp ... --print-sql                                           (SQL for a read-only console)
 // pg mode needs ORACLE_DATABASE_URL (a read-only role, never the app's role) and the `pg` package.
 const fs = require('fs'), path = require('path');
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i < 0 ? d : (process.argv[i + 1] && !process.argv[i + 1].startsWith('--') ? process.argv[i + 1] : true); };
 const stamp = String(arg('stamp', ''));
 if (!/^\d{8,10}$/.test(stamp)) { console.error('oracle: --stamp must be 8-10 digits'); process.exit(2); }
-const sql = fs.readFileSync(path.join(__dirname, 'queries', 'oracle.sql'), 'utf8').replace(/\{\{STAMP\}\}/g, stamp);
+const set = String(arg('set', 'baseline'));
+if (!['baseline', 'p0'].includes(set)) { console.error('oracle: --set must be baseline or p0'); process.exit(2); }
+const { sha256 } = require('../lib/fixtures.cjs');
+const sql = fs.readFileSync(path.join(__dirname, 'queries', set === 'p0' ? 'p0.sql' : 'oracle.sql'), 'utf8').replace(/\{\{STAMP\}\}/g, stamp)
+  .replace(/\{\{SHA_REV0\}\}/g, sha256('rev0')).replace(/\{\{SHA_REV1\}\}/g, sha256('rev1')).replace(/\{\{SHA_REV2\}\}/g, sha256('rev2'));
 if (arg('print-sql')) { process.stdout.write(sql); process.exit(0); }
-const expect = JSON.parse(fs.readFileSync(path.join(__dirname, 'expectations.json'), 'utf8'));
+const expect = JSON.parse(fs.readFileSync(path.join(__dirname, set === 'p0' ? 'expectations-p0.json' : 'expectations.json'), 'utf8'));
 const suites = String(arg('suites', '')).split(',').filter(Boolean);
 const mode = arg('mode', 'pg');
 
@@ -39,7 +44,7 @@ rows().then((r) => {
   });
   const unknown = Object.keys(got).filter((k) => !(k in expect));
   const failed = checks.filter((c) => c.ok === false);
-  const res = { stamp, mode, at: new Date().toISOString(), pass: failed.length === 0 && unknown.length === 0, executed: checks.filter((c) => c.ok !== null).length, passed: checks.filter((c) => c.ok === true).length, failed: failed.length, skipped: checks.filter((c) => c.ok === null).length, unexpectedChecks: unknown, checks };
+  const res = { set, stamp, mode, at: new Date().toISOString(), pass: failed.length === 0 && unknown.length === 0, executed: checks.filter((c) => c.ok !== null).length, passed: checks.filter((c) => c.ok === true).length, failed: failed.length, skipped: checks.filter((c) => c.ok === null).length, unexpectedChecks: unknown, checks };
   if (arg('out')) fs.writeFileSync(arg('out'), JSON.stringify(res, null, 2));
   for (const c of checks) console.log(c.ok === true ? 'ORACLE PASS' : c.ok === false ? 'ORACLE FAIL' : 'ORACLE SKIP', c.id, 'actual=' + c.actual);
   console.log(`ORACLE ${res.pass ? 'PASS' : 'FAIL'} ${res.passed}/${res.executed}`);

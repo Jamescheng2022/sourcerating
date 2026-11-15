@@ -5,6 +5,7 @@
 // no arbitrary URL, no file access outside runs/, and typed e-mail addresses must be synthetic personas.
 const fs = require('fs'), path = require('path'), cp = require('child_process');
 const guard = require('../lib/guard.cjs');
+const { sanitize } = require('../lib/trace-sanitize.cjs');
 const { ROOT, profile } = guard;
 const QA = path.join(ROOT, 'qa', 'windows-b');
 const { chromium } = require(require.resolve('@playwright/test', { paths: [path.join(ROOT, 'apps', 'web')] }));
@@ -15,11 +16,20 @@ const users = Object.fromEntries(JSON.parse(fs.readFileSync(process.env.B_USERS,
 const emails = new Set(Object.values(users).map((u) => u.email.toLowerCase()));
 const RUN = process.env.QA_RUN_DIR || path.join(QA, 'runs', 'director-' + new Date().toISOString().replace(/[-:]/g, '').slice(0, 15));
 for (const d of ['screenshots', 'traces', 'logs']) fs.mkdirSync(path.join(RUN, d), { recursive: true });
+const secrets = () => Object.values(users).map((u) => u.pw);
+const redact = (t) => { let x = String(t); for (const s of secrets()) x = x.split(s).join('[REDACTED]'); return x.replace(/Bearer\s+[A-Za-z0-9._~+\/=-]+/g, 'Bearer [REDACTED]').replace(/eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]*/g, '[REDACTED_JWT]').replace(/([?&](?:token|access_token|apikey|signature|X-Amz-Signature)=)[^&\s"]+/gi, '$1[REDACTED]').slice(0, 2000); };
+const clog = (o) => fs.appendFileSync(path.join(RUN, 'logs', 'console.jsonl'), JSON.stringify({ t: new Date().toISOString(), ...o }) + '\n');
 const log = (o) => fs.appendFileSync(path.join(RUN, 'logs', 'director-actions.jsonl'), JSON.stringify({ t: new Date().toISOString(), ...o }) + '\n');
 let browser; const S = {}; const T = 20000; let blocked = 0;
 
-const pdf = (label) => Buffer.from(`%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 300 200]>>endobj\n% ${label}\ntrailer<</Root 1 0 R>>\n%%EOF\n`);
-const FIXTURES = { 'pdf-a': () => ({ name: 'qa-drawing.pdf', mimeType: 'application/pdf', buffer: pdf('synthetic A') }), 'pdf-b': () => ({ name: 'qa-drawing.pdf', mimeType: 'application/pdf', buffer: pdf('synthetic B') }) };
+const { FIXTURES } = require('../lib/fixtures.cjs');
+const UPLOAD_TARGETS = { composer: 'file-input', version: 'version-input' };
+const closeTrace = async (k, s) => {
+  const f = path.join(RUN, 'traces', `director-${k}.zip`); await s.ctx.tracing.stop({ path: f });
+  const r = await sanitize(f, secrets()); log({ trace: k, sanitized: r.ok, leaks: r.leaks });
+  if (!r.ok) throw new Error('STOP: credential material survived trace sanitization; trace deleted (' + r.leaks.join(', ') + ')');
+  return 'trace saved (sanitized, scan clean)';
+};
 
 const ensureBrowser = async () => {
   if (browser) return browser;
@@ -44,15 +54,19 @@ const tools = {
       const c = guard.classifyHost(u.hostname); if (c.ok) return route.continue();
       blocked++; log({ blocked: route.request().url().split('?')[0], why: c.why, boundary: !!c.boundary }); return route.abort('blockedbyclient');
     });
-    await ctx.tracing.start({ screenshots: true, snapshots: true, sources: false });
-    const page = await ctx.newPage(); S[k] = { ctx, page };
+    const page = await ctx.newPage(); S[k] = { ctx, page, tracing: false };
+    page.on('console', (m) => { if (['error', 'warning'].includes(m.type())) clog({ persona: k, kind: 'console.' + m.type(), text: redact(m.text()), url: redact(page.url()) }); });
+    page.on('pageerror', (e) => clog({ persona: k, kind: 'pageerror', text: redact(e.message), url: redact(page.url()) }));
     await page.goto(new URL('/project-room-b', BASE).href);
     await page.getByLabel('邮箱').or(page.getByText('STAGING · 真实后端')).first().waitFor({ timeout: T });
     if (await page.getByLabel('邮箱').count()) {
       if (await page.getByRole('button', { name: '已有账号？登录' }).count()) await page.getByRole('button', { name: '已有账号？登录' }).click();
       await page.getByLabel('邮箱').fill(users[k].email); await page.getByLabel('密码').fill(users[k].pw);
       await page.getByRole('button', { name: '登录', exact: true }).click();
+      await page.getByLabel('密码').waitFor({ state: 'detached', timeout: T });
     }
+    // Tracing starts only after the credential form is gone, so typed passwords are never recorded.
+    await ctx.tracing.start({ screenshots: true, snapshots: true, sources: false }); S[k].tracing = true;
     return 'signed in as ' + k; } },
   goto: { d: 'Navigate to a path on the target app (must start with "/"; other hosts are refused).', p: { persona: 's', path: 's' }, run: async ({ persona: k, path: p }) => { if (!/^\/[^/]/.test(p) && p !== '/') throw new Error('path must start with /'); const u = new URL(p, BASE); if (u.origin !== BASE.origin) throw new Error('other origins are refused'); await sess(k).goto(u.href); return u.pathname + u.search; } },
   snapshot: { d: 'Accessibility snapshot (text) of the current page, max 9000 chars.', p: { persona: 's' }, run: async ({ persona: k }) => (await sess(k).locator('body').ariaSnapshot()).slice(0, 9000) },
@@ -62,11 +76,11 @@ const tools = {
   fill: { d: 'Fill an input found by its label.', p: { persona: 's', label: 's', value: 's' }, run: async ({ persona: k, label, value }) => { checkTyped(value); await sess(k).getByLabel(label).first().fill(value, { timeout: T }); return 'filled'; } },
   press: { d: 'Press a key (Enter, Escape, Tab ...).', p: { persona: 's', key: 's' }, run: async ({ persona: k, key }) => { await sess(k).keyboard.press(key); return 'ok'; } },
   wait_for_text: { d: 'Wait until text is visible (timeout ms, default 20000, max 60000).', p: { persona: 's', text: 's', timeout_ms: 'n?' }, run: async ({ persona: k, text, timeout_ms = T }) => { await sess(k).getByText(text).first().waitFor({ timeout: Math.min(timeout_ms, 60000) }); return 'visible'; } },
-  upload_fixture: { d: 'Attach a generated synthetic file (pdf-a or pdf-b) through the app file input.', p: { persona: 's', fixture: 's' }, run: async ({ persona: k, fixture }) => { if (!FIXTURES[fixture]) throw new Error('unknown fixture'); await sess(k).getByTestId('file-input').setInputFiles(FIXTURES[fixture]()); return 'attached (press send to deliver)'; } },
+  upload_fixture: { d: 'Attach a generated synthetic file (pdf-a, pdf-b, rev0, rev1, rev2). target "composer" (default, message attachment) or "version" (new version of the file whose version button was clicked).', p: { persona: 's', fixture: 's', target: 's?' }, run: async ({ persona: k, fixture, target = 'composer' }) => { if (!FIXTURES[fixture]) throw new Error('unknown fixture'); if (!UPLOAD_TARGETS[target]) throw new Error('target must be composer or version'); await sess(k).getByTestId(UPLOAD_TARGETS[target]).setInputFiles(FIXTURES[fixture]()); return target === 'version' ? 'uploaded as new version' : 'attached (press send to deliver)'; } },
   set_offline: { d: 'Simulate network loss/recovery for a persona.', p: { persona: 's', offline: 'b' }, run: async ({ persona: k, offline }) => { await S[persona(k)].ctx.setOffline(!!offline); return offline ? 'offline' : 'online'; } },
   reload: { d: 'Reload the page.', p: { persona: 's' }, run: async ({ persona: k }) => { await sess(k).reload(); return 'reloaded'; } },
   screenshot: { d: 'Save a screenshot under the run evidence folder.', p: { persona: 's', name: 's' }, run: async ({ persona: k, name }) => { const f = path.join(RUN, 'screenshots', `director-${k}-${String(name).replace(/[^a-z0-9_-]/gi, '_').slice(0, 60)}.png`); await sess(k).screenshot({ path: f }); return path.relative(QA, f); } },
-  close_session: { d: 'Close a persona session and save its trace.', p: { persona: 's' }, run: async ({ persona: k }) => { const s = S[persona(k)]; if (!s) return 'not open'; await s.ctx.tracing.stop({ path: path.join(RUN, 'traces', `director-${k}.zip`) }); await s.ctx.close(); delete S[k]; return 'closed, trace saved'; } },
+  close_session: { d: 'Close a persona session and save its trace.', p: { persona: 's' }, run: async ({ persona: k }) => { const s = S[persona(k)]; if (!s) return 'not open'; let msg = 'no trace (login did not complete)'; try { if (s.tracing) msg = await closeTrace(k, s); } finally { await s.ctx.close(); delete S[k]; } return 'closed, ' + msg; } },
   list_suites: { d: 'List the approved test entrypoints.', p: {}, run: async () => profile.entrypoints },
   run_suites: { d: 'Run approved suites through the pinned runner (never any other command).', p: { suites: 's' }, run: async ({ suites }) => { const list = String(suites).split(',').map((x) => x.trim()); for (const s of list) if (!profile.entrypoints[s]) throw new Error('not an approved suite: ' + s); const r = cp.spawnSync(process.execPath, [path.join(QA, 'runner', 'run.cjs'), '--suites', list.join(',')], { env: process.env, encoding: 'utf8', timeout: 1800000, maxBuffer: 32 * 1024 * 1024 }); return (r.stdout + r.stderr).slice(-6000); } },
   read_evidence: { d: 'Read a text evidence file under runs/ (max 20000 chars).', p: { relpath: 's' }, run: async ({ relpath }) => { const f = path.resolve(QA, 'runs', relpath); if (!f.startsWith(path.join(QA, 'runs') + path.sep) || !fs.existsSync(f) || /\.(zip|png|jpg)$/.test(f)) throw new Error('not readable'); return fs.readFileSync(f, 'utf8').slice(0, 20000); } },
@@ -90,4 +104,4 @@ process.stdin.on('data', async (c) => {
     } else if (m.id !== undefined) send({ jsonrpc: '2.0', id: m.id, result: {} });
   }
 });
-process.on('SIGTERM', async () => { for (const k of Object.keys(S)) try { await S[k].ctx.tracing.stop({ path: path.join(RUN, 'traces', `director-${k}.zip`) }); } catch {} process.exit(0); });
+process.on('SIGTERM', async () => { for (const k of Object.keys(S)) try { if (S[k].tracing) await closeTrace(k, S[k]); } catch (e) { log({ trace: k, error: String(e.message) }); } process.exit(0); });
