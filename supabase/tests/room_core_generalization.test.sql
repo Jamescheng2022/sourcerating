@@ -18,7 +18,7 @@ declare
   a1 uuid := gen_random_uuid(); a2 uuid := gen_random_uuid(); b1 uuid := gen_random_uuid(); b2 uuid := gen_random_uuid();
   orgA uuid; orgB uuid; pA jsonb; pB jsonb; roomA uuid; roomB uuid; inv jsonb; sub jsonb; subInt jsonb;
   review_key uuid := gen_random_uuid(); alias_key uuid := gen_random_uuid(); review_event public.room_events; review_retry public.room_events;
-  f2 uuid; f3 uuid; rev0 uuid; rev1 uuid; rev2 uuid; upload_path text; result jsonb; ev public.room_events; n int; ex jsonb; c public.room_confirmations;
+  f2 uuid; f3 uuid; f_single uuid; review_alt public.room_events; rev0 uuid; rev1 uuid; rev2 uuid; upload_path text; result jsonb; ev public.room_events; n int; ex jsonb; c public.room_confirmations;
 begin
   insert into auth.users(id,email) values (a1,'a1@a.test'),(a2,'a2@a.test'),(b1,'b1@b.test'),(b2,'b2@b.test');
 
@@ -90,6 +90,17 @@ begin
   review_retry := public.sr_request_file_review(f2, orgB, alias_key, 'thickness 20 to 22');
   assert review_event.id = review_retry.id, 'separate click reuses identical outstanding review';
   perform pg_temp.denied(format('select public.sr_request_file_review(%L,%L,%L,%L)',f2,orgB,alias_key,'different note'), 'idempotency_conflict');
+  -- Another note produces no new task when the file already has an open task;
+  -- its repeated click must still reuse its own event.
+  review_alt := public.sr_request_file_review(f2, orgB, gen_random_uuid(), 'another note');
+  review_retry := public.sr_request_file_review(f2, orgB, gen_random_uuid(), 'another note');
+  assert review_alt.id = review_retry.id, 'different-note request deduplicates with pre-existing task';
+  -- A colleague in the same organization also has no new task to attach.
+  perform pg_temp.as_user(b2,'b2@b.test');
+  review_alt := public.sr_request_file_review(f2, orgB, gen_random_uuid(), 'colleague note');
+  review_retry := public.sr_request_file_review(f2, orgB, gen_random_uuid(), 'colleague note');
+  assert review_alt.id = review_retry.id, 'second actor deduplicates with pre-existing task';
+  perform pg_temp.as_user(b1,'b1@b.test');
   select count(*) into n from public.room_events where room_id=roomA and client_msg_id=review_key;
   assert n = 1, 'duplicate review intent creates one event';
   perform pg_temp.as_user(a1,'a1@a.test');
@@ -137,6 +148,16 @@ begin
   assert (select bool_and(x->>'file_sha256' = repeat('2',64) and x->>'organization_name' in ('Org A','Org B')) from jsonb_array_elements(ex->'confirmations') x), 'hash and organization match';
   assert jsonb_array_length(ex->'events') = (select count(*) from public.room_events where room_id=roomA), 'every raw event exported';
   raise notice 'T4 evidence export PASS';
+
+  -- An internal room with one organization has no review recipient.
+  perform set_config('role','postgres',true);
+  insert into public.room_file_versions(room_id,logical_name,version_no,object_path,mime_type,size_bytes,sha256,uploader_user_id,uploader_organization_id)
+  values ((subInt->>'room_id')::uuid,'internal.pdf',1,(subInt->>'room_id')||'/internal','application/pdf',1,repeat('d',64),a1,orgA)
+  returning id into f_single;
+  perform pg_temp.as_user(a1,'a1@a.test');
+  perform pg_temp.denied(format('select public.sr_request_file_review(%L,%L,gen_random_uuid(),null)',f_single,orgA), 'no_review_targets');
+  select count(*) into n from public.room_events where room_id=(subInt->>'room_id')::uuid and event_type='file.review_requested';
+  assert n=0, 'no-recipient request creates no event';
 
   -- Exercise the real registration RPC as two organizations, including decisions.
   perform set_config('role','postgres',true);

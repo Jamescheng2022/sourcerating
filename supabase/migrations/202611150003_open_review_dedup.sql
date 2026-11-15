@@ -48,6 +48,16 @@ begin
     return v_event;
   end if;
 
+  -- A request with no counterpart cannot produce a review task. Do not
+  -- create an event that would look like a request was delivered.
+  if not exists (
+    select 1 from public.room_members rm
+    where rm.room_id = v_f.room_id and rm.removed_at is null
+      and rm.acting_organization_id <> p_actor_organization_id
+  ) then
+    raise exception 'no_review_targets' using errcode = '22023';
+  end if;
+
   -- Separate clicks are one request while the same actor's identical review
   -- remains outstanding. Serialize even when the client keys differ.
   perform pg_advisory_xact_lock(hashtextextended(v_f.room_id::text || '::open-review::' || v_f.id::text || '::' || auth.uid()::text || '::' || p_actor_organization_id::text, 0));
@@ -56,7 +66,14 @@ begin
     and e.actor_user_id = auth.uid() and e.actor_organization_id = p_actor_organization_id
     and e.payload->>'file_version_id' = v_f.id::text
     and e.payload->>'note' is not distinct from public.sr_clean_name(p_note, 1000)
-    and exists (select 1 from public.needs_you n where n.source_event_id = e.id and n.status = 'open')
+    and exists (
+      select 1 from public.needs_you n
+      where n.room_id = v_f.room_id and n.detail = 'file_version:' || v_f.id::text
+        and n.status = 'open' and n.target_organization_id <> p_actor_organization_id
+        and exists (select 1 from public.room_members rm
+          where rm.room_id = v_f.room_id and rm.removed_at is null
+            and rm.acting_organization_id = n.target_organization_id)
+    )
   order by e.seq desc limit 1;
   if found then
     insert into public.room_review_request_keys(room_id,client_msg_id,event_id)
