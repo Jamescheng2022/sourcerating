@@ -23,6 +23,7 @@ type PersonalProfile = {
 type Relationship = {
   id: string;
   counterparty_name: string;
+  counterparty_organization_id?: string | null;
   relationship_kind: "buyer" | "supplier" | "partner" | "other";
   stage: "prospect" | "contacted" | "active" | "paused";
   private_notes: string | null;
@@ -161,7 +162,7 @@ export default function NetworkMemoryPage() {
           .select("organization_id,display_name,description,website_url,country,capabilities,visibility")
           .eq("organization_id", selected).maybeSingle(),
         supabase.from("sr_organization_relationships")
-          .select("id,counterparty_name,relationship_kind,stage,private_notes")
+          .select("id,counterparty_name,relationship_kind,stage,private_notes,counterparty_organization_id")
           .eq("owner_organization_id", selected).order("updated_at", { ascending: false }).limit(150),
         supabase.from("sr_profile_suggestions")
           .select("id,field_key,proposed_value,confidence,source_kind,source_label")
@@ -259,16 +260,34 @@ export default function NetworkMemoryPage() {
     setBusy("contact"); setError("");
     try {
       if (contactName.trim().length < 2) throw new Error("请填写客户或供应商名称");
-      const { error: e } = await supabase.from("sr_organization_relationships").insert({
-        owner_organization_id: orgId, counterparty_name: contactName.trim(),
-        counterparty_organization_id: counterpartyOrgId, source_project_id: sourceProjectId,
-        relationship_kind: contactKind, stage: "prospect",
-        private_notes: contactNotes.trim() || null, created_by: userId,
-      });
-      if (e) throw e;
-      setContactName(""); setContactNotes(""); setCounterpartyOrgId(null); setSourceProjectId(null);
-      await loadOrg(orgId, orgs.find((o) => o.id === orgId)?.name ?? "");
-      report("关系已保存到本企业私有客户/供应商库，不会通知对方。");
+      const existing = counterpartyOrgId
+        ? contacts.find((c) => c.counterparty_organization_id === counterpartyOrgId && c.relationship_kind === contactKind)
+        : null;
+
+      if (existing) {
+        const { error: e } = await supabase.from("sr_organization_relationships")
+          .update({
+            counterparty_name: contactName.trim(),
+            private_notes: contactNotes.trim() || null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existing.id);
+        if (e) throw e;
+        setContactNotes("");
+        await loadOrg(orgId, orgs.find((o) => o.id === orgId)?.name ?? "");
+        report("关系已更新并保存到本企业私有客户/供应商库。");
+      } else {
+        const { error: e } = await supabase.from("sr_organization_relationships").insert({
+          owner_organization_id: orgId, counterparty_name: contactName.trim(),
+          counterparty_organization_id: counterpartyOrgId, source_project_id: sourceProjectId,
+          relationship_kind: contactKind, stage: "prospect",
+          private_notes: contactNotes.trim() || null, created_by: userId,
+        });
+        if (e) throw e;
+        setContactName(""); setContactNotes(""); setCounterpartyOrgId(null); setSourceProjectId(null);
+        await loadOrg(orgId, orgs.find((o) => o.id === orgId)?.name ?? "");
+        report("关系已保存到本企业私有客户/供应商库，不会通知对方。");
+      }
     } catch (e) { setError(errText(e)); } finally { setBusy(""); }
   };
 
