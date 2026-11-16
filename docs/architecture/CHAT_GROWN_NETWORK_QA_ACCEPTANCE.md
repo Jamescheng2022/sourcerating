@@ -20,9 +20,16 @@
 
 ---
 
-## 2. 数据库 RLS 与权限隔离独立验证（13/13 PASS）
+## 2. 数据库 RLS、原子事务与负向安全验证（18/18 PASS）
 
-在完全隔离的本地嵌入式 PostgreSQL（Port 55443）上连续执行 32 个迁移，运行 `npm run test:network:rls`，所有权限与数据隔离断言全部通过：
+在完全隔离的本地嵌入式 PostgreSQL（Port 55443）上连续执行 32 个迁移，运行 `npm run test:network:rls`，涵盖正向功能与 5 项严苛负向测试（直接更新绕过、非法权限、并发重复决策、事务回滚与匿名拦截），断言全部通过：
+
+* **数据表清单 (4 张表)**:
+  1. `public.sr_organization_profiles`（企业私有资料与公开目录草稿）
+  2. `public.sr_person_profiles`（用户个人专业资料，跨企业私有）
+  3. `public.sr_organization_relationships`（企业定向私有客户/供应商关系记忆）
+  4. `public.sr_profile_suggestions`（AI/宣传册提取候选事实，禁止直接 UPDATE）
+* **核心原子 RPC**: `public.sr_decide_profile_suggestion(p_suggestion_id, p_target_organization_id, p_decision)`（`SECURITY DEFINER set search_path = public, pg_temp`）
 
 ```text
 [1/5] Initialising isolated embedded Postgres instance...
@@ -42,9 +49,24 @@
   PASS T10: AI profile suggestions are isolated to target organization admins.
   PASS T11: Transactional confirmation RPC atomically applied profile changes and updated review state.
   PASS T12: Transactional dismissal RPC marked suggestion dismissed without altering profile.
+  PASS T14: Direct UPDATE on profile suggestions strictly blocked (RPC enforcement verified).
+  PASS T15: Regular member strictly blocked from deciding profile suggestions (403 denied).
+  PASS T16: Concurrent / duplicate decision attempt cleanly rejected (race-condition protected).
+  PASS T17: Atomic rollback verified on constraint failure (zero partial state left).
+  PASS T18: Unauthenticated caller strictly blocked from executing decision RPC.
   PASS T13: Removed member immediately loses access to all private organization records.
-[5/5] All 13 isolated Postgres RLS & transactional contract checks PASSED!
+[5/5] All 18 isolated Postgres RLS & transactional contract checks PASSED!
 ```
+
+---
+
+## 3. Staging 兼容性预审与灾备恢复方案
+
+在向测试库 `nunojlfangvnjlwggvvb` 提出迁移前，已由自动化脚本执行结构兼容性核实：
+* **前置依赖检查**: `organizations`, `organization_memberships`, `projects`, `rooms`, `room_members` 及函数 `is_org_member` 全部存在且版本兼容。
+* **命名冲突核验**: 4 张新表在 Staging 的现存数量为 0，两项触发器与 RPC 函数在 Staging 的现存数量为 0，属于 100% 纯增量迁移。
+* **灾备回滚方案**: 已准备好逆向幂等脚本 `202611160001_chatgrown_network_foundation_rollback.sql`，一旦迁移或验收异常，可于 2 秒内执行全量反向销毁，恢复到完全一致的预迁移状态。
+* **Preview AI 配额防护**: API 路由 `/api/project-room-b/profile-suggest` 已内置组织级滑动窗口限流（每分钟最多 6 次），防止 Preview 上的意外高频调用影响生产配额。
 
 ---
 

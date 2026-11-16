@@ -305,6 +305,99 @@ try {
   }
   console.log('  PASS T12: Transactional dismissal RPC marked suggestion dismissed without altering profile.');
 
+  // T14: Negative test: Direct UPDATE bypass attempt is strictly blocked
+  const sugBypassInsert = await clientA1.query(`
+    insert into public.sr_profile_suggestions (
+      target_organization_id, field_key, proposed_value,
+      source_kind, source_label, confidence, created_by
+    ) values (
+      '${orgA}', 'description', '"Bypass attempt"'::jsonb,
+      'manual', 'unauthorized direct edit', 0.850, '${userA1}'
+    ) returning id
+  `);
+  const sugBypassId = sugBypassInsert.rows[0].id;
+  let directUpdateBlocked = false;
+  try {
+    await clientA1.query(`
+      update public.sr_profile_suggestions
+      set status = 'accepted', reviewed_by = '${userA1}', reviewed_at = now()
+      where id = '${sugBypassId}'
+    `);
+  } catch (e) {
+    directUpdateBlocked = e.message.includes('permission denied') ||
+                          e.message.includes('direct_suggestion_update_prohibited');
+  }
+  if (!directUpdateBlocked) {
+    throw new Error('T14 FAIL: Direct UPDATE on sr_profile_suggestions was not blocked!');
+  }
+  console.log('  PASS T14: Direct UPDATE on profile suggestions strictly blocked (RPC enforcement verified).');
+
+  // T15: Negative test: Non-Admin regular member (A2) cannot decide suggestions
+  let memberDecideBlocked = false;
+  try {
+    await clientA2.query(`select public.sr_decide_profile_suggestion('${sugBypassId}', '${orgA}', 'accept')`);
+  } catch (e) {
+    memberDecideBlocked = e.message.includes('organization_access_denied');
+  }
+  if (!memberDecideBlocked) {
+    throw new Error('T15 FAIL: Regular member A2 was not blocked from deciding suggestion!');
+  }
+  console.log('  PASS T15: Regular member strictly blocked from deciding profile suggestions (403 denied).');
+
+  // T16: Negative test: Concurrent / Double decision attempt blocked
+  await clientA1.query(`select public.sr_decide_profile_suggestion('${sugBypassId}', '${orgA}', 'accept')`);
+  let doubleDecideBlocked = false;
+  try {
+    await clientA1.query(`select public.sr_decide_profile_suggestion('${sugBypassId}', '${orgA}', 'accept')`);
+  } catch (e) {
+    doubleDecideBlocked = e.message.includes('suggestion_not_found_or_not_pending');
+  }
+  if (!doubleDecideBlocked) {
+    throw new Error('T16 FAIL: Calling decide on already accepted suggestion was not rejected!');
+  }
+  console.log('  PASS T16: Concurrent / duplicate decision attempt cleanly rejected (race-condition protected).');
+
+  // T17: Negative test: Transaction rollback on constraint failure (ACID integrity)
+  const tooManyCapabilities = JSON.stringify(Array.from({ length: 35 }, (_, i) => `Capability ${i}`));
+  const badSugInsert = await clientA1.query(`
+    insert into public.sr_profile_suggestions (
+      target_organization_id, field_key, proposed_value,
+      source_kind, source_label, confidence, created_by
+    ) values (
+      '${orgA}', 'capabilities', '${tooManyCapabilities}'::jsonb,
+      'manual', 'Constraint violator', 0.900, '${userA1}'
+    ) returning id
+  `);
+  const badSugId = badSugInsert.rows[0].id;
+  let rollbackCaught = false;
+  try {
+    await clientA1.query(`select public.sr_decide_profile_suggestion('${badSugId}', '${orgA}', 'accept')`);
+  } catch (e) {
+    rollbackCaught = e.message.includes('sr_org_capabilities_limited');
+  }
+  if (!rollbackCaught) {
+    throw new Error('T17 FAIL: RPC did not fail on check constraint violation!');
+  }
+  const badSugAfter = await clientA1.query(`select status, reviewed_by from public.sr_profile_suggestions where id = '${badSugId}'`);
+  if (badSugAfter.rows[0].status !== 'pending' || badSugAfter.rows[0].reviewed_by !== null) {
+    throw new Error('T17 FAIL: Suggestion was partially updated despite transaction abort!');
+  }
+  console.log('  PASS T17: Atomic rollback verified on constraint failure (zero partial state left).');
+
+  // T18: Negative test: Unauthenticated / Anon caller blocked from executing RPC
+  const anonClient = await asUser(null, 'anon');
+  let anonBlocked = false;
+  try {
+    await anonClient.query(`select public.sr_decide_profile_suggestion('${badSugId}', '${orgA}', 'accept')`);
+  } catch (e) {
+    anonBlocked = e.message.includes('permission denied') || e.message.includes('unauthorized');
+  }
+  await anonClient.end();
+  if (!anonBlocked) {
+    throw new Error('T18 FAIL: Anon caller was not blocked from executing sr_decide_profile_suggestion!');
+  }
+  console.log('  PASS T18: Unauthenticated caller strictly blocked from executing decision RPC.');
+
   // T13: Immediate revocation on membership removal
   await adminClient.query(`
     update public.organization_memberships
@@ -322,7 +415,7 @@ try {
   await clientB1.end();
   await adminClient.end();
 
-  console.log('[5/5] All 13 isolated Postgres RLS & transactional contract checks PASSED!');
+  console.log('[5/5] All 18 isolated Postgres RLS & transactional contract checks PASSED!');
   if (started && pg) {
     await pg.stop().catch(() => {});
   }

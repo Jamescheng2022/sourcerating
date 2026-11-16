@@ -107,7 +107,9 @@ revoke all on public.sr_profile_suggestions from public, anon, authenticated;
 grant select on public.sr_organization_profiles, public.sr_person_profiles to anon, authenticated;
 grant insert, update on public.sr_organization_profiles, public.sr_person_profiles to authenticated;
 grant select, insert, update, delete on public.sr_organization_relationships to authenticated;
-grant select, insert, update on public.sr_profile_suggestions to authenticated;
+-- Direct UPDATE on suggestions is strictly revoked. All review status transitions
+-- (accepted/dismissed) must execute atomically via sr_decide_profile_suggestion.
+grant select, insert on public.sr_profile_suggestions to authenticated;
 
 -- RLS membership remains project-independent; merely being in a shared Room does not
 -- permit a user to modify the other company's profile or read its private CRM.
@@ -194,21 +196,9 @@ create policy sr_suggestion_owner_insert on public.sr_profile_suggestions
     where m.organization_id=target_organization_id and m.user_id=(select auth.uid())
       and m.removed_at is null and m.role in ('owner','admin')))
  );
-create policy sr_suggestion_owner_update on public.sr_profile_suggestions
- for update to authenticated using (
-  status='pending' and
-  (target_user_id=(select auth.uid()) or
-   exists (select 1 from public.organization_memberships m
-    where m.organization_id=target_organization_id and m.user_id=(select auth.uid())
-      and m.removed_at is null and m.role in ('owner','admin')))
- ) with check (
-  created_by is not null
-  and (target_user_id=(select auth.uid()) or
-   exists (select 1 from public.organization_memberships m
-    where m.organization_id=target_organization_id and m.user_id=(select auth.uid())
-      and m.removed_at is null and m.role in ('owner','admin')))
-  and (status='pending' or (reviewed_by=(select auth.uid()) and reviewed_at is not null))
- );
+-- Direct UPDATE on public.sr_profile_suggestions is strictly prohibited.
+-- All decision transitions (accepted/dismissed) must go through the atomic RPC
+-- public.sr_decide_profile_suggestion with admin privilege checks.
 
 comment on table public.sr_organization_profiles is 'Optional directory profile. PRIVATE until a company admin explicitly publishes.';
 comment on table public.sr_organization_relationships is 'Private owner-company buyer/supplier relationship memory, NOT a public contact list.';
@@ -216,7 +206,7 @@ comment on table public.sr_profile_suggestions is 'AI/manual candidate facts onl
 -- Stop a user who manages two firms from silently reassigning private records
 -- to a different legal entity. Cross-org merges require a future audited workflow.
 create function public.sr_network_immutable_identity() returns trigger
-language plpgsql security invoker set search_path = public as $$
+language plpgsql security invoker set search_path = public, pg_temp as $$
 begin
   if TG_TABLE_NAME = 'sr_organization_profiles' then
     if new.organization_id is distinct from old.organization_id then
@@ -228,6 +218,9 @@ begin
       raise exception 'private_relationship_owner_immutable' using errcode = '22023';
     end if;
   elsif TG_TABLE_NAME = 'sr_profile_suggestions' then
+    if current_setting('sr.in_rpc', true) is distinct from 'true' then
+      raise exception 'direct_suggestion_update_prohibited' using errcode = '42501';
+    end if;
     if old.status <> 'pending' or
        new.target_organization_id is distinct from old.target_organization_id or
        new.target_user_id is distinct from old.target_user_id or
@@ -261,7 +254,7 @@ create or replace function public.sr_decide_profile_suggestion(
   p_target_organization_id uuid,
   p_decision text
 ) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, pg_temp as $$
 declare
   v_caller uuid := auth.uid();
   v_sug record;
@@ -308,6 +301,9 @@ begin
     raise exception 'suggestion_not_found_or_not_pending' using errcode = 'P0002';
   end if;
 
+  -- Authorize suggestion review update for this transaction only
+  perform set_config('sr.in_rpc', 'true', true);
+
   v_field := v_sug.field_key;
   v_val := v_sug.proposed_value;
 
@@ -325,25 +321,28 @@ begin
       -- Apply field value atomically
       if v_field = 'description' then
         update public.sr_organization_profiles
-        set description = trim(both '"' from v_val::text),
+        set description = v_val #>> '{}',
             updated_by = v_caller,
             updated_at = now()
         where organization_id = p_target_organization_id;
       elsif v_field = 'website_url' then
         update public.sr_organization_profiles
-        set website_url = trim(both '"' from v_val::text),
+        set website_url = v_val #>> '{}',
             updated_by = v_caller,
             updated_at = now()
         where organization_id = p_target_organization_id;
       elsif v_field = 'country' then
         update public.sr_organization_profiles
-        set country = trim(both '"' from v_val::text),
+        set country = v_val #>> '{}',
             updated_by = v_caller,
             updated_at = now()
         where organization_id = p_target_organization_id;
       elsif v_field = 'capabilities' then
         update public.sr_organization_profiles
-        set capabilities = array(select jsonb_array_elements_text(v_val)),
+        set capabilities = case
+          when jsonb_typeof(v_val) = 'array' then array(select jsonb_array_elements_text(v_val))
+          else array[v_val #>> '{}']
+        end,
             updated_by = v_caller,
             updated_at = now()
         where organization_id = p_target_organization_id;
@@ -358,17 +357,20 @@ begin
 
       if v_field = 'headline' then
         update public.sr_person_profiles
-        set headline = trim(both '"' from v_val::text),
+        set headline = v_val #>> '{}',
             updated_at = now()
         where user_id = v_caller;
       elsif v_field = 'bio' then
         update public.sr_person_profiles
-        set bio = trim(both '"' from v_val::text),
+        set bio = v_val #>> '{}',
             updated_at = now()
         where user_id = v_caller;
       elsif v_field = 'skills' then
         update public.sr_person_profiles
-        set skills = array(select jsonb_array_elements_text(v_val)),
+        set skills = case
+          when jsonb_typeof(v_val) = 'array' then array(select jsonb_array_elements_text(v_val))
+          else array[v_val #>> '{}']
+        end,
             updated_at = now()
         where user_id = v_caller;
       end if;

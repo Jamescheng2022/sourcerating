@@ -81,6 +81,26 @@ function cleanResult(value: unknown): Suggestion[] {
   return drafts;
 }
 
+// Quota guard: rate-limiting per organization to prevent excessive AI spend on Preview/Staging
+type RateBucket = { count: number; windowStart: number };
+const usageBuckets = new Map<string, RateBucket>();
+const MAX_CALLS_PER_MINUTE = 6;
+const WINDOW_MS = 60 * 1000;
+
+function checkRateLimit(orgId: string): boolean {
+  const now = Date.now();
+  const bucket = usageBuckets.get(orgId);
+  if (!bucket || now - bucket.windowStart > WINDOW_MS) {
+    usageBuckets.set(orgId, { count: 1, windowStart: now });
+    return true;
+  }
+  if (bucket.count >= MAX_CALLS_PER_MINUTE) {
+    return false;
+  }
+  bucket.count++;
+  return true;
+}
+
 export async function POST(request: Request) {
   const token = request.headers.get("authorization")?.match(/^Bearer (.+)$/)?.[1];
   if (!token) return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
@@ -99,6 +119,14 @@ export async function POST(request: Request) {
     .is("removed_at", null).maybeSingle();
   if (membershipError || !member || !["owner", "admin"].includes(member.role)) {
     return Response.json({ ok: false, error: "Organization access denied" }, { status: 403 });
+  }
+
+  // Rate limiting & quota guard: Max 6 extractions per minute per organization
+  if (!checkRateLimit(input.data.organizationId)) {
+    return Response.json({
+      ok: false,
+      error: "AI 调用频率已达安全上限，请稍后重试（环境配额与费用保护已生效）"
+    }, { status: 429 });
   }
 
   const provider = modelProvider();
