@@ -108,6 +108,8 @@ export default function NetworkMemoryPage() {
   const [contactName, setContactName] = useState("");
   const [contactKind, setContactKind] = useState<Relationship["relationship_kind"]>("supplier");
   const [contactNotes, setContactNotes] = useState("");
+  const [counterpartyOrgId, setCounterpartyOrgId] = useState<string | null>(null);
+  const [sourceProjectId, setSourceProjectId] = useState<string | null>(null);
   const [busy, setBusy] = useState("");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -183,6 +185,35 @@ export default function NetworkMemoryPage() {
     }
   }, [phase, orgId, orgs, loadOrg]);
 
+  // The chat deep-link is only a suggestion: it is checked against current
+  // per-user Room RLS and active membership before offering a contact.
+  useEffect(() => {
+    if (phase !== "ready" || !orgId || !userId) return;
+    const params = new URLSearchParams(window.location.search);
+    const roomId = params.get("fromRoom");
+    const counterpartId = params.get("counterpartyOrg");
+    if (!roomId || !counterpartId || !/^[a-f0-9-]{36}$/i.test(roomId)
+      || !/^[a-f0-9-]{36}$/i.test(counterpartId) || counterpartId === orgId) return;
+    let active = true;
+    (async () => {
+      const [room, members] = await Promise.all([
+        supabase.from("rooms").select("id,project_id").eq("id", roomId).maybeSingle(),
+        supabase.from("room_members").select("user_id,acting_organization_id")
+          .eq("room_id", roomId).is("removed_at", null),
+      ]);
+      const mine = members.data?.some((m) => m.user_id === userId && m.acting_organization_id === orgId);
+      const other = members.data?.some((m) => m.acting_organization_id === counterpartId);
+      if (!room.data || room.error || members.error || !mine || !other) return;
+      const { data: counterparty, error: e } = await supabase.from("organizations")
+        .select("name").eq("id", counterpartId).maybeSingle();
+      if (!active || e || !counterparty) return;
+      setCounterpartyOrgId(counterpartId);
+      setSourceProjectId(room.data.project_id);
+      setContactName(counterparty.name);
+    })();
+    return () => { active = false; };
+  }, [phase, orgId, userId]);
+
   const report = (message: string) => { setNotice(message); setError(""); };
   const saveCompany = async (current: CompanyForm = form) => {
     if (!userId || !orgId) throw new Error("请先登录并选择组织");
@@ -230,11 +261,12 @@ export default function NetworkMemoryPage() {
       if (contactName.trim().length < 2) throw new Error("请填写客户或供应商名称");
       const { error: e } = await supabase.from("sr_organization_relationships").insert({
         owner_organization_id: orgId, counterparty_name: contactName.trim(),
+        counterparty_organization_id: counterpartyOrgId, source_project_id: sourceProjectId,
         relationship_kind: contactKind, stage: "prospect",
         private_notes: contactNotes.trim() || null, created_by: userId,
       });
       if (e) throw e;
-      setContactName(""); setContactNotes("");
+      setContactName(""); setContactNotes(""); setCounterpartyOrgId(null); setSourceProjectId(null);
       await loadOrg(orgId, orgs.find((o) => o.id === orgId)?.name ?? "");
       report("关系已保存到本企业私有客户/供应商库，不会通知对方。");
     } catch (e) { setError(errText(e)); } finally { setBusy(""); }
@@ -428,6 +460,7 @@ export default function NetworkMemoryPage() {
                 <h2 className="text-lg font-bold">客户与供应商关系库</h2>
                 <p className="mt-1 text-xs text-slate-500">本组织独有的联系人线索，不会自动与对方企业共享或发布到 Marketplace。</p>
                 <div className="mt-4 space-y-3">
+                  {counterpartyOrgId && <p className="rounded-lg bg-teal-50 px-3 py-2 text-xs text-teal-900">已根据你有权限访问的项目房间识别合作企业。保存后仅在本企业客户库中可见。</p>}
                   {input("企业名称", contactName, setContactName, "待联系的客户或供应商")}
                   <label className="block text-sm font-medium text-slate-700">关系
                     <select className={`mt-1 ${field}`} value={contactKind} onChange={(e) => setContactKind(e.target.value as Relationship["relationship_kind"])}>
