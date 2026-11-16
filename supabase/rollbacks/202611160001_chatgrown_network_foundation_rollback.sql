@@ -1,5 +1,7 @@
--- SourceRating: Rollback for 202611160001_chatgrown_network_foundation.sql
--- Restores database to exact pre-migration state.
+-- SourceRating: Destructive Schema Rollback for 202611160001_chatgrown_network_foundation.sql
+-- WARNING: This is a DESTRUCTIVE reset script that drops all 4 network tables with CASCADE.
+-- Any data stored in these tables will be permanently deleted.
+-- Before running in production or staging, perform a full database backup/dump!
 begin;
 
 -- 1. Drop triggers

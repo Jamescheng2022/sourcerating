@@ -380,6 +380,9 @@ export default function NetworkMemoryPage() {
           <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs text-amber-800">内测 · 私有资料空间</span>
         </header>
 
+        {error && <div className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-800" role="alert">{error}</div>}
+        {notice && <div className="rounded-xl border border-teal-200 bg-teal-50 p-3 text-sm text-teal-900" role="status">{notice}</div>}
+
         {phase === "loading" && <div className={section} role="status">正在读取你的组织权限…</div>}
         {phase === "signedout" && <div className={section}>请先<Link href="/project-room-b" className="ml-1 text-teal-700 underline">登录 Project Room</Link>。</div>}
         {phase === "noadmin" && <div className={section}>
@@ -402,9 +405,6 @@ export default function NetworkMemoryPage() {
                 {orgs.map((o) => <option key={o.id} value={o.id}>{o.name}（{o.role}）</option>)}
               </select>
             </label>
-
-            {error && <div className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-800" role="alert">{error}</div>}
-            {notice && <div className="rounded-xl border border-teal-200 bg-teal-50 p-3 text-sm text-teal-900" role="status">{notice}</div>}
 
             <div className="grid gap-5 lg:grid-cols-2">
               <section className={section}>
