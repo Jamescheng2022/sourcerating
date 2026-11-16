@@ -213,4 +213,44 @@ create policy sr_suggestion_owner_update on public.sr_profile_suggestions
 comment on table public.sr_organization_profiles is 'Optional directory profile. PRIVATE until a company admin explicitly publishes.';
 comment on table public.sr_organization_relationships is 'Private owner-company buyer/supplier relationship memory, NOT a public contact list.';
 comment on table public.sr_profile_suggestions is 'AI/manual candidate facts only; confirmation and publication are separate actions.';
+-- Stop a user who manages two firms from silently reassigning private records
+-- to a different legal entity. Cross-org merges require a future audited workflow.
+create function public.sr_network_immutable_identity() returns trigger
+language plpgsql security invoker set search_path = public as $$
+begin
+  if TG_TABLE_NAME = 'sr_organization_profiles' then
+    if new.organization_id is distinct from old.organization_id then
+      raise exception 'organization_identity_immutable' using errcode = '22023';
+    end if;
+  elsif TG_TABLE_NAME = 'sr_organization_relationships' then
+    if new.owner_organization_id is distinct from old.owner_organization_id
+       or new.created_by is distinct from old.created_by then
+      raise exception 'private_relationship_owner_immutable' using errcode = '22023';
+    end if;
+  elsif TG_TABLE_NAME = 'sr_profile_suggestions' then
+    if old.status <> 'pending' or
+       new.target_organization_id is distinct from old.target_organization_id or
+       new.target_user_id is distinct from old.target_user_id or
+       new.field_key is distinct from old.field_key or
+       new.proposed_value is distinct from old.proposed_value or
+       new.source_kind is distinct from old.source_kind or
+       new.source_label is distinct from old.source_label or
+       new.created_by is distinct from old.created_by then
+      raise exception 'suggestion_provenance_immutable' using errcode = '22023';
+    end if;
+  end if;
+  return new;
+end $$;
+revoke all on function public.sr_network_immutable_identity() from public, anon, authenticated;
+
+create trigger sr_org_profile_identity_guard
+ before update on public.sr_organization_profiles
+ for each row execute function public.sr_network_immutable_identity();
+create trigger sr_relationship_identity_guard
+ before update on public.sr_organization_relationships
+ for each row execute function public.sr_network_immutable_identity();
+create trigger sr_suggestion_provenance_guard
+ before update on public.sr_profile_suggestions
+ for each row execute function public.sr_network_immutable_identity();
+
 commit;
