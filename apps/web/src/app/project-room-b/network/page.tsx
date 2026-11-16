@@ -172,7 +172,6 @@ export default function NetworkMemoryPage() {
       setForm(toForm((profile.data as OrgProfile | null) ?? null, fallbackName));
       setContacts((relations.data ?? []) as Relationship[]);
       setDrafts((suggestions.data ?? []) as Draft[]);
-      setGenerated([]);
     } catch (e) {
       setError("资料库尚未启用或无法读取：" + errText(e));
     }
@@ -283,7 +282,7 @@ export default function NetworkMemoryPage() {
         target_organization_id: orgId, target_user_id: null,
         field_key: item.fieldKey, proposed_value: item.value,
         source_kind: sourceKind,
-        source_label: (sourceLabel.trim() || (sourceKind === "website_text" ? "用户粘贴的网站介绍" : "用户粘贴的公司宣传册")) + (item.evidenceNote ? ` · ${item.evidenceNote}` : ""),
+        source_label: ((sourceLabel.trim() || (sourceKind === "website_text" ? "用户粘贴的网站介绍" : "用户粘贴的公司宣传册")) + (item.evidenceNote ? ` · ${item.evidenceNote}` : "")).slice(0, 280),
         confidence: item.confidence, status: "pending", created_by: userId,
       });
       if (e) throw e;
@@ -334,7 +333,16 @@ export default function NetworkMemoryPage() {
 
         {phase === "loading" && <div className={section} role="status">正在读取你的组织权限…</div>}
         {phase === "signedout" && <div className={section}>请先<Link href="/project-room-b" className="ml-1 text-teal-700 underline">登录 Project Room</Link>。</div>}
-        {phase === "noadmin" && <div className={section}>你目前不是组织管理员。个人资料可在后续版本单独编辑，企业资料和内部客户库由组织管理员管理。</div>}
+        {phase === "noadmin" && <div className={section}>
+          <h2 className="text-lg font-bold">我的个人资料</h2>
+          <p className="mt-1 text-sm text-slate-500">企业资料和企业私有客户库需要管理员权限；你的个人资料可由自己维护。</p>
+          <div className="mt-3 space-y-3">
+            <label className="block text-sm font-medium">显示姓名<input className={`mt-1 ${field}`} value={personal.display_name} onChange={(e) => setPersonal((p) => ({ ...p, display_name: e.target.value }))} /></label>
+            <label className="block text-sm font-medium">职位 / 专业<input className={`mt-1 ${field}`} value={personal.headline} onChange={(e) => setPersonal((p) => ({ ...p, headline: e.target.value }))} /></label>
+            <label className="block text-sm font-medium">擅长领域（逗号分隔）<input className={`mt-1 ${field}`} value={personal.skills} onChange={(e) => setPersonal((p) => ({ ...p, skills: e.target.value }))} /></label>
+            <button type="button" className={primary} disabled={!!busy} onClick={() => void savePerson()}>保存我的私有资料</button>
+          </div>
+        </div>}
         {phase === "unavailable" && <div className={section}>网络资料模块暂不可用；现有聊天室不受影响。</div>}
 
         {phase === "ready" && (
