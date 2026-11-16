@@ -250,7 +250,7 @@ export function RealSidebar({ real, onOpen }: { real: Real; onOpen: (id: string)
           </div>
         ))}
       </div>
-      <div className={css.sideFoot}><span>STAGING · 真实后端（测试库）</span></div>
+      <div className={css.sideFoot}><span>STAGING · 真实后端（测试库）</span>{process.env.NEXT_PUBLIC_SR_NETWORK_PILOT === "1" && <a href="/project-room-b/network" style={{ color: "#0f766e", textDecoration: "underline", marginLeft: 8 }}>资料与客户库（内测）</a>}</div>
       <NewProject real={real} open={dlg === "project"} onClose={() => setDlg(null)} />
       <NewSubRoom real={real} open={dlg === "sub"} onClose={() => setDlg(null)} />
     </nav>
