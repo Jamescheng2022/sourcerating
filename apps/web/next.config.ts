@@ -15,6 +15,10 @@ const nextConfig: NextConfig = {
   // The invite protocol is shared with Supabase at the repository root.
   turbopack: { root: path.resolve(__dirname, "../..") },
   outputFileTracingRoot: path.resolve(__dirname, "../.."),
+  experimental: {
+    cpus: 1,
+    workerThreads: false,
+  },
 };
 
 export default nextConfig;

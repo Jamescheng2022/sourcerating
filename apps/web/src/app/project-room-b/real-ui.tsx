@@ -250,7 +250,18 @@ export function RealSidebar({ real, onOpen }: { real: Real; onOpen: (id: string)
           </div>
         ))}
       </div>
-      <div className={css.sideFoot}><span>STAGING · 真实后端（测试库）</span></div>
+      <div className={css.sideFoot}>
+        <span>STAGING · 真实后端（测试库）</span>
+        {process.env.NEXT_PUBLIC_SR_NETWORK_PILOT === "1" && (
+          <>
+            <a href="/project-room-b/network" style={{ color: "#0f766e", textDecoration: "underline", marginLeft: 8 }}>资料与客户库（内测）</a>
+            {room && room.roomMembers.some((m) => m.orgId && m.orgId !== s.orgId) && (
+              <a href={`/project-room-b/network?fromRoom=${encodeURIComponent(room.id)}&counterpartyOrg=${encodeURIComponent(room.roomMembers.find((m) => m.orgId && m.orgId !== s.orgId)?.orgId ?? "")}`}
+                style={{ color: "#0f766e", textDecoration: "underline", marginLeft: 8 }}>将合作方加入关系库</a>
+            )}
+          </>
+        )}
+      </div>
       <NewProject real={real} open={dlg === "project"} onClose={() => setDlg(null)} />
       <NewSubRoom real={real} open={dlg === "sub"} onClose={() => setDlg(null)} />
     </nav>
@@ -371,12 +382,44 @@ export function RealPanel({ real }: { real: Real }) {
             <section>
               {Array.from(new Set(room.roomMembers.map((m) => m.orgId))).map((oid) => (
                 <div key={oid}>
-                  <h3>{org(oid).name}</h3>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "10px 0 6px" }}>
+                    <h3 style={{ margin: 0 }}>{org(oid).name}</h3>
+                    <div style={{ display: "flex", gap: "6px" }}>
+                      <a
+                        href={`/companies/${encodeURIComponent(oid)}?fromRoom=${encodeURIComponent(room.id)}`}
+                        className={rc.mini}
+                        style={{ color: "#0f766e", textDecoration: "none" }}
+                        title={`查看 ${org(oid).name} 企业档案`}
+                        data-testid={`company-profile-link-${oid}`}
+                      >
+                        企业档案
+                      </a>
+                      {oid !== s.orgId && orgAdmin && (
+                        <a
+                          href={`/project-room-b/network?fromRoom=${encodeURIComponent(room.id)}&counterpartyOrg=${encodeURIComponent(oid)}`}
+                          className={rc.mini}
+                          style={{ color: "#0f766e", textDecoration: "none" }}
+                          title="将合作方加入本公司私有客户/供应商库"
+                        >
+                          + 存入私有关系库
+                        </a>
+                      )}
+                    </div>
+                  </div>
                   {room.roomMembers.filter((m) => m.orgId === oid).map((member) => {
                     const id = member.userId, name = member.displayName ?? user(id).name;
                     return <div key={id} className={css.person}>
                       <OrgMark color={org(oid).color} short={name.slice(0, 1)} size={28} />
                       <span className={rc.grow}><b>{name}{id === meId && <em>你</em>}</b><small>{member.role}</small></span>
+                      <a
+                        href={`/people/${encodeURIComponent(id)}?fromRoom=${encodeURIComponent(room.id)}`}
+                        className={rc.mini}
+                        style={{ color: "#0f766e", textDecoration: "none" }}
+                        title={`查看 ${name} 个人名片`}
+                        data-testid={`person-card-link-${id}`}
+                      >
+                        名片
+                      </a>
                       {admin && id !== meId && <button type="button" className={rc.mini} data-danger onClick={() => void actions.removeMember(id).catch(() => null)}>移出</button>}
                       {orgAdmin && oid === s.orgId && id !== meId && <button type="button" className={rc.mini} data-danger onClick={() => void actions.removeFromOrganization(id).catch(() => null)}>移出组织</button>}
                     </div>;
