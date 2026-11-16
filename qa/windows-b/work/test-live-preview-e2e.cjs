@@ -28,6 +28,7 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
   const T = 35000;
   const results = {
     network_e2e: {},
+    v45_frontend_integration: {},
     regression_room_b: {},
     responsive_layouts: {}
   };
@@ -99,15 +100,23 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
   console.log('  Room collaboration counterparty detected:', hasBanner > 0 ? 'PASS' : 'FAIL');
   results.network_e2e.counterparty_room_detection = hasBanner > 0 ? 'PASS' : 'FAIL';
 
-  // Verify pre-filled counterparty name in form
+  // Verify pre-filled counterparty name in form (Authentic match, NO fallback代填)
   const nameInput = pageA1.getByPlaceholder('待联系的客户或供应商');
-  await pageA1.waitForTimeout(1500);
+  await pageA1.waitForFunction(
+    (el) => el && el.value && el.value.trim().length >= 2,
+    await nameInput.elementHandle(),
+    { timeout: 15000 }
+  ).catch(() => null);
+
   const prefilledName = await nameInput.inputValue();
-  console.log('  Prefilled Counterparty Name:', prefilledName);
-  if (!prefilledName || prefilledName.trim().length < 2) {
-    await nameInput.fill('QA Supplier 11140033');
+  console.log('  Prefilled Counterparty Name (Authentic):', prefilledName);
+  const isValidPrefill = !!prefilledName && (prefilledName.includes('QA Supplier') || prefilledName.includes('11140033'));
+  results.network_e2e.counterparty_prefill = isValidPrefill
+    ? `PASS (Authentic match: "${prefilledName.trim()}")`
+    : 'FAIL (Counterparty name was not prefilled from room)';
+  if (!isValidPrefill) {
+    throw new Error(`Counterparty prefill assertion failed! Expected authentic room counterparty, got: "${prefilledName}"`);
   }
-  results.network_e2e.counterparty_prefill = 'PASS';
 
   // Add private notes and save relationship
   console.log('[Step 3] Persona a1 saving private supplier relationship to live database...');
@@ -149,6 +158,57 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
   const ssA1 = path.join(outDir, 'live-buyer-a1-network-1440.png');
   await pageA1.screenshot({ path: ssA1, fullPage: true });
   console.log('  Captured screenshot: ' + ssA1);
+
+  // ── Claude V4.5 Integrated UI Views Verification ──
+  console.log('----------------------------------------------------------------');
+  console.log('[Step 6a] Persona a1 testing Claude V4.5 Company Dossier Card View...');
+  await pageA1.goto(`${PREVIEW_URL}/project-room-b/network?tab=company&fromRoom=${roomId}`, { waitUntil: 'domcontentloaded' });
+  await pageA1.locator('[data-testid="company-dossier-preview"]').waitFor({ timeout: T });
+
+  const companyDraftPill = await pageA1.getByText('私有草稿 · 拟真预览').count();
+  const companyCapabilitiesHeader = await pageA1.getByText('核心能力与业务范围').count();
+  const returnToRoomBtn = pageA1.getByRole('link', { name: /返回项目房间/ });
+  const hasReturnBtn = await returnToRoomBtn.count();
+  const returnHref = await returnToRoomBtn.getAttribute('href');
+  console.log(`  Company dossier preview rendered: ${companyDraftPill > 0}`);
+  console.log(`  Capabilities section rendered: ${companyCapabilitiesHeader > 0}`);
+  console.log(`  Return to room button href: ${returnHref}`);
+  const companyPass = companyDraftPill > 0 && companyCapabilitiesHeader > 0 && hasReturnBtn > 0 && returnHref.includes(roomId);
+  results.v45_frontend_integration.company_dossier_view = companyPass ? 'PASS (Draft pill, capabilities, verified return link)' : 'FAIL';
+
+  const ssV45Comp = path.join(outDir, 'live-v45-company-dossier-1440.png');
+  await pageA1.screenshot({ path: ssV45Comp, fullPage: true });
+  console.log('  Captured screenshot: ' + ssV45Comp);
+
+  console.log('[Step 6b] Persona a1 testing Claude V4.5 Person Dossier Card View...');
+  await pageA1.goto(`${PREVIEW_URL}/project-room-b/network?tab=person&fromRoom=${roomId}`, { waitUntil: 'domcontentloaded' });
+  await pageA1.locator('[data-testid="person-dossier-preview"]').waitFor({ timeout: T });
+
+  const personPill = await pageA1.getByText('个人私有 · 拟真名片').count();
+  const personSkillsHeader = await pageA1.getByText('工程专业领域与技能标签').count();
+  console.log(`  Person dossier preview rendered: ${personPill > 0}`);
+  console.log(`  Skills section rendered: ${personSkillsHeader > 0}`);
+  const personPass = personPill > 0 && personSkillsHeader > 0;
+  results.v45_frontend_integration.person_dossier_view = personPass ? 'PASS (Pill, skills, verified layout)' : 'FAIL';
+
+  const ssV45Person = path.join(outDir, 'live-v45-person-dossier-1440.png');
+  await pageA1.screenshot({ path: ssV45Person, fullPage: true });
+  console.log('  Captured screenshot: ' + ssV45Person);
+
+  console.log('[Step 6c] Persona a1 testing Claude V4.5 Private Network Directory View...');
+  await pageA1.goto(`${PREVIEW_URL}/project-room-b/network?tab=directory&fromRoom=${roomId}`, { waitUntil: 'domcontentloaded' });
+  await pageA1.locator('[data-testid="network-directory-view"]').waitFor({ timeout: T });
+
+  const dirHeader = await pageA1.getByText('企业私有客户与供应商库').count();
+  const dirCard = await pageA1.locator('[data-testid="network-directory-view"]').getByText('M20').count();
+  console.log(`  Directory view rendered: ${dirHeader > 0}`);
+  console.log(`  Saved counterparty card rendered in directory: ${dirCard > 0}`);
+  const dirPass = dirHeader > 0 && dirCard > 0;
+  results.v45_frontend_integration.network_directory_view = dirPass ? 'PASS (Directory header, counterparty cards, status pills)' : 'FAIL';
+
+  const ssV45Dir = path.join(outDir, 'live-v45-network-directory-1440.png');
+  await pageA1.screenshot({ path: ssV45Dir, fullPage: true });
+  console.log('  Captured screenshot: ' + ssV45Dir);
 
   // ── Persona b1 (Supplier Admin) - Cross-Company RLS Isolation ──
   console.log('----------------------------------------------------------------');
@@ -285,6 +345,18 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
     await pageA1.waitForTimeout(1000);
   }
 
+  // Check bidirectional links in Room B member panel
+  console.log('[Regression 1b] Verifying Room B bidirectional navigation links to V4.5 profiles...');
+  const companyProfileLink = pageA1.locator('a[title="查看企业资料拟真预览"]').first();
+  const personCardLink = pageA1.locator('a[title="查看个人名片拟真预览"]').first();
+  const hasCompLink = await companyProfileLink.count();
+  const hasPersonLink = await personCardLink.count();
+  console.log(`  Room B "企业档案" bidirectional link present: ${hasCompLink > 0}`);
+  console.log(`  Room B "名片" bidirectional link present: ${hasPersonLink > 0}`);
+  results.v45_frontend_integration.room_bidirectional_links = (hasCompLink > 0 && hasPersonLink > 0)
+    ? 'PASS (Bidirectional links to company dossier & person card in Room B panel)'
+    : 'FAIL';
+
   const filesTab = pageA1.locator('div[role="tablist"] button[role="tab"]').filter({ hasText: /文件/ }).first();
   await filesTab.waitFor({ timeout: 15000 });
   await filesTab.click();
@@ -398,6 +470,7 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
   await browser.close();
 
   const allPass = Object.values(results.network_e2e).every(v => typeof v === 'string' && v.startsWith('PASS'))
+    && Object.values(results.v45_frontend_integration).every(v => typeof v === 'string' && v.startsWith('PASS'))
     && Object.values(results.regression_room_b).every(v => typeof v === 'string' && v.startsWith('PASS'))
     && Object.values(results.responsive_layouts).every(v => typeof v === 'string' && v.startsWith('PASS'));
 
@@ -420,6 +493,9 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
       'live-supplier-b1-network-1440.png',
       'live-engineer-a2-network-1440.png',
       'live-isolated-b2-network-1440.png',
+      'live-v45-company-dossier-1440.png',
+      'live-v45-person-dossier-1440.png',
+      'live-v45-network-directory-1440.png',
       'live-network-390-mobile.png',
       'live-network-768-tablet.png',
       'live-network-1440-desktop.png'

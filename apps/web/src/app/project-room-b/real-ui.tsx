@@ -384,22 +384,40 @@ export function RealPanel({ real }: { real: Real }) {
                 <div key={oid}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "10px 0 6px" }}>
                     <h3 style={{ margin: 0 }}>{org(oid).name}</h3>
-                    {oid !== s.orgId && orgAdmin && (
+                    <div style={{ display: "flex", gap: "6px" }}>
                       <a
-                        href={`/project-room-b/network?fromRoom=${encodeURIComponent(room.id)}&counterpartyOrg=${encodeURIComponent(oid)}`}
+                        href={`/project-room-b/network?tab=company&fromRoom=${encodeURIComponent(room.id)}`}
                         className={rc.mini}
                         style={{ color: "#0f766e", textDecoration: "none" }}
-                        title="将合作方加入本公司私有客户/供应商库"
+                        title="查看企业资料拟真预览"
                       >
-                        + 存入私有关系库
+                        企业档案
                       </a>
-                    )}
+                      {oid !== s.orgId && orgAdmin && (
+                        <a
+                          href={`/project-room-b/network?fromRoom=${encodeURIComponent(room.id)}&counterpartyOrg=${encodeURIComponent(oid)}`}
+                          className={rc.mini}
+                          style={{ color: "#0f766e", textDecoration: "none" }}
+                          title="将合作方加入本公司私有客户/供应商库"
+                        >
+                          + 存入私有关系库
+                        </a>
+                      )}
+                    </div>
                   </div>
                   {room.roomMembers.filter((m) => m.orgId === oid).map((member) => {
                     const id = member.userId, name = member.displayName ?? user(id).name;
                     return <div key={id} className={css.person}>
                       <OrgMark color={org(oid).color} short={name.slice(0, 1)} size={28} />
                       <span className={rc.grow}><b>{name}{id === meId && <em>你</em>}</b><small>{member.role}</small></span>
+                      <a
+                        href={`/project-room-b/network?tab=person&fromRoom=${encodeURIComponent(room.id)}`}
+                        className={rc.mini}
+                        style={{ color: "#0f766e", textDecoration: "none" }}
+                        title="查看个人名片拟真预览"
+                      >
+                        名片
+                      </a>
                       {admin && id !== meId && <button type="button" className={rc.mini} data-danger onClick={() => void actions.removeMember(id).catch(() => null)}>移出</button>}
                       {orgAdmin && oid === s.orgId && id !== meId && <button type="button" className={rc.mini} data-danger onClick={() => void actions.removeFromOrganization(id).catch(() => null)}>移出组织</button>}
                     </div>;
