@@ -12,7 +12,8 @@
     "test:ai:postgres": "node scripts/pglite-authorization-smoke.cjs",
     "test:workspace:browser": "node scripts/workspace-acceptance.cjs",
     "test:workspace:review": "node scripts/workspace-review-acceptance.cjs",
-    "test:network:contract": "node --test scripts/network-feature-contract.test.cjs"
+    "test:network:contract": "node --test scripts/network-feature-contract.test.cjs",
+    "test:network:rls": "node ../../supabase/tests/chatgrown_network_rls.test.mjs"
   },
   "dependencies": {
     "@chatscope/chat-ui-kit-react": "2.1.1",

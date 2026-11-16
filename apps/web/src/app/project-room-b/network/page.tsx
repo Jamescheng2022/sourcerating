@@ -329,17 +329,15 @@ export default function NetworkMemoryPage() {
     try {
       if (accept) {
         if (!window.confirm("将这条建议应用到本企业私有资料？不会公开，也不会替代第三方资质核验。")) return;
-        const value = s.field_key === "capabilities"
-          ? Array.isArray(s.proposed_value) ? s.proposed_value.join(", ") : String(s.proposed_value)
-          : String(s.proposed_value);
-        const next = { ...form, [s.field_key]: value };
-        await saveCompany(next);
       }
-      const { error: e } = await supabase.from("sr_profile_suggestions")
-        .update({ status: accept ? "accepted" : "dismissed", reviewed_by: userId, reviewed_at: new Date().toISOString() })
-        .eq("id", s.id).eq("target_organization_id", orgId).eq("status", "pending");
-      if (e) throw e;
+      const { error: rpcError } = await supabase.rpc("sr_decide_profile_suggestion", {
+        p_suggestion_id: s.id,
+        p_target_organization_id: orgId,
+        p_decision: accept ? "accept" : "dismiss",
+      });
+      if (rpcError) throw rpcError;
       setDrafts((items) => items.filter((d) => d.id !== s.id));
+      await loadOrg(orgId, orgs.find((o) => o.id === orgId)?.name ?? "");
       report(accept ? "已采纳至私有企业资料。" : "已忽略该条建议。");
     } catch (e) { setError(errText(e)); } finally { setBusy(""); }
   };

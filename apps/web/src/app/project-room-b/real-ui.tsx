@@ -382,7 +382,19 @@ export function RealPanel({ real }: { real: Real }) {
             <section>
               {Array.from(new Set(room.roomMembers.map((m) => m.orgId))).map((oid) => (
                 <div key={oid}>
-                  <h3>{org(oid).name}</h3>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "10px 0 6px" }}>
+                    <h3 style={{ margin: 0 }}>{org(oid).name}</h3>
+                    {oid !== s.orgId && orgAdmin && (
+                      <a
+                        href={`/project-room-b/network?fromRoom=${encodeURIComponent(room.id)}&counterpartyOrg=${encodeURIComponent(oid)}`}
+                        className={rc.mini}
+                        style={{ color: "#0f766e", textDecoration: "none" }}
+                        title="将合作方加入本公司私有客户/供应商库"
+                      >
+                        + 存入私有关系库
+                      </a>
+                    )}
+                  </div>
                   {room.roomMembers.filter((m) => m.orgId === oid).map((member) => {
                     const id = member.userId, name = member.displayName ?? user(id).name;
                     return <div key={id} className={css.person}>

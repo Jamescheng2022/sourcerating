@@ -24,6 +24,7 @@ test("network tables default private, with RLS and separate company-private rela
   assert.match(sql, /sr_relationship_admin_read/);
   assert.match(sql, /sr_suggestion_owner_read/);
   assert.match(sql, /sr_network_immutable_identity/);
+  assert.match(sql, /sr_decide_profile_suggestion/);
   assert.doesNotMatch(sql, /insert into public\.room_events/i);
 });
 
@@ -45,5 +46,6 @@ test("network UI is opt-in and all company edits are private drafts", () => {
   assert.match(page, /visibility: "private", published_by: null, published_at: null/);
   assert.match(page, /status: "pending", created_by: userId/);
   assert.match(page, /from\("room_members"\)/);
+  assert.match(page, /sr_decide_profile_suggestion/);
   assert.match(page, /window\.confirm\(/);
 });

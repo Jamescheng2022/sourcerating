@@ -253,4 +253,150 @@ create trigger sr_suggestion_provenance_guard
  before update on public.sr_profile_suggestions
  for each row execute function public.sr_network_immutable_identity();
 
+-- Transactional confirmation / dismissal of profile suggestions.
+-- Prevents race conditions and guarantees that suggestion review status
+-- and profile field updates are committed together in one atomic transaction.
+create or replace function public.sr_decide_profile_suggestion(
+  p_suggestion_id uuid,
+  p_target_organization_id uuid,
+  p_decision text
+) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare
+  v_caller uuid := auth.uid();
+  v_sug record;
+  v_field text;
+  v_val jsonb;
+  v_res jsonb;
+begin
+  if v_caller is null then
+    raise exception 'unauthorized' using errcode = '42501';
+  end if;
+
+  if p_decision not in ('accept', 'dismiss') then
+    raise exception 'invalid_decision' using errcode = '22023';
+  end if;
+
+  -- Verify caller is active owner or admin of the target organization
+  if p_target_organization_id is not null then
+    if not exists (
+      select 1 from public.organization_memberships
+      where organization_id = p_target_organization_id
+        and user_id = v_caller
+        and removed_at is null
+        and role in ('owner', 'admin')
+    ) then
+      raise exception 'organization_access_denied' using errcode = '42501';
+    end if;
+
+    -- Lock and retrieve the suggestion
+    select * into v_sug from public.sr_profile_suggestions
+    where id = p_suggestion_id
+      and target_organization_id = p_target_organization_id
+      and status = 'pending'
+    for update;
+  else
+    -- Person suggestion: target user must be caller
+    select * into v_sug from public.sr_profile_suggestions
+    where id = p_suggestion_id
+      and target_user_id = v_caller
+      and status = 'pending'
+    for update;
+  end if;
+
+  if not found then
+    raise exception 'suggestion_not_found_or_not_pending' using errcode = 'P0002';
+  end if;
+
+  v_field := v_sug.field_key;
+  v_val := v_sug.proposed_value;
+
+  if p_decision = 'accept' then
+    if v_sug.target_organization_id is not null then
+      -- Ensure organization profile exists
+      insert into public.sr_organization_profiles (
+        organization_id, display_name, updated_by, updated_at
+      )
+      select p_target_organization_id, o.name, v_caller, now()
+      from public.organizations o
+      where o.id = p_target_organization_id
+      on conflict (organization_id) do nothing;
+
+      -- Apply field value atomically
+      if v_field = 'description' then
+        update public.sr_organization_profiles
+        set description = trim(both '"' from v_val::text),
+            updated_by = v_caller,
+            updated_at = now()
+        where organization_id = p_target_organization_id;
+      elsif v_field = 'website_url' then
+        update public.sr_organization_profiles
+        set website_url = trim(both '"' from v_val::text),
+            updated_by = v_caller,
+            updated_at = now()
+        where organization_id = p_target_organization_id;
+      elsif v_field = 'country' then
+        update public.sr_organization_profiles
+        set country = trim(both '"' from v_val::text),
+            updated_by = v_caller,
+            updated_at = now()
+        where organization_id = p_target_organization_id;
+      elsif v_field = 'capabilities' then
+        update public.sr_organization_profiles
+        set capabilities = array(select jsonb_array_elements_text(v_val)),
+            updated_by = v_caller,
+            updated_at = now()
+        where organization_id = p_target_organization_id;
+      end if;
+    else
+      -- Person profile
+      insert into public.sr_person_profiles (
+        user_id, display_name, updated_at
+      )
+      values (v_caller, 'Member', now())
+      on conflict (user_id) do nothing;
+
+      if v_field = 'headline' then
+        update public.sr_person_profiles
+        set headline = trim(both '"' from v_val::text),
+            updated_at = now()
+        where user_id = v_caller;
+      elsif v_field = 'bio' then
+        update public.sr_person_profiles
+        set bio = trim(both '"' from v_val::text),
+            updated_at = now()
+        where user_id = v_caller;
+      elsif v_field = 'skills' then
+        update public.sr_person_profiles
+        set skills = array(select jsonb_array_elements_text(v_val)),
+            updated_at = now()
+        where user_id = v_caller;
+      end if;
+    end if;
+
+    -- Mark suggestion accepted
+    update public.sr_profile_suggestions
+    set status = 'accepted',
+        reviewed_by = v_caller,
+        reviewed_at = now()
+    where id = p_suggestion_id;
+
+    v_res := jsonb_build_object('ok', true, 'status', 'accepted', 'field_key', v_field);
+  else
+    -- Dismiss suggestion
+    update public.sr_profile_suggestions
+    set status = 'dismissed',
+        reviewed_by = v_caller,
+        reviewed_at = now()
+    where id = p_suggestion_id;
+
+    v_res := jsonb_build_object('ok', true, 'status', 'dismissed', 'field_key', v_field);
+  end if;
+
+  return v_res;
+end $$;
+
+revoke all on function public.sr_decide_profile_suggestion(uuid, uuid, text) from public, anon;
+grant execute on function public.sr_decide_profile_suggestion(uuid, uuid, text) to authenticated;
+
 commit;

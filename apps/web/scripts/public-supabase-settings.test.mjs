@@ -47,7 +47,7 @@ test('actual Next build with missing public settings fails before compile/page-d
     for (const file of ['next.config.ts', 'package.json', 'src/lib/public-supabase-settings.mjs']) {
       copyFileSync(resolve(file), join(dir, file));
     }
-    symlinkSync(resolve('node_modules'), join(dir, 'node_modules'), 'dir');
+    symlinkSync(resolve('node_modules'), join(dir, 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir');
     const result = spawnSync(process.execPath, [resolve('node_modules/next/dist/bin/next'), 'build'], { cwd: dir, env, encoding: 'utf8', timeout: 60000 });
     assert.equal(result.error, undefined);
     assert.notEqual(result.status, 0);
