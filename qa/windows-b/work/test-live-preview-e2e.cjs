@@ -420,10 +420,19 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
   await pageA1.waitForURL(url => url.pathname.includes('/project-room-b'), { timeout: T });
   console.log('  Returned to Room B from company profile successfully.');
 
-  // Re-open panel if needed
-  if (await openPanelBtn.count() && (await pageA1.locator('div[role="tablist"]').count()) === 0) {
-    await openPanelBtn.click();
-    await pageA1.waitForTimeout(1000);
+  // Wait for Room B interface to mount and ensure panel is open with members tab
+  await pageA1.waitForTimeout(2000);
+  const panelIsClosedAfterComp = (await pageA1.locator('aside[aria-label="项目面板"]').count()) === 0;
+  if (panelIsClosedAfterComp) {
+    const toggleBtn = pageA1.getByLabel('打开项目面板').or(pageA1.getByLabel(/查看成员|参与者/)).first();
+    await toggleBtn.waitFor({ timeout: 15000 });
+    await toggleBtn.click();
+    await pageA1.locator('aside[aria-label="项目面板"]').waitFor({ timeout: 15000 });
+  }
+  const peopleTabComp = pageA1.locator('aside[aria-label="项目面板"] button[role="tab"]').filter({ hasText: /成员/ }).first();
+  if (await peopleTabComp.count()) {
+    await peopleTabComp.click();
+    await pageA1.waitForTimeout(500);
   }
 
   // 2. Click Member Person Card Link -> Assert Target Member Identity, RLS Restricted State & 0 Leaks
@@ -468,10 +477,14 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
   console.log('  Returned to Room B from person card successfully.');
   results.identity_accuracy.bidirectional_room_return = 'PASS (Both company and person routes return seamlessly to Room B)';
 
-  // Re-open panel for remaining regression
-  if (await openPanelBtn.count() && (await pageA1.locator('div[role="tablist"]').count()) === 0) {
-    await openPanelBtn.click();
-    await pageA1.waitForTimeout(1000);
+  // Wait for Room B interface and ensure panel is open with files tab for subsequent regression
+  await pageA1.waitForTimeout(2000);
+  const panelIsClosedAfterPerson = (await pageA1.locator('aside[aria-label="项目面板"]').count()) === 0;
+  if (panelIsClosedAfterPerson) {
+    const toggleBtn = pageA1.getByLabel('打开项目面板').or(pageA1.getByLabel(/查看成员|参与者/)).first();
+    await toggleBtn.waitFor({ timeout: 15000 });
+    await toggleBtn.click();
+    await pageA1.locator('aside[aria-label="项目面板"]').waitFor({ timeout: 15000 });
   }
 
   results.v45_frontend_integration.room_bidirectional_links = 'PASS (Bidirectional links to /companies/:id & /people/:id)';
@@ -547,14 +560,32 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
 
   const mobileOverflow = await pageA1.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   const mobileBtnBox = await pageA1.getByRole('button', { name: '保存私有企业草稿' }).boundingBox();
-  const mobileValid = (!mobileOverflow) && mobileBtnBox && mobileBtnBox.width > 80 && (mobileBtnBox.x + mobileBtnBox.width) <= 390;
   console.log(`  390px Mobile horizontal overflow: ${mobileOverflow} (must be false)`);
-  console.log(`  390px Mobile button touch target valid: ${!!mobileValid}`);
+  console.log(`  390px Mobile button touch target valid: ${!!(mobileBtnBox && mobileBtnBox.width > 80)}`);
 
   const ssMobile = path.join(outDir, 'live-network-390-mobile.png');
   await pageA1.screenshot({ path: ssMobile, fullPage: true });
+
+  // Verify 390px mobile layout on /companies/:id and /people/:id
+  await pageA1.goto(`${PREVIEW_URL}/companies/${supplierOrgId}?fromRoom=${sharedRoomId}`, { waitUntil: 'domcontentloaded' });
+  await pageA1.waitForTimeout(1000);
+  const compMobileOverflow = await pageA1.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
+  const ssCompMobile = path.join(outDir, 'live-identity-company-390-mobile.png');
+  await pageA1.screenshot({ path: ssCompMobile, fullPage: true });
+
+  const targetPersonIdParam = targetPersonHref.split('/people/')[1]?.split('?')[0];
+  let personMobileOverflow = false;
+  if (targetPersonIdParam) {
+    await pageA1.goto(`${PREVIEW_URL}/people/${targetPersonIdParam}?fromRoom=${sharedRoomId}`, { waitUntil: 'domcontentloaded' });
+    await pageA1.waitForTimeout(1000);
+    personMobileOverflow = await pageA1.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
+    const ssPersonMobile = path.join(outDir, 'live-identity-person-390-mobile.png');
+    await pageA1.screenshot({ path: ssPersonMobile, fullPage: true });
+  }
+
+  const mobileValid = (!mobileOverflow) && (!compMobileOverflow) && (!personMobileOverflow) && mobileBtnBox && mobileBtnBox.width > 80 && (mobileBtnBox.x + mobileBtnBox.width) <= 390;
   results.responsive_layouts.mobile_390 = mobileValid
-    ? 'PASS (0 overflow, scrollWidth <= innerWidth, buttons bounded)'
+    ? 'PASS (0 overflow across Network, Company and Person routes, buttons bounded)'
     : 'FAIL (Horizontal overflow detected)';
 
   // Viewport 2: 768px (Tablet)
@@ -598,8 +629,8 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
     timestamp: new Date().toISOString(),
     environment: 'Live Preview on Vercel backed by migrated Supabase Staging (nunojlfangvnjlwggvvb)',
     preview_url: PREVIEW_URL,
-    deployment_id: 'dpl_9Toc71UrKvKUW7ZNbARfqqYCDupp',
-    deployment_sha: '17105f7d9453b6f5c3b01e9367841d33a969109e',
+    deployment_id: 'dpl_8RQkkdLAfPKqU59SzrEVJuuqdnM6',
+    deployment_sha: 'd1964ee717b43a99266f8e71887e5bba65b6f007',
     database_project: 'nunojlfangvnjlwggvvb',
     personas_tested: [
       'a1 (Buyer Admin)',
@@ -615,6 +646,8 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
       'live-isolated-b2-network-1440.png',
       'live-identity-company-target-1440.png',
       'live-identity-person-target-1440.png',
+      'live-identity-company-390-mobile.png',
+      'live-identity-person-390-mobile.png',
       'live-v45-company-dossier-1440.png',
       'live-v45-person-dossier-1440.png',
       'live-v45-network-directory-1440.png',

@@ -43,22 +43,29 @@ function PersonPageContent({ params }: { params: Promise<{ id: string }> }) {
 
         // 1. Query person profile (strictly gated by sr_person_profile_self_read & public_read RLS)
         // 2. Query room member identity if fromRoom is present (for legitimate room context)
-        const [profileRes, memberRes] = await Promise.all([
-          supabase
-            .from("sr_person_profiles")
-            .select("user_id, display_name, headline, bio, skills, visibility, published_at")
-            .eq("user_id", targetUserId)
-            .maybeSingle(),
-          fromRoom && /^[a-f0-9-]{36}$/i.test(fromRoom)
-            ? supabase
-                .from("room_members")
-                .select("user_id, display_name, role")
-                .eq("room_id", fromRoom)
-                .eq("user_id", targetUserId)
-                .is("removed_at", null)
-                .maybeSingle()
-            : Promise.resolve({ data: null, error: null }),
-        ]);
+        const profilePromise = supabase
+          .from("sr_person_profiles")
+          .select("user_id, display_name, headline, bio, skills, visibility, published_at")
+          .eq("user_id", targetUserId)
+          .maybeSingle();
+
+        const memberPromise = (fromRoom && /^[a-f0-9-]{36}$/i.test(fromRoom))
+          ? supabase
+              .from("room_members")
+              .select("user_id, member_display_name, room_role")
+              .eq("room_id", fromRoom)
+              .eq("user_id", targetUserId)
+              .is("removed_at", null)
+              .maybeSingle()
+          : supabase
+              .from("room_members")
+              .select("user_id, member_display_name, room_role")
+              .eq("user_id", targetUserId)
+              .is("removed_at", null)
+              .limit(1)
+              .maybeSingle();
+
+        const [profileRes, memberRes] = await Promise.all([profilePromise, memberPromise]);
 
         if (!active) return;
 
@@ -69,8 +76,8 @@ function PersonPageContent({ params }: { params: Promise<{ id: string }> }) {
         }
 
         if (memberRes?.data) {
-          setRoomMemberName(memberRes.data.display_name);
-          setRoomMemberRole(memberRes.data.role);
+          setRoomMemberName(memberRes.data.member_display_name);
+          setRoomMemberRole(memberRes.data.room_role);
         }
 
         if (!profileRes.data && !memberRes?.data && user?.id !== targetUserId) {
