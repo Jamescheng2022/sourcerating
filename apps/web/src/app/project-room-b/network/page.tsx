@@ -480,7 +480,7 @@ export default function NetworkMemoryPage() {
 
             {/* TAB 1: Company Dossier Preview */}
             {activeTab === "company" && (
-              <section data-testid="company-dossier-preview" className="space-y-4">
+              <section className="space-y-4">
                 {phase === "noadmin" && (
                   <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
                     提示：当前您以普通工程成员登录。企业资料草稿由企业管理员编辑维护，以下为本企业私有档案拟真预览。
@@ -500,7 +500,7 @@ export default function NetworkMemoryPage() {
 
             {/* TAB 2: Person Dossier Preview */}
             {activeTab === "person" && (
-              <section data-testid="person-dossier-preview" className="space-y-4">
+              <section className="space-y-4">
                 <PersonDossierCard
                   displayName={personal.display_name || "待完善姓名"}
                   headline={personal.headline || null}

@@ -162,8 +162,8 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
   // ── Claude V4.5 Integrated UI Views Verification ──
   console.log('----------------------------------------------------------------');
   console.log('[Step 6a] Persona a1 testing Claude V4.5 Company Dossier Card View...');
-  await pageA1.goto(`${PREVIEW_URL}/project-room-b/network?tab=company&fromRoom=${roomId}`, { waitUntil: 'domcontentloaded' });
-  await pageA1.locator('[data-testid="company-dossier-preview"]').waitFor({ timeout: T });
+  await pageA1.goto(`${PREVIEW_URL}/project-room-b/network?tab=company&fromRoom=${sharedRoomId}`, { waitUntil: 'domcontentloaded' });
+  await pageA1.locator('[data-testid="company-dossier-preview"]').first().waitFor({ timeout: T });
 
   const companyDraftPill = await pageA1.getByText('私有草稿 · 拟真预览').count();
   const companyCapabilitiesHeader = await pageA1.getByText('核心能力与业务范围').count();
@@ -173,7 +173,7 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
   console.log(`  Company dossier preview rendered: ${companyDraftPill > 0}`);
   console.log(`  Capabilities section rendered: ${companyCapabilitiesHeader > 0}`);
   console.log(`  Return to room button href: ${returnHref}`);
-  const companyPass = companyDraftPill > 0 && companyCapabilitiesHeader > 0 && hasReturnBtn > 0 && returnHref.includes(roomId);
+  const companyPass = companyDraftPill > 0 && companyCapabilitiesHeader > 0 && hasReturnBtn > 0 && returnHref.includes(sharedRoomId);
   results.v45_frontend_integration.company_dossier_view = companyPass ? 'PASS (Draft pill, capabilities, verified return link)' : 'FAIL';
 
   const ssV45Comp = path.join(outDir, 'live-v45-company-dossier-1440.png');
@@ -181,8 +181,8 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
   console.log('  Captured screenshot: ' + ssV45Comp);
 
   console.log('[Step 6b] Persona a1 testing Claude V4.5 Person Dossier Card View...');
-  await pageA1.goto(`${PREVIEW_URL}/project-room-b/network?tab=person&fromRoom=${roomId}`, { waitUntil: 'domcontentloaded' });
-  await pageA1.locator('[data-testid="person-dossier-preview"]').waitFor({ timeout: T });
+  await pageA1.goto(`${PREVIEW_URL}/project-room-b/network?tab=person&fromRoom=${sharedRoomId}`, { waitUntil: 'domcontentloaded' });
+  await pageA1.locator('[data-testid="person-dossier-preview"]').first().waitFor({ timeout: T });
 
   const personPill = await pageA1.getByText('个人私有 · 拟真名片').count();
   const personSkillsHeader = await pageA1.getByText('工程专业领域与技能标签').count();
@@ -196,7 +196,7 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
   console.log('  Captured screenshot: ' + ssV45Person);
 
   console.log('[Step 6c] Persona a1 testing Claude V4.5 Private Network Directory View...');
-  await pageA1.goto(`${PREVIEW_URL}/project-room-b/network?tab=directory&fromRoom=${roomId}`, { waitUntil: 'domcontentloaded' });
+  await pageA1.goto(`${PREVIEW_URL}/project-room-b/network?tab=directory&fromRoom=${sharedRoomId}`, { waitUntil: 'domcontentloaded' });
   await pageA1.locator('[data-testid="network-directory-view"]').waitFor({ timeout: T });
 
   const dirHeader = await pageA1.getByText('企业私有客户与供应商库').count();
@@ -478,8 +478,8 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
     timestamp: new Date().toISOString(),
     environment: 'Live Preview on Vercel backed by migrated Supabase Staging (nunojlfangvnjlwggvvb)',
     preview_url: PREVIEW_URL,
-    deployment_id: 'dpl_8W8239Y3En5AWcGkNKYReo6g1vdE',
-    deployment_sha: '3d78f94cb456d2b51fa816eeb0a7ccece08d4b8e',
+    deployment_id: 'dpl_6WUFku2wp1kfrZ7LrZfXJuSRjmQK',
+    deployment_sha: 'a25e3b8a5c093e597e2df66c5c72a3912823b98e',
     database_project: 'nunojlfangvnjlwggvvb',
     personas_tested: [
       'a1 (Buyer Admin)',
