@@ -204,12 +204,12 @@ export default function NetworkMemoryPage() {
       const mine = members.data?.some((m) => m.user_id === userId && m.acting_organization_id === orgId);
       const other = members.data?.some((m) => m.acting_organization_id === counterpartId);
       if (!room.data || room.error || members.error || !mine || !other) return;
-      const { data: counterparty, error: e } = await supabase.from("organizations")
+      const { data: counterparty } = await supabase.from("organizations")
         .select("name").eq("id", counterpartId).maybeSingle();
-      if (!active || e || !counterparty) return;
+      if (!active) return;
       setCounterpartyOrgId(counterpartId);
       setSourceProjectId(room.data.project_id);
-      setContactName(counterparty.name);
+      if (counterparty?.name) setContactName(counterparty.name);
     })();
     return () => { active = false; };
   }, [phase, orgId, userId]);
