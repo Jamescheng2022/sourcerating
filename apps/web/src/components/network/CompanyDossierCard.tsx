@@ -2,49 +2,80 @@
 
 import React from "react";
 import Link from "next/link";
-import { Building2, Globe, MapPin, ShieldCheck, ArrowLeft, Layers, CheckCircle2 } from "lucide-react";
+import { Building2, Globe, MapPin, ArrowLeft, Layers, CheckCircle2, Lock } from "lucide-react";
 import { Avatar } from "./Avatar";
-import { VerificationBadge } from "./VerificationBadge";
+import { VerificationBadge, VerificationLevel } from "./VerificationBadge";
 
 export interface CompanyDossierCardProps {
   displayName: string;
-  websiteUrl: string | null;
-  country: string | null;
-  capabilities: string[];
-  description: string | null;
+  websiteUrl?: string | null;
+  country?: string | null;
+  capabilities?: string[];
+  description?: string | null;
   onEditClick?: () => void;
   backRoomId?: string | null;
+  isRestricted?: boolean;
+  restrictedReason?: string | null;
+  verificationLevel?: VerificationLevel | null;
+  verified?: boolean;
+  isDraft?: boolean;
 }
 
 export function CompanyDossierCard({
   displayName,
-  websiteUrl,
-  country,
-  capabilities,
-  description,
+  websiteUrl = null,
+  country = null,
+  capabilities = [],
+  description = null,
   onEditClick,
-  backRoomId,
+  backRoomId = null,
+  isRestricted = false,
+  restrictedReason = null,
+  verificationLevel = null,
+  verified = false,
+  isDraft = false,
 }: CompanyDossierCardProps) {
   return (
-    <article className="w-full space-y-5 font-sans text-slate-900" data-testid="company-dossier-preview">
+    <article
+      className="w-full space-y-5 font-sans text-slate-900"
+      data-testid={isRestricted ? "company-restricted-view" : "company-dossier-preview"}
+    >
       {/* 1. Header Card Banner */}
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-4">
-            <Avatar type="org" name={displayName || "企业档案"} size="xl" verified={true} />
+            <Avatar type="org" name={displayName || "企业档案"} size="xl" verified={verified} />
             <div className="space-y-1.5">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-xl font-bold tracking-tight text-slate-950 sm:text-2xl">
                   {displayName || "待完善企业名称"}
                 </h2>
-                <VerificationBadge level="VERIFIED" size="sm" />
-                <span className="rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800">
-                  私有草稿 · 拟真预览
-                </span>
+
+                {/* Truthful verification badges & privacy status */}
+                {isRestricted ? (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-700">
+                    <Lock className="h-3 w-3 text-slate-500" />
+                    私有档案 · 仅限项目协作
+                  </span>
+                ) : isDraft ? (
+                  <span className="rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800">
+                    私有草稿 · 拟真预览
+                  </span>
+                ) : verified ? (
+                  <VerificationBadge level="VERIFIED" size="sm" />
+                ) : verificationLevel ? (
+                  <VerificationBadge level={verificationLevel} size="sm" />
+                ) : (
+                  <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 font-mono text-[10px] text-slate-500">
+                    未公开核验
+                  </span>
+                )}
               </div>
 
               <p className="text-xs font-medium text-slate-500 sm:text-sm">
-                国家重点工程与制造业协同参建主体 · 真实协作沉淀
+                {isRestricted
+                  ? (restrictedReason || "该企业尚未向公开目录发布档案，仅在当前协作项目中可见企业名称。")
+                  : "企业资料与工程能力卡片 · 真实协作沉淀"}
               </p>
 
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 font-mono text-xs text-slate-600">
@@ -68,8 +99,12 @@ export function CompanyDossierCard({
                     </a>
                   </>
                 )}
-                <span className="text-slate-300">|</span>
-                <span>核心能力: {capabilities.length} 项</span>
+                {!isRestricted && (
+                  <>
+                    <span className="text-slate-300">|</span>
+                    <span>核心能力: {capabilities.length} 项</span>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -102,10 +137,16 @@ export function CompanyDossierCard({
             <Layers className="h-4 w-4 text-teal-700" />
             主营产品与工程技术能力
           </h3>
-          <span className="font-mono text-xs text-slate-400">来自主动提供或宣传册 AI 提取审核</span>
+          <span className="font-mono text-xs text-slate-400">
+            {isRestricted ? "受隐私与授权策略保护" : "来自主动提供或宣传册 AI 提取审核"}
+          </span>
         </div>
 
-        {capabilities.length === 0 ? (
+        {isRestricted ? (
+          <p className="text-xs text-slate-400">
+            核心产品与工程技术能力未对外部公开；未经授权不会因在同一聊天室而对外披露。
+          </p>
+        ) : capabilities.length === 0 ? (
           <p className="text-xs text-slate-400">尚未填报主营产品或能力，可使用宣传册文字由 AI 辅助提取。</p>
         ) : (
           <div className="flex flex-wrap gap-2">
@@ -125,7 +166,11 @@ export function CompanyDossierCard({
       {/* 3. Company Description Section */}
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
         <h3 className="mb-2 text-base font-bold text-slate-900">企业简介与背景概况</h3>
-        {description ? (
+        {isRestricted ? (
+          <p className="text-xs text-slate-400">
+            企业详细简介未对外部公开。当前展示仅限于协作项目内已授权的基本标识。
+          </p>
+        ) : description ? (
           <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
             {description}
           </p>

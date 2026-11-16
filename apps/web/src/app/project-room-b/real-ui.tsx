@@ -386,10 +386,11 @@ export function RealPanel({ real }: { real: Real }) {
                     <h3 style={{ margin: 0 }}>{org(oid).name}</h3>
                     <div style={{ display: "flex", gap: "6px" }}>
                       <a
-                        href={`/project-room-b/network?tab=company&fromRoom=${encodeURIComponent(room.id)}`}
+                        href={`/companies/${encodeURIComponent(oid)}?fromRoom=${encodeURIComponent(room.id)}`}
                         className={rc.mini}
                         style={{ color: "#0f766e", textDecoration: "none" }}
-                        title="查看企业资料拟真预览"
+                        title={`查看 ${org(oid).name} 企业档案`}
+                        data-testid={`company-profile-link-${oid}`}
                       >
                         企业档案
                       </a>
@@ -411,10 +412,11 @@ export function RealPanel({ real }: { real: Real }) {
                       <OrgMark color={org(oid).color} short={name.slice(0, 1)} size={28} />
                       <span className={rc.grow}><b>{name}{id === meId && <em>你</em>}</b><small>{member.role}</small></span>
                       <a
-                        href={`/project-room-b/network?tab=person&fromRoom=${encodeURIComponent(room.id)}`}
+                        href={`/people/${encodeURIComponent(id)}?fromRoom=${encodeURIComponent(room.id)}`}
                         className={rc.mini}
                         style={{ color: "#0f766e", textDecoration: "none" }}
-                        title="查看个人名片拟真预览"
+                        title={`查看 ${name} 个人名片`}
+                        data-testid={`person-card-link-${id}`}
                       >
                         名片
                       </a>

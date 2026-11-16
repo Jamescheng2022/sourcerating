@@ -492,6 +492,9 @@ export default function NetworkMemoryPage() {
                   country={form.country || null}
                   capabilities={csv(form.capabilities)}
                   description={form.description || null}
+                  isDraft={true}
+                  verified={false}
+                  verificationLevel={null}
                   onEditClick={phase === "ready" ? () => setActiveTab("edit") : undefined}
                   backRoomId={fromRoomId}
                 />
@@ -506,6 +509,9 @@ export default function NetworkMemoryPage() {
                   headline={personal.headline || null}
                   bio={personal.bio || null}
                   skills={csv(personal.skills)}
+                  isDraft={true}
+                  verified={false}
+                  verificationLevel={null}
                   onEditClick={() => setActiveTab("edit")}
                   backRoomId={fromRoomId}
                 />

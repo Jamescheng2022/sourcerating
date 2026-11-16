@@ -28,6 +28,7 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
   const T = 35000;
   const results = {
     network_e2e: {},
+    identity_accuracy: {},
     v45_frontend_integration: {},
     regression_room_b: {},
     responsive_layouts: {}
@@ -346,17 +347,134 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
     await pageA1.waitForTimeout(1000);
   }
 
-  // Check bidirectional links in Room B member panel
-  console.log('[Regression 1b] Verifying Room B bidirectional navigation links to V4.5 profiles...');
-  const companyProfileLink = pageA1.locator('a[title="查看企业资料拟真预览"]').first();
-  const personCardLink = pageA1.locator('a[title="查看个人名片拟真预览"]').first();
-  const hasCompLink = await companyProfileLink.count();
-  const hasPersonLink = await personCardLink.count();
-  console.log(`  Room B "企业档案" bidirectional link present: ${hasCompLink > 0}`);
-  console.log(`  Room B "名片" bidirectional link present: ${hasPersonLink > 0}`);
-  results.v45_frontend_integration.room_bidirectional_links = (hasCompLink > 0 && hasPersonLink > 0)
-    ? 'PASS (Bidirectional links to company dossier & person card in Room B panel)'
+  // ── Identity Accuracy & Dynamic Target Route Suite ──
+  console.log('----------------------------------------------------------------');
+  console.log('[Identity 1] Verifying Room B links carry real target organization_id & user_id...');
+  const supplierCompLink = pageA1.locator(`a[data-testid="company-profile-link-${supplierOrgId}"]`).first();
+  await supplierCompLink.waitFor({ timeout: 15000 });
+  const compHref = await supplierCompLink.getAttribute('href');
+  console.log(`  Supplier company profile link href: ${compHref}`);
+  const validCompLink = compHref && compHref.includes(`/companies/${supplierOrgId}`) && compHref.includes(`fromRoom=${sharedRoomId}`);
+  if (!validCompLink) throw new Error(`Invalid target company link: ${compHref}`);
+
+  // Find target person link (belonging to supplier organization, not Alice)
+  const allPersonLinks = pageA1.locator('a[data-testid^="person-card-link-"]');
+  const countPersonLinks = await allPersonLinks.count();
+  let targetPersonLink = null;
+  let targetPersonHref = '';
+  for (let i = 0; i < countPersonLinks; i++) {
+    const l = allPersonLinks.nth(i);
+    const h = await l.getAttribute('href');
+    const t = await l.getAttribute('title');
+    if (h && t && !t.includes('Alice')) {
+      targetPersonLink = l;
+      targetPersonHref = h;
+      break;
+    }
+  }
+  console.log(`  Target member person card link href: ${targetPersonHref}`);
+  const validPersonLink = targetPersonHref && targetPersonHref.includes('/people/') && targetPersonHref.includes(`fromRoom=${sharedRoomId}`);
+  if (!validPersonLink) throw new Error(`Invalid target person link: ${targetPersonHref}`);
+  results.identity_accuracy.room_links_parameterized = 'PASS (Real organization_id & user_id in route)';
+
+  // 1. Click Supplier Enterprise Link -> Assert Target Company Identity, RLS Restricted State & 0 Leaks
+  console.log('[Identity 2] Navigating to Supplier Enterprise route (/companies/:id)...');
+  await supplierCompLink.click();
+  await pageA1.waitForURL(url => url.pathname.includes(`/companies/${supplierOrgId}`), { timeout: T });
+
+  const compHeading = await pageA1.locator('h2').first().textContent();
+  console.log(`  Target company heading text: "${compHeading.trim()}"`);
+  const isTargetCompCorrect = compHeading.includes('QA Supplier') || compHeading.includes('11140033');
+  const isNotBuyerComp = !compHeading.includes('QA Buyer');
+  if (!isTargetCompCorrect || !isNotBuyerComp) {
+    throw new Error(`Identity mismatch on company page! Expected Supplier, got: "${compHeading}"`);
+  }
+  results.identity_accuracy.target_company_identity_match = `PASS (Verified: "${compHeading.trim()}")`;
+
+  // Check RLS & privacy restricted state
+  const isCompRestricted = (await pageA1.locator('[data-testid="company-restricted-view"]').count()) > 0;
+  const compRestrictedPill = (await pageA1.getByText(/私有档案 · 仅限项目协作/).count()) > 0;
+  console.log(`  Supplier profile rendered restricted private state: ${isCompRestricted}`);
+  console.log(`  Supplier profile restricted pill visible: ${compRestrictedPill}`);
+
+  // Truthful verification assertion (MUST NOT show fake VERIFIED badge)
+  const fakeVerifiedCount = await pageA1.getByText('模拟核验').count();
+  console.log(`  Fake verified badge count on unverified supplier: ${fakeVerifiedCount} (must be 0)`);
+  if (fakeVerifiedCount > 0) throw new Error('Untruthful verification: fake VERIFIED badge rendered on unverified entity!');
+
+  // Check 0 leaks of Buyer private CRM notes
+  const leakedNotesOnComp = await pageA1.getByText(/USD 1,200/).count();
+  console.log(`  Leak check for Buyer private CRM notes on Supplier route: ${leakedNotesOnComp} (must be 0)`);
+  if (leakedNotesOnComp > 0) throw new Error('CRITICAL RLS LEAK: Private CRM notes leaked to /companies/:id route!');
+  results.identity_accuracy.target_company_privacy_and_truth = (isCompRestricted && compRestrictedPill && fakeVerifiedCount === 0 && leakedNotesOnComp === 0)
+    ? 'PASS (RLS restricted state, truthful unverified badge, 0 leaks)'
     : 'FAIL';
+
+  const ssTargetComp = path.join(outDir, 'live-identity-company-target-1440.png');
+  await pageA1.screenshot({ path: ssTargetComp, fullPage: true });
+  console.log('  Captured screenshot: ' + ssTargetComp);
+
+  // Return to Room B
+  const returnFromComp = pageA1.getByRole('link', { name: /返回项目协作房间|返回项目房间/ }).first();
+  await returnFromComp.click();
+  await pageA1.waitForURL(url => url.pathname.includes('/project-room-b'), { timeout: T });
+  console.log('  Returned to Room B from company profile successfully.');
+
+  // Re-open panel if needed
+  if (await openPanelBtn.count() && (await pageA1.locator('div[role="tablist"]').count()) === 0) {
+    await openPanelBtn.click();
+    await pageA1.waitForTimeout(1000);
+  }
+
+  // 2. Click Member Person Card Link -> Assert Target Member Identity, RLS Restricted State & 0 Leaks
+  console.log('[Identity 3] Navigating to Member Person route (/people/:id)...');
+  const targetPersonLinkClickable = pageA1.locator(`a[href="${targetPersonHref}"]`).first();
+  await targetPersonLinkClickable.click();
+  await pageA1.waitForURL(url => url.pathname.startsWith('/people/'), { timeout: T });
+
+  const personHeading = await pageA1.locator('h2').first().textContent();
+  console.log(`  Target person heading text: "${personHeading.trim()}"`);
+  const isNotAlice = !personHeading.includes('Alice');
+  if (!isNotAlice) throw new Error(`Identity mismatch on person page! Expected counterparty member, got Alice!`);
+  results.identity_accuracy.target_person_identity_match = `PASS (Verified counterparty member: "${personHeading.trim()}")`;
+
+  // Check RLS & privacy restricted state
+  const isPersonRestricted = (await pageA1.locator('[data-testid="person-restricted-view"]').count()) > 0;
+  const personRestrictedPill = (await pageA1.getByText(/个人名片未公开 · 仅限项目协作/).count()) > 0;
+  console.log(`  Member profile rendered restricted private state: ${isPersonRestricted}`);
+  console.log(`  Member profile restricted pill visible: ${personRestrictedPill}`);
+
+  // Truthful verification assertion (MUST NOT show fake VERIFIED badge)
+  const fakePersonVerifiedCount = await pageA1.getByText('模拟核验').count();
+  console.log(`  Fake verified badge count on unverified member: ${fakePersonVerifiedCount} (must be 0)`);
+  if (fakePersonVerifiedCount > 0) throw new Error('Untruthful verification: fake VERIFIED badge rendered on unverified person!');
+
+  // Check 0 leaks of private CRM notes
+  const leakedNotesOnPerson = await pageA1.getByText(/USD 1,200/).count();
+  console.log(`  Leak check on Person route: ${leakedNotesOnPerson} (must be 0)`);
+  if (leakedNotesOnPerson > 0) throw new Error('CRITICAL RLS LEAK: Private notes leaked to /people/:id route!');
+  results.identity_accuracy.target_person_privacy_and_truth = (isPersonRestricted && personRestrictedPill && fakePersonVerifiedCount === 0 && leakedNotesOnPerson === 0)
+    ? 'PASS (RLS restricted state, truthful unverified badge, 0 leaks)'
+    : 'FAIL';
+
+  const ssTargetPerson = path.join(outDir, 'live-identity-person-target-1440.png');
+  await pageA1.screenshot({ path: ssTargetPerson, fullPage: true });
+  console.log('  Captured screenshot: ' + ssTargetPerson);
+
+  // Return to Room B
+  const returnFromPerson = pageA1.getByRole('link', { name: /返回项目协作房间|返回项目房间/ }).first();
+  await returnFromPerson.click();
+  await pageA1.waitForURL(url => url.pathname.includes('/project-room-b'), { timeout: T });
+  console.log('  Returned to Room B from person card successfully.');
+  results.identity_accuracy.bidirectional_room_return = 'PASS (Both company and person routes return seamlessly to Room B)';
+
+  // Re-open panel for remaining regression
+  if (await openPanelBtn.count() && (await pageA1.locator('div[role="tablist"]').count()) === 0) {
+    await openPanelBtn.click();
+    await pageA1.waitForTimeout(1000);
+  }
+
+  results.v45_frontend_integration.room_bidirectional_links = 'PASS (Bidirectional links to /companies/:id & /people/:id)';
 
   const filesTab = pageA1.locator('div[role="tablist"] button[role="tab"]').filter({ hasText: /文件/ }).first();
   await filesTab.waitFor({ timeout: 15000 });
@@ -471,6 +589,7 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
   await browser.close();
 
   const allPass = Object.values(results.network_e2e).every(v => typeof v === 'string' && v.startsWith('PASS'))
+    && Object.values(results.identity_accuracy).every(v => typeof v === 'string' && v.startsWith('PASS'))
     && Object.values(results.v45_frontend_integration).every(v => typeof v === 'string' && v.startsWith('PASS'))
     && Object.values(results.regression_room_b).every(v => typeof v === 'string' && v.startsWith('PASS'))
     && Object.values(results.responsive_layouts).every(v => typeof v === 'string' && v.startsWith('PASS'));
@@ -494,6 +613,8 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
       'live-supplier-b1-network-1440.png',
       'live-engineer-a2-network-1440.png',
       'live-isolated-b2-network-1440.png',
+      'live-identity-company-target-1440.png',
+      'live-identity-person-target-1440.png',
       'live-v45-company-dossier-1440.png',
       'live-v45-person-dossier-1440.png',
       'live-v45-network-directory-1440.png',
