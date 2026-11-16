@@ -166,7 +166,7 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
   await pageA1.locator('[data-testid="company-dossier-preview"]').first().waitFor({ timeout: T });
 
   const companyDraftPill = await pageA1.getByText('私有草稿 · 拟真预览').count();
-  const companyCapabilitiesHeader = await pageA1.getByText('核心能力与业务范围').count();
+  const companyCapabilitiesHeader = await pageA1.getByText('主营产品与工程技术能力').count();
   const returnToRoomBtn = pageA1.getByRole('link', { name: /返回项目房间/ });
   const hasReturnBtn = await returnToRoomBtn.count();
   const returnHref = await returnToRoomBtn.getAttribute('href');
@@ -198,6 +198,7 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
   console.log('[Step 6c] Persona a1 testing Claude V4.5 Private Network Directory View...');
   await pageA1.goto(`${PREVIEW_URL}/project-room-b/network?tab=directory&fromRoom=${sharedRoomId}`, { waitUntil: 'domcontentloaded' });
   await pageA1.locator('[data-testid="network-directory-view"]').waitFor({ timeout: T });
+  await pageA1.locator('[data-testid="network-directory-view"]').getByText('M20').first().waitFor({ timeout: T });
 
   const dirHeader = await pageA1.getByText('企业私有客户与供应商库').count();
   const dirCard = await pageA1.locator('[data-testid="network-directory-view"]').getByText('M20').count();
@@ -478,8 +479,8 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
     timestamp: new Date().toISOString(),
     environment: 'Live Preview on Vercel backed by migrated Supabase Staging (nunojlfangvnjlwggvvb)',
     preview_url: PREVIEW_URL,
-    deployment_id: 'dpl_6WUFku2wp1kfrZ7LrZfXJuSRjmQK',
-    deployment_sha: 'a25e3b8a5c093e597e2df66c5c72a3912823b98e',
+    deployment_id: 'dpl_9Toc71UrKvKUW7ZNbARfqqYCDupp',
+    deployment_sha: '17105f7d9453b6f5c3b01e9367841d33a969109e',
     database_project: 'nunojlfangvnjlwggvvb',
     personas_tested: [
       'a1 (Buyer Admin)',
