@@ -570,7 +570,7 @@ export default function NetworkMemoryPage() {
                         <div className="space-y-3">
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex items-center gap-2.5">
-                              <Avatar type="org" name={c.counterparty_name} size="md" verified={true} />
+                              <Avatar type="org" name={c.counterparty_name} size="md" verified={false} />
                               <div>
                                 <h3 className="text-sm font-semibold leading-snug text-slate-950">
                                   {c.counterparty_name}

@@ -7,6 +7,7 @@ export type VerificationLevel = "VERIFIED" | "SELF_CLAIMED" | "AI_CANDIDATE" | "
 
 export interface VerificationBadgeProps {
   level?: VerificationLevel;
+  evidenceRef?: string;
   isPerson?: boolean;
   showIcon?: boolean;
   className?: string;
@@ -15,6 +16,7 @@ export interface VerificationBadgeProps {
 
 export function VerificationBadge({
   level = "SELF_CLAIMED",
+  evidenceRef,
   isPerson = false,
   showIcon = true,
   className = "",
@@ -54,7 +56,8 @@ export function VerificationBadge({
     },
   };
 
-  const config = configs[level] || configs.SELF_CLAIMED;
+  const effectiveLevel = level === "VERIFIED" && !evidenceRef ? "SELF_CLAIMED" : level;
+  const config = configs[effectiveLevel] || configs.SELF_CLAIMED;
   const Icon = config.icon;
 
   return (

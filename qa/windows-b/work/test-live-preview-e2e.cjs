@@ -333,6 +333,11 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
   console.log('  Message sent and rendered in Room B: PASS');
   results.regression_room_b.messaging = 'PASS';
 
+  // Capture desktop 1440 Room B chat screenshot
+  const ssChat1440 = path.join(outDir, 'live-room-b-chat-1440.png');
+  await pageA1.screenshot({ path: ssChat1440, fullPage: true });
+  console.log('  Captured Room B chat screenshot (1440px): ' + ssChat1440);
+
   // 2. Chat-First Rule (No Forced Onboarding Modal)
   const onboardingModal = await pageA1.getByText('创建你的组织').or(pageA1.getByText('请完善您的企业资料')).count();
   console.log('  Forced onboarding modal count:', onboardingModal);
@@ -546,6 +551,16 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
     ? `PASS (Real summary in ${aiDuration}ms, len: ${aiSummaryText.length})`
     : 'FAIL (Summary too short)';
 
+  // 5. Room B Review Tab (待确认) Accessibility
+  console.log('[Regression 4] Verifying Review tab (待确认) in Room B RealPanel...');
+  const reviewTab = pageA1.locator('div[role="tablist"] button[role="tab"]').filter({ hasText: /待确认/ }).first();
+  await reviewTab.waitFor({ timeout: 10000 });
+  await reviewTab.click();
+  await pageA1.waitForTimeout(1000);
+  const reviewTabRendered = (await pageA1.getByText('AI 结构化整理事项 · 需由人类审核确认').count()) > 0;
+  console.log(`  Review tab in RealPanel rendered: ${reviewTabRendered}`);
+  results.regression_room_b.review_tab_available = reviewTabRendered ? 'PASS' : 'FAIL';
+
   // ── Multi-Viewport Responsive Layout Verification with Strict Overflow Assertions ──
   console.log('================================================================');
   console.log('3. Verifying Responsive Layouts (390px, 768px, 1440px)');
@@ -583,6 +598,13 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
     await pageA1.screenshot({ path: ssPersonMobile, fullPage: true });
   }
 
+  // Also capture 390px Room B chat screenshot
+  await pageA1.goto(`${PREVIEW_URL}/project-room-b`, { waitUntil: 'domcontentloaded' });
+  await pageA1.waitForTimeout(1000);
+  const ssChatMobile = path.join(outDir, 'live-room-b-chat-390-mobile.png');
+  await pageA1.screenshot({ path: ssChatMobile, fullPage: true });
+  console.log('  Captured Room B chat screenshot (390px): ' + ssChatMobile);
+
   const mobileValid = (!mobileOverflow) && (!compMobileOverflow) && (!personMobileOverflow) && mobileBtnBox && mobileBtnBox.width > 80 && (mobileBtnBox.x + mobileBtnBox.width) <= 390;
   results.responsive_layouts.mobile_390 = mobileValid
     ? 'PASS (0 overflow across Network, Company and Person routes, buttons bounded)'
@@ -596,6 +618,13 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
   console.log(`  768px Tablet horizontal overflow: ${tabletOverflow} (must be false)`);
   const ssTablet = path.join(outDir, 'live-network-768-tablet.png');
   await pageA1.screenshot({ path: ssTablet, fullPage: true });
+  // Also capture 768px Room B chat screenshot
+  await pageA1.goto(`${PREVIEW_URL}/project-room-b`, { waitUntil: 'domcontentloaded' });
+  await pageA1.waitForTimeout(1000);
+  const ssChatTablet = path.join(outDir, 'live-room-b-chat-768-tablet.png');
+  await pageA1.screenshot({ path: ssChatTablet, fullPage: true });
+  console.log('  Captured Room B chat screenshot (768px): ' + ssChatTablet);
+
   results.responsive_layouts.tablet_768 = (!tabletOverflow)
     ? 'PASS (Responsive grid layout, 0 overflow)'
     : 'FAIL (Horizontal overflow detected)';
@@ -625,12 +654,19 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
     && Object.values(results.regression_room_b).every(v => typeof v === 'string' && v.startsWith('PASS'))
     && Object.values(results.responsive_layouts).every(v => typeof v === 'string' && v.startsWith('PASS'));
 
+  let actualGitSha = 'candidate/release-a-launch-20261118';
+  try {
+    actualGitSha = require('child_process').execSync('git rev-parse HEAD', { cwd: path.resolve(__dirname, '../../..') }).toString().trim();
+  } catch (e) {
+    actualGitSha = process.env.VERCEL_GIT_COMMIT_SHA || 'unknown';
+  }
+
   const finalSummary = {
     timestamp: new Date().toISOString(),
     environment: 'Live Preview on Vercel backed by migrated Supabase Staging (nunojlfangvnjlwggvvb)',
     preview_url: PREVIEW_URL,
     deployment_id: 'dpl_8RQkkdLAfPKqU59SzrEVJuuqdnM6',
-    deployment_sha: 'd1964ee717b43a99266f8e71887e5bba65b6f007',
+    deployment_sha: actualGitSha,
     database_project: 'nunojlfangvnjlwggvvb',
     personas_tested: [
       'a1 (Buyer Admin)',
@@ -640,6 +676,9 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
     ],
     results,
     screenshots: [
+      'live-room-b-chat-1440.png',
+      'live-room-b-chat-768-tablet.png',
+      'live-room-b-chat-390-mobile.png',
       'live-buyer-a1-network-1440.png',
       'live-supplier-b1-network-1440.png',
       'live-engineer-a2-network-1440.png',

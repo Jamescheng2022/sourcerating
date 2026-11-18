@@ -8,6 +8,7 @@ export interface AvatarProps {
   name?: string;
   size?: "sm" | "md" | "lg" | "xl";
   verified?: boolean;
+  evidenceRef?: string;
   className?: string;
   initials?: string;
 }
@@ -17,6 +18,7 @@ export function Avatar({
   name = "",
   size = "md",
   verified = false,
+  evidenceRef,
   className = "",
   initials = "",
 }: AvatarProps) {
@@ -63,7 +65,7 @@ export function Avatar({
         {displayInitials}
       </span>
 
-      {verified && (
+      {verified && Boolean(evidenceRef) && (
         <div className="absolute -bottom-0.5 -right-0.5 bg-teal-600 text-white rounded-full p-0.5 shadow-sm border border-white">
           <ShieldCheck className="w-2.5 h-2.5" />
         </div>

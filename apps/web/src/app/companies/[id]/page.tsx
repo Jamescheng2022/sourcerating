@@ -114,9 +114,6 @@ function CompanyPageContent({ params }: { params: Promise<{ id: string }> }) {
             <ArrowLeft className="h-3.5 w-3.5" />
             {fromRoom ? "返回项目协作房间" : "返回 Project Room"}
           </Link>
-          <span className="font-mono text-xs text-slate-500">
-            路由语义: /companies/{targetOrgId.slice(0, 8)}...
-          </span>
         </header>
 
         {loading && (

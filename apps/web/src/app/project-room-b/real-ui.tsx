@@ -426,8 +426,8 @@ export function RealPanel({ real }: { real: Real }) {
                       >
                         名片
                       </a>
-                      {admin && id !== meId && <button type="button" className={rc.mini} data-danger onClick={() => void actions.removeMember(id).catch(() => null)}>移出</button>}
-                      {orgAdmin && oid === s.orgId && id !== meId && <button type="button" className={rc.mini} data-danger onClick={() => void actions.removeFromOrganization(id).catch(() => null)}>移出组织</button>}
+                      {admin && id !== meId && <button type="button" className={rc.mini} data-danger onClick={() => { if (window.confirm(`确定要将成员 ${name} 移出该房间吗？`)) void actions.removeMember(id).catch(() => null); }}>移出</button>}
+                      {orgAdmin && oid === s.orgId && id !== meId && <button type="button" className={rc.mini} data-danger onClick={() => { if (window.confirm(`确定要将成员 ${name} 移出组织吗？`)) void actions.removeFromOrganization(id).catch(() => null); }}>移出组织</button>}
                     </div>;
                   })}
                 </div>
@@ -483,26 +483,38 @@ export function RealPanel({ real }: { real: Real }) {
                   ))}
                 </div>
                 {p.status === "pending" ? (
-                  <div className={rc.row} style={{ marginTop: 10, gap: 8 }}>
-                    <button
-                      type="button"
-                      className={rc.mini}
-                      data-primary="true"
-                      onClick={() => void actions.review(p.id, "confirmed")}
-                    >
-                      <Check size={13} /> 确认此项
-                    </button>
-                    <button
-                      type="button"
-                      className={rc.mini}
-                      onClick={() => void actions.review(p.id, "rejected")}
-                    >
-                      <X size={13} /> 驳回
-                    </button>
-                  </div>
+                  p.forOrgId && p.forOrgId !== s.orgId ? (
+                    <div className={rc.row} style={{ marginTop: 10 }}>
+                      <span style={{ fontSize: 12, color: "#64748b" }}>
+                        待对端组织 ({org(p.forOrgId).name}) 审核确认
+                      </span>
+                    </div>
+                  ) : (
+                    <div className={rc.row} style={{ marginTop: 10, gap: 8 }}>
+                      <button
+                        type="button"
+                        className={rc.mini}
+                        data-primary="true"
+                        onClick={(event) => {
+                          if (event.detail <= 1) void actions.review(p.id, "confirmed");
+                        }}
+                      >
+                        <Check size={13} /> 确认此项
+                      </button>
+                      <button
+                        type="button"
+                        className={rc.mini}
+                        onClick={(event) => {
+                          if (event.detail <= 1) void actions.review(p.id, "rejected");
+                        }}
+                      >
+                        <X size={13} /> 驳回
+                      </button>
+                    </div>
+                  )
                 ) : (
                   <div className={rc.row} style={{ marginTop: 10, color: p.status === "confirmed" ? "#0f766e" : "#b91c1c", fontSize: 13, fontWeight: 600 }}>
-                    {p.status === "confirmed" ? "✓ 已确认" : "✕ 已驳回"}
+                    {p.status === "confirmed" ? "✓ 已确认并归档至规范证据" : "✕ 已驳回"}
                   </div>
                 )}
               </div>

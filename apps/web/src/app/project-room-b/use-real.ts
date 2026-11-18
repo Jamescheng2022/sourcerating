@@ -160,11 +160,12 @@ export function useReal() {
   const loadRoom = useCallback(async (roomId: string) => {
     const version = nextVersion(roomVersions.current, roomId);
     const confirmationVersion = nextVersion(confirmationVersions.current, roomId);
-    const [ev, fv, cf, pr] = await Promise.all([
+    const [ev, fv, cf, pr, ny] = await Promise.all([
       supabase.from("room_events").select("*").eq("room_id", roomId).order("seq", { ascending: false }).limit(PAGE),
       supabase.from("room_file_versions").select("*").eq("room_id", roomId).order("created_at"),
       supabase.from("room_confirmations").select("*").eq("room_id", roomId).order("created_at"),
       supabase.from("staging_proposals").select("id,room_id,source_event_id,proposal_type,payload,status").eq("room_id", roomId).order("created_at"),
+      supabase.from("needs_you").select("proposal_id,target_organization_id,status").eq("room_id", roomId),
     ]);
     if (version !== roomVersions.current.get(roomId)) return;
     const err = ev.error ?? fv.error ?? cf.error;
@@ -180,12 +181,16 @@ export function useReal() {
     const confirmations: Confirmation[] = (cf.data ?? []).map((c) => ({
       id: c.id, roomId, fileVersionId: c.file_version_id, sha: c.file_sha256, orgId: c.organization_id, userId: c.user_id, decision: c.decision, comment: c.comment, at: c.created_at,
     }));
+    const nyMap = new Map<string, string>();
+    for (const n of ((ny?.data ?? []) as { proposal_id?: string; target_organization_id?: string }[])) {
+      if (n.proposal_id && n.target_organization_id) nyMap.set(n.proposal_id, n.target_organization_id);
+    }
     const proposals: Proposal[] = (pr.data ?? []).map((x) => {
       const pl = (x.payload ?? {}) as Record<string, unknown>;
       return {
         id: x.id, roomId, kind: x.proposal_type === "decision" ? "decision" : x.proposal_type === "requirement" ? "requirement" : "needs_you",
         title: str(pl.summary) ?? str(pl.title) ?? x.proposal_type, detail: str(pl.detail) ?? str(pl.evidence_quote) ?? "", sources: [x.source_event_id],
-        forOrgId: null, status: x.status === "accepted" ? "confirmed" : x.status === "pending" ? "pending" : "rejected",
+        forOrgId: nyMap.get(x.id) ?? null, status: x.status === "accepted" ? "confirmed" : x.status === "pending" ? "pending" : "rejected",
       };
     });
     const users = { ...ref.current.users };
@@ -237,7 +242,9 @@ export function useReal() {
           if (list.some((x) => x.id === e.id)) return p;
           const users = p.users[e.actor_user_id] ? p.users : { ...p.users, [e.actor_user_id]: { id: e.actor_user_id, name: e.actor_display_name ?? "成员", orgId: e.actor_organization_id, title: "" } };
           const mine = e.client_msg_id ? list.findIndex((x) => x.id === e.client_msg_id) : -1;
-          return { ...p, users, messages: { ...p.messages, [e.room_id]: mine >= 0 ? list.map((x, i) => (i === mine ? m : x)) : [...list, m] } };
+          const merged = mine >= 0 ? list.map((x, i) => (i === mine ? m : x)) : [...list, m];
+          merged.sort((a, b) => (seqs.current.get(a.id) ?? 0) - (seqs.current.get(b.id) ?? 0));
+          return { ...p, users, messages: { ...p.messages, [e.room_id]: merged } };
         });
       }
       const viewing = isViewingRoom(cur, e.room_id);
@@ -318,8 +325,8 @@ export function useReal() {
         if (res.verification?.status !== "verified") await api("gateway", { action: "verify", fileVersionId: res.file.id }).catch(() => null);
         await loadRoom(job.roomId);
       } else {
-        const { data, error } = await supabase.rpc("append_room_event", {
-          p_room_id: job.roomId, p_client_msg_id: clientId, p_actor_organization_id: orgId, p_event_type: "message.posted",
+        const { data, error } = await supabase.rpc("sr_post_room_message", {
+          p_room_id: job.roomId, p_client_msg_id: clientId, p_actor_organization_id: orgId,
           p_payload: job.replyTo ? { text: job.text, reply_to: job.replyTo } : { text: job.text },
         });
         if (error) throw error;

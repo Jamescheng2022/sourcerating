@@ -15,15 +15,18 @@
 | 迁移序号 | 迁移文件名称 | 核心表 / 结构变更 | 变更性质 | 状态 |
 | :--- | :--- | :--- | :--- | :--- |
 | **01** | `202609250001_p1_room_core.sql` | 建立 `rooms`, `room_members`, `room_events` 基础结构 | 基础架构 | 已应用 |
-| **02** | `202609260001_p1_room_roles.sql` | 增加组织与房间角色枚举 (`owner`, `admin`, `member`, `viewer`) | 权限拓展 | 已应用 |
-| **03** | `202609260002_p1_room_events.sql` | 事件表增加 client_msg_id 幂等键与 payload 约束 | 消息加固 | 已应用 |
-| **04** | `202609260003_p1_room_invites.sql` | 增加基于邮件绑定的项目邀请机制 | 鉴权拓展 | 已应用 |
+| **02** | `202609250002_p1_security_hardening.sql` | 增加 RLS 撤销 anon 权限加固 | 安全加固 | 已应用 |
+| **03** | `202609260001_p1_room_realtime.sql` | 事件表实时发布与复制支持 | 实时流 | 已应用 |
+| **04** | `202609260003_p1_room_files.sql` | 增加文件存储与版本管理 | 存储 | 已应用 |
 | **05** | `202609260004_p1_room_file_hardening.sql` | 增加文件哈希、版本标记与私有 Storage 权限绑定 | 存储安全 | 已应用 |
 | **06** | `20261010024202_project_inquiries.sql` | 增加工程询价单与意向登记表 | 业务流 | 已应用 |
 | **07** | `202611130001_room_core_generalization.sql` | 引入 `room_confirmations` 表，19 个 `sr_*` 核心 RPC | 业务泛化 | 已应用 |
-| **08** | `202611140001_room_file_lineage.sql` | 增加文件血缘、版本父子溯源字段 | 数据完整性 | 已应用 |
-| **09** | `202611150001_room_file_lineage_fix.sql` | 修复文件网关校验及哈希重算机制 | 缺陷修复 | 已应用 |
-| **10** | `202611160001_chatgrown_network_foundation.sql` | 增加企业/人员动态档案、私有 CRM 关系与 AI 建议草稿表 | 网络拓展 | 已应用 |
+| **08** | `202611150001_room_file_lineage_and_reason.sql` | 增加文件血缘、版本父子溯源字段 | 数据完整性 | 已应用 |
+| **09** | `202611150002_room_review_idempotency.sql` | 修复审核请求幂等与防并发重复 | 缺陷修复 | 已应用 |
+| **10** | `202611150003_open_review_dedup.sql` | 修复待审核状态去重处理 | 缺陷修复 | 已应用 |
+| **11** | `202611160001_chatgrown_network_foundation.sql` | 增加企业/人员动态档案、私有 CRM 关系与 AI 建议草稿表 | 网络拓展 | 已应用 |
+| **12** | `202611180001_p0_security_and_confirmation_hardening.sql` | 修复 sr_remove_org_member NULL 绕过，增加 verified 校验 | 安全加固 | 已应用 |
+| **13** | `202611180002_fix_confirmation_bypass_and_event_injection.sql` | 移除 proposal 绕过，增加专用 sr_post_room_message 并收回 append_room_event | 安全与完整性 | 待应用/演练 |
 
 ---
 

@@ -63,3 +63,19 @@
 ## 复审触发
 
 P0-A…E 关闭后，提交候选分支的 SHA、对应 Preview URL，以及 390/768/1440 截图和交互录屏，由 SR-01 复审。Terra 的代码审查（SR-04）不能代替本 UX/架构审查，本审查也不能代替 Terra。
+
+---
+
+# Gate 4 · Release A 终审（SR-01，2026-11-18）
+
+**裁决：FAIL。** 本节为摘要，完整意见以 SR-01 线程回复为准（已原样呈送 Owner）。
+
+- 审查对象：`candidate/release-a-launch-20261118` @ `9be62d4`（含 `604279c`），远端 HEAD 一致。
+- 证据基线问题：验收 JSON 的 `deployment_sha` 为 `d1964ee…`，**该提交不在本仓库中**；JSON 生成时间 05:02Z（12:02 +07），早于修复提交 `604279c`（13:57 +07）。因此 25/25 不覆盖本轮任何修复。
+- `qa/windows-b/artifacts/` 未入库。14 张截图中没有 Room B 聊天页，也没有 Android 真机证据。
+- 新增 P0：
+  - G4-P0-1：`sr_record_confirmation(p_proposal_id)` 可绕过 `review_staging_proposal` 的指派校验与 canonical 写入。
+  - G4-P0-2：迁移头部声称的 `append_room_event` 限制没有实现，客户端仍可伪造 `confirmation.recorded` 事件。
+  - G4-P0-3：`network/page.tsx:573` 仍渲染 `verified={true}` 的盾牌标记。
+  - G4-P0-4：迁移 `202611180001` 没有任何"已应用到 Staging"的记录；`10-migrations…` 中 5 个迁移文件名在仓库中不存在。
+- Gate 0 的 P0-C、P0-D、P0-E 仍未修复。
