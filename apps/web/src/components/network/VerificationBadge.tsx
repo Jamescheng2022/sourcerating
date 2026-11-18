@@ -14,57 +14,47 @@ export interface VerificationBadgeProps {
 }
 
 export function VerificationBadge({
-  level = "VERIFIED",
+  level = "SELF_CLAIMED",
   isPerson = false,
   showIcon = true,
   className = "",
   size = "sm",
 }: VerificationBadgeProps) {
-  if (isPerson) {
-    return (
-      <span
-        title="演示模式：模拟核验标记，非国家真实执业资格证书"
-        className={`inline-flex items-center gap-1 font-semibold rounded-md border font-mono whitespace-nowrap shrink-0 select-none ${
-          size === "xs" ? "text-[10px] px-1.5 py-0.5" : "text-xs px-2 py-0.5"
-        } bg-teal-950/80 text-teal-300 border-teal-700/60 ${className}`}
-      >
-        {showIcon && <ShieldCheck className="w-3 h-3 text-teal-400 shrink-0" />}
-        <span className="whitespace-nowrap">模拟核验</span>
-      </span>
-    );
-  }
-
   const configs: Record<
     VerificationLevel,
-    { label: string; icon: React.ComponentType<{ className?: string }>; classes: string; iconColor: string }
+    { label: string; icon: React.ComponentType<{ className?: string }>; classes: string; iconColor: string; title: string }
   > = {
     VERIFIED: {
-      label: "模拟核验",
+      label: "已核验",
       icon: ShieldCheck,
       classes: "bg-teal-950/80 text-teal-300 border-teal-700/60",
       iconColor: "text-teal-400",
+      title: "经真实合同、检测报告或平台凭据核验",
     },
     SELF_CLAIMED: {
-      label: "机构自述",
+      label: isPerson ? "个人自述" : "企业自述",
       icon: UserCheck,
       classes: "bg-sky-950/80 text-sky-300 border-sky-700/60",
       iconColor: "text-sky-400",
+      title: "由主体自主维护填报，尚未经过第三方机构核验",
     },
     AI_CANDIDATE: {
-      label: "AI 候选事实",
+      label: "AI 提议事实",
       icon: Bot,
       classes: "bg-amber-950/80 text-amber-300 border-amber-700/60",
       iconColor: "text-amber-400",
+      title: "由 AI 从会话或文件中结构化提取，待人工审核确认",
     },
     PLANNED: {
-      label: "计划预设",
+      label: "待完善",
       icon: Clock,
       classes: "bg-slate-800 text-slate-400 border-slate-700",
       iconColor: "text-slate-400",
+      title: "信息待完善",
     },
   };
 
-  const config = configs[level] || configs.VERIFIED;
+  const config = configs[level] || configs.SELF_CLAIMED;
   const Icon = config.icon;
 
   return (
@@ -72,7 +62,7 @@ export function VerificationBadge({
       className={`inline-flex items-center gap-1 font-bold rounded-md border font-mono whitespace-nowrap shrink-0 select-none ${
         size === "xs" ? "text-[10px] px-1.5 py-0.5" : "text-xs px-2 py-0.5"
       } ${config.classes} ${className}`}
-      title="原型演示：模拟核验数据，非国家真实机构认证"
+      title={config.title}
     >
       {showIcon && <Icon className={`w-3 h-3 ${config.iconColor} shrink-0`} />}
       <span className="whitespace-nowrap">{config.label}</span>

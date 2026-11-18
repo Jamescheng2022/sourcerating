@@ -161,8 +161,8 @@ function PersonPageContent({ params }: { params: Promise<{ id: string }> }) {
                 skills={profile.skills || []}
                 isRestricted={false}
                 isDraft={profile.visibility === "private"}
-                verified={Boolean(profile.published_at)}
-                verificationLevel={profile.published_at ? "VERIFIED" : "SELF_CLAIMED"}
+                verified={false}
+                verificationLevel={profile.published_at ? "SELF_CLAIMED" : null}
                 onEditClick={isSelf ? () => { window.location.href = "/project-room-b/network"; } : undefined}
                 backRoomId={fromRoom}
               />

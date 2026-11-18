@@ -359,18 +359,24 @@ export function RealPanel({ real }: { real: Real }) {
   const pick = useRef<HTMLInputElement>(null);
   const target = useRef<string | null>(null);
   if (!room) return null;
-  const tab = s.panel.tab === "files" || s.panel.tab === "ai" ? s.panel.tab : "people";
+  const tab = s.panel.tab === "files" || s.panel.tab === "ai" || s.panel.tab === "review" ? s.panel.tab : "people";
   const files = s.files.filter((f) => f.roomId === room.id);
   const lineages = Array.from(new Set(files.map((f) => f.lineage)));
   const turns = s.aiTurns.filter((t) => t.roomId === room.id);
+  const proposals = s.proposals.filter((p) => p.roomId === room.id);
+  const pendingProposals = proposals.filter((p) => p.status === "pending");
   const admin = room.myRole === "admin";
   const orgAdmin = s.memberships.some((m) => m.orgId === s.orgId && m.role !== "member");
   return (
     <div className={css.panel}>
       <div className={css.panelHead}>
         <div className={css.tabs} role="tablist">
-          {([["people", "成员"], ["files", "文件与确认"], ["ai", "AI"]] as const).map(([k, label]) => (
-            <button key={k} type="button" role="tab" data-state={tab === k ? "active" : ""} onClick={() => actions.openPanel(k)}>{label}{k === "files" && files.length > 0 && <i style={{ background: "#575d64" }}>{lineages.length}</i>}</button>
+          {([["people", "成员"], ["files", "文件与确认"], ["review", "待确认"], ["ai", "AI"]] as const).map(([k, label]) => (
+            <button key={k} type="button" role="tab" data-state={tab === k ? "active" : ""} onClick={() => actions.openPanel(k)}>
+              {label}
+              {k === "files" && files.length > 0 && <i style={{ background: "#575d64" }}>{lineages.length}</i>}
+              {k === "review" && pendingProposals.length > 0 && <i style={{ background: "#0d9488" }}>{pendingProposals.length}</i>}
+            </button>
           ))}
         </div>
         <button type="button" className={css.iconBtn} onClick={actions.closePanel} aria-label="关闭面板"><X size={18} /></button>
@@ -455,6 +461,52 @@ export function RealPanel({ real }: { real: Real }) {
                 </section>
               );
             })}
+          </>
+        )}
+        {tab === "review" && (
+          <>
+            <div className={rc.row}>
+              <span className={`${css.hint} ${rc.grow}`}>AI 结构化整理事项 · 需由人类审核确认</span>
+            </div>
+            {proposals.length === 0 && (
+              <p className={css.hint}>当前房间暂无待确认或需决策的事项。</p>
+            )}
+            {proposals.map((p) => (
+              <div key={p.id} className={css.card} data-testid="proposal-card" style={{ marginBottom: 12 }}>
+                <h4>{p.title}</h4>
+                {p.detail && <p style={{ whiteSpace: "pre-wrap", margin: "6px 0" }}>{p.detail}</p>}
+                <div className={rc.chips}>
+                  {p.sources.filter(Boolean).map((id, i) => (
+                    <button key={id} type="button" className={rc.chip} onClick={() => actions.jumpTo(id)}>
+                      来源消息 {i + 1}
+                    </button>
+                  ))}
+                </div>
+                {p.status === "pending" ? (
+                  <div className={rc.row} style={{ marginTop: 10, gap: 8 }}>
+                    <button
+                      type="button"
+                      className={rc.mini}
+                      data-primary="true"
+                      onClick={() => void actions.review(p.id, "confirmed")}
+                    >
+                      <Check size={13} /> 确认此项
+                    </button>
+                    <button
+                      type="button"
+                      className={rc.mini}
+                      onClick={() => void actions.review(p.id, "rejected")}
+                    >
+                      <X size={13} /> 驳回
+                    </button>
+                  </div>
+                ) : (
+                  <div className={rc.row} style={{ marginTop: 10, color: p.status === "confirmed" ? "#0f766e" : "#b91c1c", fontSize: 13, fontWeight: 600 }}>
+                    {p.status === "confirmed" ? "✓ 已确认" : "✕ 已驳回"}
+                  </div>
+                )}
+              </div>
+            ))}
           </>
         )}
         {tab === "ai" && (

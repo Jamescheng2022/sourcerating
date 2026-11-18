@@ -166,8 +166,8 @@ function CompanyPageContent({ params }: { params: Promise<{ id: string }> }) {
                 description={profile.description}
                 isRestricted={false}
                 isDraft={profile.visibility === "private"}
-                verified={Boolean(profile.published_at)}
-                verificationLevel={profile.published_at ? "VERIFIED" : "SELF_CLAIMED"}
+                verified={false}
+                verificationLevel={profile.published_at ? "SELF_CLAIMED" : null}
                 onEditClick={isOrgAdmin ? () => { window.location.href = "/project-room-b/network"; } : undefined}
                 backRoomId={fromRoom}
               />
