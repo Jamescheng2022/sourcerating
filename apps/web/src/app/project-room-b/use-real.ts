@@ -245,7 +245,29 @@ export function useReal() {
           const users = p.users[e.actor_user_id] ? p.users : { ...p.users, [e.actor_user_id]: { id: e.actor_user_id, name: e.actor_display_name ?? "成员", orgId: e.actor_organization_id, title: "" } };
           const mine = e.client_msg_id ? list.findIndex((x) => x.id === e.client_msg_id) : -1;
           const merged = mine >= 0 ? list.map((x, i) => (i === mine ? m : x)) : [...list, m];
-          merged.sort((a, b) => (seqs.current.get(a.id) ?? 0) - (seqs.current.get(b.id) ?? 0));
+          merged.sort((a, b) => {
+            const sa = seqs.current.get(a.id);
+            const sb = seqs.current.get(b.id);
+            const va = sa !== undefined ? sa : Number.MAX_SAFE_INTEGER;
+            const vb = sb !== undefined ? sb : Number.MAX_SAFE_INTEGER;
+            return va - vb;
+          });
+          // Gap detection: check if incoming seq skipped ahead of highest known seq
+          const topKnown = Math.max(0, ...list.map((x) => seqs.current.get(x.id) ?? 0));
+          if (topKnown > 0 && e.seq > topKnown + 1) {
+            void (async () => {
+              const { data: missing } = await supabase
+                .from("room_events")
+                .select("*")
+                .eq("room_id", e.room_id)
+                .gt("seq", topKnown)
+                .lt("seq", e.seq)
+                .order("seq");
+              if (missing && missing.length > 0) {
+                ((missing as unknown) as EventRow[]).forEach(onEvent);
+              }
+            })();
+          }
           return { ...p, users, messages: { ...p.messages, [e.room_id]: merged } };
         });
       }

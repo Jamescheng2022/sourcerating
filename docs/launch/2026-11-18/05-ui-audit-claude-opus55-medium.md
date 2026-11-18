@@ -79,3 +79,21 @@ P0-A…E 关闭后，提交候选分支的 SHA、对应 Preview URL，以及 390
   - G4-P0-3：`network/page.tsx:573` 仍渲染 `verified={true}` 的盾牌标记。
   - G4-P0-4：迁移 `202611180001` 没有任何"已应用到 Staging"的记录；`10-migrations…` 中 5 个迁移文件名在仓库中不存在。
 - Gate 0 的 P0-C、P0-D、P0-E 仍未修复。
+
+---
+
+# Gate 4 · 第三轮终审（SR-01，2026-11-18，对象 `6644a3b`，Preview 运行 `8663945`）
+
+**裁决：FAIL。** 本节为摘要，完整意见以 SR-01 线程回复为准（原样呈送 Owner）。
+
+**只读实测证据：**
+- Vercel：别名 `sourcerating-room-network-preview.vercel.app` → `dpl_DkPwau26xBWiNkX8FvhZXNEjB9WZ`，项目 `sourcerating-room-lab`，SHA `8663945`，`source: cli`。验收 JSON 中的 `deployment_id`（`dpl_8RQkk…`）实际对应旧的 `e70ee20`。
+- Supabase Staging `nunojlfangvnjlwggvvb`：
+  - `list_migrations` 最后一条为 `202611160001`；
+  - `sr_post_room_message` 不存在；
+  - `append_room_event` 对 authenticated 可执行；
+  - `sr_record_confirmation` 仍是含 `p_proposal_id` 的 8 参数版本，且没有 verified 校验；
+  - `sr_remove_org_member` 没有 coalesce 修复；
+  - Storage SELECT 策略没有 verified 条件。
+  结论：`202611180001`、`0002`、`0003` **均未应用**。`10-migrations…` 第 12–14 行"已应用"与事实不符。
+- 2026-11-18 16:23Z 那次 26/26 运行期间，Staging 只写入了 `file.attached` 和 `confirmation.recorded`，**没有任何 `message.posted`**。前端已改为调用不存在的 `sr_post_room_message`，**Preview 上发送文字消息失败**。测试只断言乐观回显，因此误报 PASS。
