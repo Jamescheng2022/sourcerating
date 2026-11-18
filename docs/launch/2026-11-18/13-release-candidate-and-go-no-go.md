@@ -5,7 +5,7 @@
 **Lead Authority:** SR-00 (AGY Lead · Launch Control)  
 **Independent Reviewers:** SR-01 (Claude Opus 5.5 Medium) & SR-04 (GPT-6.1 Terra Medium)  
 **QA Verification:** SR-05 (AGY QA)  
-**Candidate Commit:** `7629b5dbcea55a6e1b7b2c69d101618a527db5ec` on `candidate/release-a-launch-20261118`
+**Candidate Commit:** `585e4c3` on `candidate/release-a-launch-20261118` (HEAD pushed to origin)
 
 ---
 
