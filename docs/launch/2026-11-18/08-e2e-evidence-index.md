@@ -11,10 +11,11 @@
 
 | 凭证类型 | 文件相对路径 | 对应测试项 | 状态与关键指标 |
 | :--- | :--- | :--- | :--- |
-| **验收汇总 JSON** | `qa/windows-b/artifacts/live-preview/live-preview-acceptance.json` | 25 项全量动态指标 | 25 Passed, 0 Failed, Duration ~182s |
+| **验收汇总 JSON** | `qa/windows-b/artifacts/live-preview/live-preview-acceptance.json` | 26 项全量动态指标 (含待确认ReviewTab) | 26 Passed, 0 Failed, Deployment SHA: `8663945` |
 | **配置合规测试日志** | `apps/web/scripts/public-supabase-settings.test.mjs` | 配置与安全门禁 | 6 Passed, 0 Failed |
 | **契约隔离测试日志** | `apps/web/scripts/network-feature-contract.test.cjs` | RLS 隐私与 AI 鉴权 | 3 Passed, 0 Failed |
-| **AI 商业意图测试** | `apps/web/scripts/business-intent.test.mjs` | 多语言与意图提取 | 27 Passed, 0 Failed |
+| **Postgres RLS 隔离测试** | `supabase/tests/chatgrown_network_rls.test.mjs` | 租户隔离、原子RPC与回滚验证 | 18 Passed, 0 Failed |
+| **AI 商业意图与多角色测试**| `apps/web/scripts/business-intent.test.mjs` 等 | 多语言与意图提取 | 27 Passed, 0 Failed |
 
 ---
 
@@ -24,8 +25,11 @@
 
 | 截图文件标识 | 分辨率 / 设备 | 渲染路由 | 验证关键点 |
 | :--- | :--- | :--- | :--- |
-| `live-identity-company-target-1440.png` | 1440x900 桌面端 | `/companies/:id` | 真实企业名称 `QA Supplier 11140033`，受限隐私视图，0 私有笔记泄漏 |
-| `live-identity-person-target-1440.png` | 1440x900 桌面端 | `/people/:id` | 真实人员名称 `Ben`，受限名片视图，0 私密资料泄漏 |
+| `live-room-b-chat-1440.png` | 1440x900 桌面端 | `/project-room-b` | Project Room B 核心三栏布局、真实消息流转与待确认面板 |
+| `live-room-b-chat-768-tablet.png` | 768x1024 (iPad) | `/project-room-b` | 平板端 Project Room B 响应式布局与折叠侧栏 |
+| `live-room-b-chat-390-mobile.png` | 390x844 (iPhone 14) | `/project-room-b` | 移动端 Project Room B 底部抽屉与无横向溢出 |
+| `live-identity-company-target-1440.png` | 1440x900 桌面端 | `/companies/:id` | 真实企业名称 `QA Supplier 11140033`，受限隐私视图，0 私有笔记泄漏，去调试信息 |
+| `live-identity-person-target-1440.png` | 1440x900 桌面端 | `/people/:id` | 真实人员名称 `Ben`，受限名片视图，0 私密资料泄漏，去伪核验徽章 |
 | `live-identity-company-390-mobile.png` | 390x844 (iPhone 14) | `/companies/:id` | 移动端自适应无横向溢出，返回房间按钮触控合规 |
 | `live-identity-person-390-mobile.png` | 390x844 (iPhone 14) | `/people/:id` | 移动端自适应无横向溢出，名片胶囊自然折行 |
 | `live-buyer-a1-network-1440.png` | 1440x900 桌面端 | `/project-room-b/network` | 买方 A1 操作企业草稿、DeepSeek AI 建议卡片、私有 CRM |

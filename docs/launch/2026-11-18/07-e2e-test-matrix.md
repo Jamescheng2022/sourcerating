@@ -63,18 +63,19 @@
 | **Room B 回归** | **R01** | 聊天室实时消息流 | 发送带时间戳唯一消息，在时间线中完成实时呈现 | **PASS** | `R01-realtime-msg` |
 | | **R02** | Chat-First 原则核查 | 4 账号登录进入页面，阻断式资料完善弹窗数为 0 | **PASS** | `R02-zero-modal` |
 | | **R03** | 真实文件流转与状态机 | 上传规范 PDF 文件，点击确认，状态动态断言更新为 `QB1 已确认` | **PASS** | `R03-file-confirmation` |
-| | **R04** | 房间 AI 助手总结能力 | 切换 AI 面板并点击总结，生成包含规格与价格的结构化摘要 | **PASS (8.5s)** | `R04-ai-summary` |
+| | **R04** | 房间 AI 助手总结能力 | 切换 AI 面板并点击总结，生成包含规格与价格的结构化摘要 | **PASS (9.6s)** | `R04-ai-summary` |
+| | **R05** | 待确认面板与闭环 | Room B 面板 `待确认` (review) Tab 可见并可交互，支持人工审核闭环 | **PASS** | `R05-review-tab` |
 | **多视口适配** | **L01** | 390px 移动端布局断言 | Viewport 390x844，Network/Company/Person 三路由 `scrollWidth<=innerWidth` | **PASS (0 overflow)**| `L01-mobile-390-fit` |
 | | **L02** | 768px 平板端布局断言 | Viewport 768x1024，0 横向溢出，自适应网格排布 | **PASS** | `L02-tablet-768-fit` |
 | | **L03** | 1440px 桌面端双列断言 | Viewport 1440x900，0 横向溢出，双列平衡排布与卡片对齐 | **PASS** | `L03-desktop-1440-fit` |
 
 ---
 
-### 四、 独立审查发现的待增补回归项 (Gap Remediation in Gate 1~4)
+### 四、 独立审查发现的回归补强项已闭环落实 (Remediated & Verified)
 
-依据 SR-01 与 SR-04 的审查结论，测试矩阵需追加以下负向拦截用例：
-1. **[E-NEG-01]** 组织非管理员尝试调用 `sr_remove_org_member` 移除其他成员，必须严格返回 `42501` (Unauthorized)。
-2. **[E-NEG-02]** 房间普通成员直接调用 `append_room_event` 插入 `confirmation.recorded` 事件，必须被数据库拒绝。
-3. **[E-NEG-03]** 客户端绕过网关直接读取 Storage 桶中 `pending` 状态文件，必须严格拒绝。
-4. **[E-NEG-04]** 针对未核验哈希的文件发起 `sr_record_confirmation`，必须严格抛出异常。
-5. **[E-UX-01]** Room B 右侧面板集成 `review` Tab，实现点击顶栏“待确认”徽章直达审批卡片。
+依据 SR-01 与 SR-04 的审查结论，以下安全与完整性用例均已在迁移 `202611180003` 及端到端实测中全面通过：
+1. **[E-NEG-01]** 组织非管理员尝试调用 `sr_remove_org_member` 移除其他成员，严格返回 `42501` (Unauthorized) — **已验证**。
+2. **[E-NEG-02]** 房间普通成员直接调用 `append_room_event`，execute 权限已被 REVOKE，仅开放专用校验函数 `sr_post_room_message` — **已验证**。
+3. **[E-NEG-03]** 客户端绕过网关直接读取 Storage 桶中 `pending` 或非 verified 状态文件，RLS 严格拦截 — **已验证**。
+4. **[E-NEG-04]** 针对未核验哈希的文件发起 `sr_record_confirmation`，服务端签名严格校验 `v_f.verification_status = 'verified'` 并抛出异常 — **已验证**。
+5. **[E-UX-01]** Room B 右侧面板集成 `review` Tab，实现真实待确认事项人工审批闭环 — **已验证**。

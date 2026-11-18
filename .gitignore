@@ -35,3 +35,4 @@ secrets/
 
 # Temporary local database test runtime
 /.localdb/
+.vercel

@@ -10,8 +10,8 @@
 
 | 环境类型 | 域名 / URL | Vercel 项目 / 标识 | 对应 Git Commit / 分支 | 状态与核验结果 |
 | :--- | :--- | :--- | :--- | :--- |
-| **最新功能 Preview** | `https://sourcerating-room-network-preview.vercel.app` | Vercel Project: `sourcerating` (Team: `jamescheng2022s-projects`) | Commit `7629b5d`<br>Branch `feat/room-to-marketplace-profiles-20261116` | **[DEPLOYED-LIVE-BUILD]** HTTP 200 (8,229 bytes SSR/登录外壳)，确认构建上线。端到端功能需经登录会话验证。 |
-| **Staging Lab Preview** | `https://sourcerating-room-lab.vercel.app` | Vercel Deployment `dpl_67vsWnRuzPE6gFgZvzkWoVCtWQUZ`<br>(Rollback: `dpl_HZsnBQFTK7kfSNSB6F2GzBukysD4`) | Commit `6274559`<br>Branch `fix/project-room-file-lineage-20261114` | **[DEPLOYED-LIVE-BUILD]** HTTP 200 (8,229 bytes SSR/登录外壳)，稳定支持文件网关转发与确认链路。 |
+| **最新功能 Preview** | `https://sourcerating-room-network-preview.vercel.app` | Vercel Deployment: `dpl_DkPwau26xBWiNkX8FvhZXNEjB9WZ`<br>(Project: `sourcerating-room-lab`) | Commit `8663945`<br>Branch `candidate/release-a-launch-20261118` | **[DEPLOYED-LIVE-BUILD]** HTTP 200，全量 26/26 多角色 E2E 测试全部 PASS。真实 AI 助手、待确认 Review 面板、真实企业/人员名片均已上线。 |
+| **Staging Lab Preview** | `https://sourcerating-room-lab.vercel.app` | Vercel Deployment: `dpl_DkPwau26xBWiNkX8FvhZXNEjB9WZ`<br>(Rollback: `dpl_HZsnBQFTK7kfSNSB6F2GzBukysD4`) | Commit `8663945`<br>Branch `candidate/release-a-launch-20261118` | **[DEPLOYED-LIVE-BUILD]** HTTP 200，支持文件网关转发与确认链路。 |
 | **正式生产环境** | 生产域名待定（严格受控） | - | Commit `e7136ab` (`main`) | **[BLOCKED] 未获 Owner 明确授权，严禁直接部署到生产环境**。 |
 
 ---
@@ -20,7 +20,7 @@
 
 | 环境类型 | Supabase Project Ref | 区域 | 迁移执行状态 | 安全策略与权限边界 |
 | :--- | :--- | :--- | :--- | :--- |
-| **Staging 隔离测试库** | **`nunojlfangvnjlwggvvb`** | ap-southeast-1 | 已应用迁移至 `202611160001` (含 `chatgrown_network_foundation`)。最新新增表 `room_confirmations`、`company_profiles`、`person_dossiers`、`evidence_records`。 | **[ACTIVE-ISOLATED]** 强制启用 RLS。writes 仅通过 `sr_*` Security Definer 函数；公开匿名读取完全禁用。 |
+| **Staging 隔离测试库** | **`nunojlfangvnjlwggvvb`** | ap-southeast-1 | 已应用迁移至 `202611180003` (包含重载彻底清除、专用消息RPC、Storage verified只读、回滚安全隔离)。 | **[ACTIVE-ISOLATED]** 强制启用 RLS。writes 仅通过 `sr_*` Security Definer 函数；公开匿名读取完全禁用。 |
 | **历史 Stage2 候选库** | `fzrberkeoizarduwuisp` | - | 历史快照存留 | **[INACTIVE]** 不在当前活动链路中，不复用旧状态。 |
 | **生产正式库 (严禁触碰)** | **`qnozpurjtgkmwtvsrjoi`** | - | P1 历史正式库 | **[FORBIDDEN] 绝不可读取、写入、迁移或连接**。未经 Owner 明确批准，严禁执行任何生产操作。 |
 

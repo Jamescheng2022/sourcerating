@@ -1,0 +1,72 @@
+{
+  "timestamp": "2026-11-18T16:23:59.834Z",
+  "environment": "Live Preview on Vercel backed by migrated Supabase Staging (nunojlfangvnjlwggvvb)",
+  "preview_url": "https://sourcerating-room-network-preview.vercel.app",
+  "deployment_id": "dpl_8RQkkdLAfPKqU59SzrEVJuuqdnM6",
+  "deployment_sha": "8663945ef09ccda3360661aace37c2faaecef3ef",
+  "database_project": "nunojlfangvnjlwggvvb",
+  "personas_tested": [
+    "a1 (Buyer Admin)",
+    "a2 (Buyer Engineer)",
+    "b1 (Supplier Admin)",
+    "b2 (Isolated User)"
+  ],
+  "results": {
+    "network_e2e": {
+      "counterparty_room_detection": "PASS",
+      "counterparty_prefill": "PASS (Authentic match: \"QA Supplier 11140033\")",
+      "save_private_relationship": "PASS",
+      "ai_brochure_extraction": "PASS (Generated in 4466ms)",
+      "atomic_decision_rpc": "PASS",
+      "cross_company_rls_isolation": "PASS (0 leaks)",
+      "non_admin_role_gating": "PASS",
+      "persona_b2_isolation": "PASS (0 leaks, strict room & network isolation)"
+    },
+    "identity_accuracy": {
+      "room_links_parameterized": "PASS (Real organization_id & user_id in route)",
+      "target_company_identity_match": "PASS (Verified: \"QA Supplier 11140033\")",
+      "target_company_privacy_and_truth": "PASS (RLS restricted state, truthful unverified badge, 0 leaks)",
+      "target_person_identity_match": "PASS (Verified counterparty member: \"Ben\")",
+      "target_person_privacy_and_truth": "PASS (RLS restricted state, truthful unverified badge, 0 leaks)",
+      "bidirectional_room_return": "PASS (Both company and person routes return seamlessly to Room B)"
+    },
+    "v45_frontend_integration": {
+      "company_dossier_view": "PASS (Draft pill, capabilities, verified return link)",
+      "person_dossier_view": "PASS (Pill, skills, verified layout)",
+      "network_directory_view": "PASS (Directory header, counterparty cards, status pills)",
+      "room_bidirectional_links": "PASS (Bidirectional links to /companies/:id & /people/:id)"
+    },
+    "regression_room_b": {
+      "messaging": "PASS",
+      "chat_first_no_forced_modal": "PASS",
+      "files_and_approvals": "PASS (Uploaded qa-joint-spec-1795019015934.pdf, approval transitioned to: QB1 已确认)",
+      "ai_assist_available": "PASS (Real summary in 9622ms, len: 253)",
+      "review_tab_available": "PASS"
+    },
+    "responsive_layouts": {
+      "mobile_390": "PASS (0 overflow across Network, Company and Person routes, buttons bounded)",
+      "tablet_768": "PASS (Responsive grid layout, 0 overflow)",
+      "desktop_1440": "PASS (Balanced 2-column desktop layout, 0 overflow)"
+    }
+  },
+  "screenshots": [
+    "live-room-b-chat-1440.png",
+    "live-room-b-chat-768-tablet.png",
+    "live-room-b-chat-390-mobile.png",
+    "live-buyer-a1-network-1440.png",
+    "live-supplier-b1-network-1440.png",
+    "live-engineer-a2-network-1440.png",
+    "live-isolated-b2-network-1440.png",
+    "live-identity-company-target-1440.png",
+    "live-identity-person-target-1440.png",
+    "live-identity-company-390-mobile.png",
+    "live-identity-person-390-mobile.png",
+    "live-v45-company-dossier-1440.png",
+    "live-v45-person-dossier-1440.png",
+    "live-v45-network-directory-1440.png",
+    "live-network-390-mobile.png",
+    "live-network-768-tablet.png",
+    "live-network-1440-desktop.png"
+  ],
+  "verdict": "ALL_PASS"
+}
