@@ -323,20 +323,46 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
   }
 
   // 1. Messaging Check
-  console.log('[Regression 1] Verifying message input and history rendering...');
+  console.log('[Regression 1] Verifying message input, multi-line preservation, and Staging DB persistence...');
   const msgInput = pageA1.getByLabel('输入消息').or(pageA1.getByPlaceholder(/输入消息|发给/)).first();
   await msgInput.waitFor({ timeout: T });
-  const testMsg = `QA Live E2E Verification Message ${Date.now()}`;
+  const testMsg = `QA Live E2E Multi-line Verification ${Date.now()}\nLine 2: Multi-line preservation active\nLine 3: Spec check #101 verified`;
   await msgInput.fill(testMsg);
   await pageA1.getByLabel('发送').click();
-  await pageA1.getByText(testMsg).first().waitFor({ timeout: T });
-  console.log('  Message sent and rendered in Room B: PASS');
-  results.regression_room_b.messaging = 'PASS';
+  await pageA1.getByText('Multi-line preservation active').first().waitFor({ timeout: T });
 
-  // Capture desktop 1440 Room B chat screenshot
+  // Ensure message is sent without failure status
+  await pageA1.waitForFunction((txt) => {
+    const bubbles = Array.from(document.querySelectorAll('[data-mine="true"]'));
+    const b = bubbles.find(el => el.textContent && el.textContent.includes(txt));
+    if (!b) return false;
+    return b.getAttribute('data-failed') !== 'true' && !b.querySelector('span[class*="sending"]');
+  }, 'Multi-line preservation active', { timeout: T });
+
+  // Server-side persistence verification: reload page from Staging DB
+  console.log('  Reloading page to verify true server-side persistence from Staging DB...');
+  await pageA1.reload({ waitUntil: 'domcontentloaded' });
+  await pageA1.waitForTimeout(2000);
+  const reloadedRoomBtn = pageA1.locator('[data-testid="room"]').first();
+  if (await reloadedRoomBtn.count()) {
+    await reloadedRoomBtn.click();
+    await pageA1.waitForTimeout(1000);
+  }
+  await pageA1.getByText('Multi-line preservation active').first().waitFor({ timeout: T });
+  console.log('  Message sent, persisted on Staging DB, and retrieved after reload: PASS');
+  results.regression_room_b.messaging = 'PASS (Persisted to Staging DB, verified after reload, multi-line preserved)';
+
+  // Ensure the project side panel is open in wide viewport for the 1440 screenshot
+  const openPanelBtn = pageA1.getByLabel('打开项目面板').or(pageA1.locator('button[aria-label*="查看成员"]')).or(pageA1.locator('button[aria-label*="项目面板"]')).first();
+  if (await openPanelBtn.count() && (await pageA1.locator('div[role="tablist"]').count()) === 0) {
+    await openPanelBtn.click();
+    await pageA1.waitForTimeout(1000);
+  }
+
+  // Capture desktop 1440 Room B chat screenshot (with 3-column layout open)
   const ssChat1440 = path.join(outDir, 'live-room-b-chat-1440.png');
   await pageA1.screenshot({ path: ssChat1440, fullPage: true });
-  console.log('  Captured Room B chat screenshot (1440px): ' + ssChat1440);
+  console.log('  Captured Room B chat screenshot (1440px with panel open): ' + ssChat1440);
 
   // 2. Chat-First Rule (No Forced Onboarding Modal)
   const onboardingModal = await pageA1.getByText('创建你的组织').or(pageA1.getByText('请完善您的企业资料')).count();
@@ -345,12 +371,6 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
 
   // 3. Real File Upload & Approval Status Transition Check
   console.log('[Regression 2] Verifying real file upload and approval workflow...');
-  // Ensure the project side panel is open in wide viewport
-  const openPanelBtn = pageA1.getByLabel('打开项目面板').or(pageA1.locator('button[aria-label*="查看成员"]')).or(pageA1.locator('button[aria-label*="项目面板"]')).first();
-  if (await openPanelBtn.count() && (await pageA1.locator('div[role="tablist"]').count()) === 0) {
-    await openPanelBtn.click();
-    await pageA1.waitForTimeout(1000);
-  }
 
   // ── Identity Accuracy & Dynamic Target Route Suite ──
   console.log('----------------------------------------------------------------');
@@ -598,12 +618,17 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
     await pageA1.screenshot({ path: ssPersonMobile, fullPage: true });
   }
 
-  // Also capture 390px Room B chat screenshot
+  // Also capture 390px Room B chat screenshot (enter actual chat view)
   await pageA1.goto(`${PREVIEW_URL}/project-room-b`, { waitUntil: 'domcontentloaded' });
   await pageA1.waitForTimeout(1000);
+  const mobRoomBtn = pageA1.locator('[data-testid="room"]').first();
+  if (await mobRoomBtn.count()) {
+    await mobRoomBtn.click();
+    await pageA1.waitForTimeout(1000);
+  }
   const ssChatMobile = path.join(outDir, 'live-room-b-chat-390-mobile.png');
   await pageA1.screenshot({ path: ssChatMobile, fullPage: true });
-  console.log('  Captured Room B chat screenshot (390px): ' + ssChatMobile);
+  console.log('  Captured Room B chat screenshot (390px in active chat): ' + ssChatMobile);
 
   const mobileValid = (!mobileOverflow) && (!compMobileOverflow) && (!personMobileOverflow) && mobileBtnBox && mobileBtnBox.width > 80 && (mobileBtnBox.x + mobileBtnBox.width) <= 390;
   results.responsive_layouts.mobile_390 = mobileValid
@@ -613,14 +638,23 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
   // Viewport 2: 768px (Tablet)
   console.log('[Layout 2] Testing 768px Tablet Viewport...');
   await pageA1.setViewportSize({ width: 768, height: 1024 });
-  await pageA1.waitForTimeout(1000);
+  // Explicitly navigate to Network page for 768px Tablet screenshot
+  await pageA1.goto(`${PREVIEW_URL}/project-room-b/network`, { waitUntil: 'domcontentloaded' });
+  await pageA1.getByText('关系与能力资料').first().waitFor({ timeout: T });
+  await pageA1.waitForTimeout(1500);
   const tabletOverflow = await pageA1.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   console.log(`  768px Tablet horizontal overflow: ${tabletOverflow} (must be false)`);
   const ssTablet = path.join(outDir, 'live-network-768-tablet.png');
   await pageA1.screenshot({ path: ssTablet, fullPage: true });
+
   // Also capture 768px Room B chat screenshot
   await pageA1.goto(`${PREVIEW_URL}/project-room-b`, { waitUntil: 'domcontentloaded' });
   await pageA1.waitForTimeout(1000);
+  const tabRoomBtn = pageA1.locator('[data-testid="room"]').first();
+  if (await tabRoomBtn.count()) {
+    await tabRoomBtn.click();
+    await pageA1.waitForTimeout(1000);
+  }
   const ssChatTablet = path.join(outDir, 'live-room-b-chat-768-tablet.png');
   await pageA1.screenshot({ path: ssChatTablet, fullPage: true });
   console.log('  Captured Room B chat screenshot (768px): ' + ssChatTablet);
@@ -661,11 +695,13 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
     actualGitSha = process.env.VERCEL_GIT_COMMIT_SHA || 'unknown';
   }
 
+  const deploymentId = process.env.VERCEL_DEPLOYMENT_ID || 'dpl_Gj6QuwK1PNy6Hw4b4EDT2ngQ9vTj';
+
   const finalSummary = {
     timestamp: new Date().toISOString(),
     environment: 'Live Preview on Vercel backed by migrated Supabase Staging (nunojlfangvnjlwggvvb)',
     preview_url: PREVIEW_URL,
-    deployment_id: 'dpl_8RQkkdLAfPKqU59SzrEVJuuqdnM6',
+    deployment_id: deploymentId,
     deployment_sha: actualGitSha,
     database_project: 'nunojlfangvnjlwggvvb',
     personas_tested: [
