@@ -26,26 +26,31 @@
 | **10** | `202611150003_open_review_dedup.sql` | 修复待审核状态去重处理 | 缺陷修复 | 已应用 |
 | **11** | `202611160001_chatgrown_network_foundation.sql` | 增加企业/人员动态档案、私有 CRM 关系与 AI 建议草稿表 | 网络拓展 | 已应用 |
 | **12** | `202611180001_p0_security_and_confirmation_hardening.sql` | 修复 sr_remove_org_member NULL 绕过，增加 verified 校验 | 安全加固 | 已应用 |
-| **13** | `202611180002_fix_confirmation_bypass_and_event_injection.sql` | 移除 proposal 绕过，增加专用 sr_post_room_message 并收回 append_room_event | 安全与完整性 | 待应用/演练 |
+| **13** | `202611180002_fix_confirmation_bypass_and_event_injection.sql` | 移除 proposal 绕过，增加专用 sr_post_room_message 并收回 append_room_event | 安全与完整性 | 已应用 |
+| **14** | `202611180003_consolidate_security_and_close_overloads.sql` | 清除重载冲突、统一2参数sr_room_role、加固Storage直接下载 | 架构与安全收敛 | 已应用 |
 
 ---
 
 ### 二、 可逆回滚脚本与执行演练 (Reversible Rollbacks)
 
-所有新特性迁移均配备对应的反向脚本，严禁不可逆迁移。以最新网络层迁移为例：
+所有新特性迁移均配备对应的反向脚本，严禁不可逆迁移。为防止按字母序执行所有迁移的自动化测试工具误执行回滚，所有回滚脚本集中管理于 `supabase/rollbacks/` 目录：
 
 #### 回滚脚本定位：
-`supabase/migrations/202611160001_chatgrown_network_foundation_rollback.sql`
+- `supabase/rollbacks/202611160001_chatgrown_network_foundation_rollback.sql`
+- `supabase/rollbacks/202611180001_p0_security_and_confirmation_hardening_rollback.sql`
+- `supabase/rollbacks/202611180002_fix_confirmation_bypass_and_event_injection_rollback.sql`
+- `supabase/rollbacks/202611180003_consolidate_security_and_close_overloads_rollback.sql`
 
 #### 回滚内容概要：
 1. 删除 `sr_decide_profile_suggestion`、`sr_save_org_relationship` 等新增 RPC；
 2. 撤销针对 `sr_org_profiles`、`sr_person_profiles`、`sr_organization_relationships` 的 RLS 策略；
-3. 优雅删除相关私有数据表，不影响核心房间通讯与文件流转。
+3. 针对 `sr_record_confirmation` 与 `sr_post_room_message` 提供平滑回退，恢复原权限；
+4. 优雅删除相关私有数据表，不影响核心房间通讯与文件流转。
 
 #### 演练与回滚命令：
 ```bash
 # 在隔离 Staging 环境演练回滚（绝不可在生产库执行）
-psql "$STAGING_DATABASE_URL" -f supabase/migrations/202611160001_chatgrown_network_foundation_rollback.sql
+psql "$STAGING_DATABASE_URL" -f supabase/rollbacks/202611160001_chatgrown_network_foundation_rollback.sql
 # 验证核心聊天表 rooms 与 room_events 结构完好
 npm run test:config
 ```
