@@ -182,8 +182,10 @@ export function useReal() {
       id: c.id, roomId, fileVersionId: c.file_version_id, sha: c.file_sha256, orgId: c.organization_id, userId: c.user_id, decision: c.decision, comment: c.comment, at: c.created_at,
     }));
     const nyMap = new Map<string, string>();
-    for (const n of ((ny?.data ?? []) as { proposal_id?: string; target_organization_id?: string }[])) {
-      if (n.proposal_id && n.target_organization_id) nyMap.set(n.proposal_id, n.target_organization_id);
+    for (const n of ((ny?.data ?? []) as { proposal_id?: string; target_organization_id?: string; status?: string }[])) {
+      if (n.proposal_id && n.target_organization_id && (!n.status || n.status === "open")) {
+        nyMap.set(n.proposal_id, n.target_organization_id);
+      }
     }
     const proposals: Proposal[] = (pr.data ?? []).map((x) => {
       const pl = (x.payload ?? {}) as Record<string, unknown>;
@@ -455,7 +457,11 @@ export function useReal() {
     dismissSplit: (id: string) => set((p) => ({ ...p, splits: p.splits.filter((x) => x.id !== id) })),
     review: async (id: string, status: "confirmed" | "rejected" | "pending") => {
       if (!room || status === "pending") return;
-      await rpc("review_staging_proposal", { p_proposal_id: id, p_action: status === "confirmed" ? "accept" : "dismiss", p_actor_organization_id: ref.current.orgId, p_payload_override: null }).catch(() => null);
+      try {
+        await rpc("review_staging_proposal", { p_proposal_id: id, p_action: status === "confirmed" ? "accept" : "dismiss", p_actor_organization_id: ref.current.orgId, p_payload_override: null });
+      } catch (err) {
+        fail(err);
+      }
       void loadRoom(room.id);
     },
     createRoom: () => {},
