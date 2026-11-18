@@ -10,8 +10,8 @@
 
 | 环境类型 | 域名 / URL | Vercel 项目 / 标识 | 对应 Git Commit / 分支 | 状态与核验结果 |
 | :--- | :--- | :--- | :--- | :--- |
-| **最新功能 Preview** | `https://sourcerating-room-network-preview.vercel.app` | Vercel Deployment: `dpl_DkPwau26xBWiNkX8FvhZXNEjB9WZ`<br>(Project: `sourcerating-room-lab`) | Commit `8663945`<br>Branch `candidate/release-a-launch-20261118` | **[DEPLOYED-LIVE-BUILD]** HTTP 200，全量 26/26 多角色 E2E 测试全部 PASS。真实 AI 助手、待确认 Review 面板、真实企业/人员名片均已上线。 |
-| **Staging Lab Preview** | `https://sourcerating-room-lab.vercel.app` | Vercel Deployment: `dpl_DkPwau26xBWiNkX8FvhZXNEjB9WZ`<br>(Rollback: `dpl_HZsnBQFTK7kfSNSB6F2GzBukysD4`) | Commit `8663945`<br>Branch `candidate/release-a-launch-20261118` | **[DEPLOYED-LIVE-BUILD]** HTTP 200，支持文件网关转发与确认链路。 |
+| **最新功能 Preview** | `https://sourcerating-room-network-preview.vercel.app` | Vercel Deployment: `dpl_Gj6QuwK1PNy6Hw4b4EDT2ngQ9vTj`<br>(Project: `sourcerating-room-lab`) | Commit `50d8d24`<br>Branch `candidate/release-a-launch-20261118` | **[DEPLOYED-LIVE-BUILD]** HTTP 200，重定向旧版 `/project-room` 至 `/project-room-b`。三栏布局、待确认审核面板、真实企业/人员名片、消息排序与实时断档补齐上线。 |
+| **Staging Lab Preview** | `https://sourcerating-room-lab.vercel.app` | Vercel Deployment: `dpl_Gj6QuwK1PNy6Hw4b4EDT2ngQ9vTj`<br>(Rollback: `dpl_DkPwau26xBWiNkX8FvhZXNEjB9WZ`) | Commit `50d8d24`<br>Branch `candidate/release-a-launch-20261118` | **[DEPLOYED-LIVE-BUILD]** HTTP 200，支持文件网关转发与确认链路。 |
 | **正式生产环境** | 生产域名待定（严格受控） | - | Commit `e7136ab` (`main`) | **[BLOCKED] 未获 Owner 明确授权，严禁直接部署到生产环境**。 |
 
 ---

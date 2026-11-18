@@ -208,36 +208,40 @@ end; $$;
 
 -- 6. Fix sr_accept_invite NULL logic
 create or replace function public.sr_accept_invite(
-  p_invite_code text,
+  p_token text,
   p_organization_id uuid default null,
   p_new_organization_name text default null,
-  p_member_display_name text default null
+  p_display_name text default null
 )
-returns public.room_members
+returns jsonb
 language plpgsql
 security definer
 set search_path = public, extensions
 as $$
 declare
-  v_i public.room_invites;
-  v_room public.rooms;
+  v_i public.project_invites;
   v_org uuid;
-  v_member public.room_members;
-  v_display text;
+  v_display text := public.sr_clean_name(p_display_name, 120);
+  v_room public.rooms;
 begin
-  if auth.uid() is null then
-    raise exception 'authentication_required' using errcode = '42501';
+  if auth.uid() is null then raise exception 'authentication_required' using errcode = '42501'; end if;
+  select * into v_i from public.project_invites
+   where token_hash = encode(digest(p_token,'sha256'),'hex') for update;
+  if not found then raise exception 'invite_not_found' using errcode = '42501'; end if;
+  if v_i.invited_role not in ('organization','org_member') then raise exception 'invite_kind_unsupported' using errcode = '42501'; end if;
+  if v_i.revoked_at is not null then raise exception 'invite_revoked' using errcode = '42501'; end if;
+  if v_i.used_at is not null then
+    if v_i.used_by_user_id = auth.uid() then
+      return jsonb_build_object('project_id', v_i.project_id, 'room_id', v_i.room_id,
+        'acting_organization_id', v_i.target_organization_id, 'idempotent', true);
+    end if;
+    raise exception 'invite_already_used' using errcode = '42501';
   end if;
-  select * into v_i from public.room_invites where invite_code = p_invite_code and expires_at > now();
-  if not found or v_i.status <> 'pending' then
-    raise exception 'invalid_or_expired_invite' using errcode = '22023';
-  end if;
+  if v_i.expires_at <= now() then raise exception 'invite_expired' using errcode = '42501'; end if;
   if v_i.invited_email is null or lower(v_i.invited_email) <> lower(coalesce(auth.jwt()->>'email','')) then
     raise exception 'invite_email_mismatch' using errcode = '42501';
   end if;
   select * into v_room from public.rooms where id = v_i.room_id;
-
-  v_display := public.sr_clean_name(p_member_display_name, 120);
 
   if v_i.invited_role = 'org_member' then
     v_org := v_i.target_organization_id;
@@ -269,18 +273,17 @@ begin
      where organization_id = v_org and user_id = auth.uid();
   end if;
   insert into public.room_members(room_id, user_id, acting_organization_id, room_role, member_display_name)
-  values (v_i.room_id, auth.uid(), v_org, coalesce(v_i.invited_role,'member'), coalesce(v_display, 'Member'))
-  on conflict (room_id, user_id) do update
-    set removed_at = null,
-        acting_organization_id = excluded.acting_organization_id,
-        member_display_name = coalesce(excluded.member_display_name, room_members.member_display_name)
-  returning * into v_member;
+  values (v_i.room_id, auth.uid(), v_org,
+          case when v_i.invited_role = 'organization' then 'admin' else 'member' end, v_display)
+  on conflict (room_id, user_id, acting_organization_id) do update set removed_at = null;
 
-  update public.room_invites
-     set status = 'accepted', accepted_at = now(), accepted_by_user_id = auth.uid()
+  update public.project_invites
+     set used_at = now(), used_by_user_id = auth.uid(), target_organization_id = v_org
    where id = v_i.id;
-
-  return v_member;
+  insert into public.audit_log(actor_user_id, actor_organization_id, project_id, room_id, action, target_type, target_id)
+  values (auth.uid(), v_org, v_i.project_id, v_i.room_id, 'project_invite.claimed', 'project_invite', v_i.id::text);
+  return jsonb_build_object('project_id', v_i.project_id, 'room_id', v_i.room_id,
+    'acting_organization_id', v_org, 'idempotent', false);
 end; $$;
 
 -- 7. Permissions

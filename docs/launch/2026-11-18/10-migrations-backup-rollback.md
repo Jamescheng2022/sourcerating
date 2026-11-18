@@ -25,9 +25,9 @@
 | **09** | `202611150002_room_review_idempotency.sql` | 修复审核请求幂等与防并发重复 | 缺陷修复 | 已应用 |
 | **10** | `202611150003_open_review_dedup.sql` | 修复待审核状态去重处理 | 缺陷修复 | 已应用 |
 | **11** | `202611160001_chatgrown_network_foundation.sql` | 增加企业/人员动态档案、私有 CRM 关系与 AI 建议草稿表 | 网络拓展 | 已应用 |
-| **12** | `202611180001_p0_security_and_confirmation_hardening.sql` | 修复 sr_remove_org_member NULL 绕过，增加 verified 校验 | 安全加固 | 已应用 |
-| **13** | `202611180002_fix_confirmation_bypass_and_event_injection.sql` | 移除 proposal 绕过，增加专用 sr_post_room_message 并收回 append_room_event | 安全与完整性 | 已应用 |
-| **14** | `202611180003_consolidate_security_and_close_overloads.sql` | 清除重载冲突、统一2参数sr_room_role、加固Storage直接下载 | 架构与安全收敛 | 已应用 |
+| **12** | `202611180001_p0_security_and_confirmation_hardening.sql` | （中间补丁，已被 0003 完整合并吸收，不单独应用） | 安全加固 | 被 0003 取代 |
+| **13** | `202611180002_fix_confirmation_bypass_and_event_injection.sql` | （中间补丁，已被 0003 完整合并吸收，不单独应用） | 安全与完整性 | 被 0003 取代 |
+| **14** | `202611180003_consolidate_security_and_close_overloads.sql` | 权威终态迁移：收回 append_room_event、新增 sr_post_room_message（保留换行）、清除所有历史重载、绑定 verified 校验、修复三值逻辑与 Storage 策略 | 架构与安全收敛权威版本 | 待应用 |
 
 ---
 
