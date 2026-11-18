@@ -20,6 +20,10 @@ jointech-precast/
 # misc temp
 -p/
 
+# Local secrets and protected test credentials
+secrets/
+*.env.local
+
 # Local native build outputs (including generated public backend configuration)
 /pilot-artifacts/
 
