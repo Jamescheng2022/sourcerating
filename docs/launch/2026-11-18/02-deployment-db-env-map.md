@@ -10,8 +10,8 @@
 
 | 环境类型 | 域名 / URL | Vercel 项目 / 标识 | 对应 Git Commit / 分支 | 状态与核验结果 |
 | :--- | :--- | :--- | :--- | :--- |
-| **最新功能 Preview** | `https://sourcerating-room-network-preview.vercel.app` | Vercel Project: `sourcerating` (Team: `jamescheng2022s-projects`) | Commit `7629b5d`<br>Branch `feat/room-to-marketplace-profiles-20261116` | **[VERIFIED-LIVE]** HTTP 200 (8,229 bytes)，已部署最新 Marketplace/Network 动态档案路由与 25/25 验收基线。 |
-| **Staging Lab Preview** | `https://sourcerating-room-lab.vercel.app` | Vercel Deployment `dpl_67vsWnRuzPE6gFgZvzkWoVCtWQUZ`<br>(Rollback: `dpl_HZsnBQFTK7kfSNSB6F2GzBukysD4`) | Commit `6274559`<br>Branch `fix/project-room-file-lineage-20261114` | **[VERIFIED-LIVE]** HTTP 200 (8,229 bytes)，稳定支持文件网关转发与确认链路。 |
+| **最新功能 Preview** | `https://sourcerating-room-network-preview.vercel.app` | Vercel Project: `sourcerating` (Team: `jamescheng2022s-projects`) | Commit `7629b5d`<br>Branch `feat/room-to-marketplace-profiles-20261116` | **[DEPLOYED-LIVE-BUILD]** HTTP 200 (8,229 bytes SSR/登录外壳)，确认构建上线。端到端功能需经登录会话验证。 |
+| **Staging Lab Preview** | `https://sourcerating-room-lab.vercel.app` | Vercel Deployment `dpl_67vsWnRuzPE6gFgZvzkWoVCtWQUZ`<br>(Rollback: `dpl_HZsnBQFTK7kfSNSB6F2GzBukysD4`) | Commit `6274559`<br>Branch `fix/project-room-file-lineage-20261114` | **[DEPLOYED-LIVE-BUILD]** HTTP 200 (8,229 bytes SSR/登录外壳)，稳定支持文件网关转发与确认链路。 |
 | **正式生产环境** | 生产域名待定（严格受控） | - | Commit `e7136ab` (`main`) | **[BLOCKED] 未获 Owner 明确授权，严禁直接部署到生产环境**。 |
 
 ---
