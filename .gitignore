@@ -36,3 +36,6 @@ secrets/
 # Temporary local database test runtime
 /.localdb/
 .vercel
+
+# E2E test temporary PDF uploads
+qa/windows-b/artifacts/live-preview/qa-joint-spec-*.pdf

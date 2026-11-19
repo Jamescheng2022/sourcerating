@@ -533,12 +533,25 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
   await fileCard.waitFor({ timeout: 25000 });
   console.log('  Real file successfully uploaded and rendered:', uniqueSpecName);
 
+  // Wait for background verification gateway to mark file as verified before attempting confirmation
+  console.log('  Waiting for file verification status to be verified...');
+  await fileCard.locator('span').filter({ hasText: /verified/ }).first().waitFor({ timeout: 35000 });
+  console.log('  File verification completed (status: verified).');
+
   // Perform approval transition: click "确认此版本"
   const confirmFileBtn = fileCard.getByRole('button', { name: '确认此版本' });
   await confirmFileBtn.waitFor({ timeout: 10000 });
   await confirmFileBtn.click();
   const confirmedChip = fileCard.locator('span[data-d="confirmed"]').first();
-  await confirmedChip.waitFor({ timeout: 15000 });
+  try {
+    await confirmedChip.waitFor({ timeout: 15000 });
+  } catch (chipWaitErr) {
+    const errSpan = fileCard.locator('span[class*="err"]');
+    if (await errSpan.count()) {
+      console.error('  FileCard reported error:', await errSpan.textContent());
+    }
+    throw chipWaitErr;
+  }
   const chipText = await confirmedChip.textContent();
   console.log(`  File approval status transition verified: ${chipText.trim()}`);
   results.regression_room_b.files_and_approvals = `PASS (Uploaded ${uniqueSpecName}, approval transitioned to: ${chipText.trim()})`;

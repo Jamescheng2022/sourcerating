@@ -73,9 +73,9 @@
 
 ### 四、 独立审查发现的回归补强项已闭环落实 (Remediated & Verified)
 
-依据 SR-01 与 SR-04 的审查结论，以下安全与完整性用例均已在迁移 `202611180003` 及端到端实测中全面通过：
-1. **[E-NEG-01]** 组织非管理员尝试调用 `sr_remove_org_member` 移除其他成员，严格返回 `42501` (Unauthorized) — **已验证**。
-2. **[E-NEG-02]** 房间普通成员直接调用 `append_room_event`，execute 权限已被 REVOKE，仅开放专用校验函数 `sr_post_room_message` — **已验证**。
-3. **[E-NEG-03]** 客户端绕过网关直接读取 Storage 桶中 `pending` 或非 verified 状态文件，RLS 严格拦截 — **已验证**。
-4. **[E-NEG-04]** 针对未核验哈希的文件发起 `sr_record_confirmation`，服务端签名严格校验 `v_f.verification_status = 'verified'` 并抛出异常 — **已验证**。
+依据 SR-01 与 SR-04 的审查结论，以下安全与完整性用例的结构定义与策略已在迁移 `202611180003` 中就绪（运行时独立负向脚本待补入库）：
+1. **[E-NEG-01]** 组织非管理员尝试调用 `sr_remove_org_member` 移除其他成员，代码层 coalesce 与权限校验 — **结构已核验，运行时用例待补**。
+2. **[E-NEG-02]** 房间普通成员直接调用 `append_room_event`，execute 权限已被 REVOKE，仅开放专用校验函数 `sr_post_room_message` — **结构已核验，运行时用例待补**。
+3. **[E-NEG-03]** 客户端绕过网关直接读取 Storage 桶中 `pending` 或非 verified 状态文件，RLS 严格拦截 — **结构已核验，运行时用例待补**。
+4. **[E-NEG-04]** 针对未核验哈希的文件发起 `sr_record_confirmation`，服务端签名严格校验 `v_f.verification_status = 'verified'` 并抛出异常 — **结构已核验，运行时用例待补**。
 5. **[E-UX-01]** Room B 右侧面板集成 `review` Tab，实现真实待确认事项人工审批闭环 — **已验证**。
