@@ -244,6 +244,12 @@ function Composer({ lab, initial, saveDraft }: { lab: Lab; initial: string; save
           ref={ta} rows={1} value={text} aria-label="Type a message"
           placeholder={room.kind === "internal" ? "Message internal team..." : others.length ? `Message ${others.join(", ")}...` : "Type a message..."}
           onChange={(e) => setText(e.target.value)}
+          onFocus={() => {
+            if (typeof window !== "undefined") {
+              if (window.scrollY !== 0 || window.scrollX !== 0) window.scrollTo(0, 0);
+              setTimeout(() => { if (window.scrollY !== 0) window.scrollTo(0, 0); }, 50);
+            }
+          }}
           onCompositionStart={() => setComposing(true)} onCompositionEnd={() => setComposing(false)}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !composing && !e.nativeEvent.isComposing) { e.preventDefault(); submit(); } }}
         />

@@ -21,6 +21,7 @@ export default function ProjectRoomLab() {
   const { s, actions } = lab;
   const [mode, setMode] = useState<Mode>("wide");
   const [vvh, setVvh] = useState<string>("100dvh");
+  const [vvTop, setVvTop] = useState<string>("0px");
   const [toastText, setToastText] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -33,13 +34,29 @@ export default function ProjectRoomLab() {
   useEffect(() => {
     const sync = () => {
       setMode(modeOf(window.innerWidth));
-      // Track the visual viewport so the composer stays above the soft keyboard.
-      if (window.visualViewport) setVvh(`${Math.round(window.visualViewport.height)}px`);
+      if (window.visualViewport) {
+        const vv = window.visualViewport;
+        if (window.scrollY !== 0 || window.scrollX !== 0) {
+          window.scrollTo(0, 0);
+        }
+        setVvh(`${Math.round(vv.height)}px`);
+        setVvTop(`${Math.max(0, Math.round(vv.offsetTop))}px`);
+      } else {
+        setVvh(`${window.innerHeight}px`);
+        setVvTop("0px");
+      }
     };
     sync();
     window.addEventListener("resize", sync);
+    window.addEventListener("scroll", sync);
     window.visualViewport?.addEventListener("resize", sync);
-    return () => { window.removeEventListener("resize", sync); window.visualViewport?.removeEventListener("resize", sync); };
+    window.visualViewport?.addEventListener("scroll", sync);
+    return () => {
+      window.removeEventListener("resize", sync);
+      window.removeEventListener("scroll", sync);
+      window.visualViewport?.removeEventListener("resize", sync);
+      window.visualViewport?.removeEventListener("scroll", sync);
+    };
   }, []);
 
   // Deep links: ?room=r1&msg=m4 opens the room and scrolls to the message.
@@ -71,7 +88,7 @@ export default function ProjectRoomLab() {
   const back = () => (history.state?.lab === "chat" ? history.back() : actions.backToList());
 
   return (
-    <div className={css.app} data-view={s.view} data-panel={s.panel.open && mode === "wide"} style={{ height: vvh }}>
+    <div className={css.app} data-view={s.view} data-panel={s.panel.open && mode === "wide"} style={{ height: vvh, top: vvTop }}>
       <Sidebar lab={lab} onOpen={openRoom} />
       <ChatPane lab={lab} toast={toast} onBack={back} />
       {mode === "wide" && s.panel.open && <aside className={css.aside} aria-label="项目面板"><ContextPanel lab={lab} /></aside>}

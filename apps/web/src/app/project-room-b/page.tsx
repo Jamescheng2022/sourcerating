@@ -18,6 +18,7 @@ export default function ProjectRoomB() {
   const { s, actions, room } = real;
   const [mode, setMode] = useState<Mode>("wide");
   const [vvh, setVvh] = useState("100dvh");
+  const [vvTop, setVvTop] = useState("0px");
   const [invite, setInvite] = useState<string | null>(null);
   const [toastText, setToastText] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -31,13 +32,34 @@ export default function ProjectRoomB() {
     if (token) localStorage.setItem("sr_b_invite", token);
     setInvite(token);
     deep.current = { room: p.get("room"), msg: p.get("msg") };
-    const sync = () => { setMode(modeOf(window.innerWidth)); if (window.visualViewport) setVvh(`${Math.round(window.visualViewport.height)}px`); };
+    const sync = () => {
+      setMode(modeOf(window.innerWidth));
+      if (window.visualViewport) {
+        const vv = window.visualViewport;
+        if (window.scrollY !== 0 || window.scrollX !== 0) {
+          window.scrollTo(0, 0);
+        }
+        setVvh(`${Math.round(vv.height)}px`);
+        setVvTop(`${Math.max(0, Math.round(vv.offsetTop))}px`);
+      } else {
+        setVvh(`${window.innerHeight}px`);
+        setVvTop("0px");
+      }
+    };
     sync();
     window.addEventListener("resize", sync);
+    window.addEventListener("scroll", sync);
     window.visualViewport?.addEventListener("resize", sync);
+    window.visualViewport?.addEventListener("scroll", sync);
     const onPop = () => { if (history.state?.lab !== "chat") actions.backToList(); };
     window.addEventListener("popstate", onPop);
-    return () => { window.removeEventListener("resize", sync); window.visualViewport?.removeEventListener("resize", sync); window.removeEventListener("popstate", onPop); };
+    return () => {
+      window.removeEventListener("resize", sync);
+      window.removeEventListener("scroll", sync);
+      window.visualViewport?.removeEventListener("resize", sync);
+      window.visualViewport?.removeEventListener("scroll", sync);
+      window.removeEventListener("popstate", onPop);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -62,7 +84,7 @@ export default function ProjectRoomB() {
   if (invite || s.memberships.length === 0) return <Onboard real={real} inviteToken={invite} onDone={done} />;
 
   return (
-    <div className={css.app} data-view={room ? s.view : "list"} data-panel={!!room && s.panel.open && mode === "wide"} style={{ height: vvh }}>
+    <div className={css.app} data-view={room ? s.view : "list"} data-panel={!!room && s.panel.open && mode === "wide"} style={{ height: vvh, top: vvTop }}>
       <RealSidebar real={real} onOpen={openRoom} />
       {room ? <ChatPane lab={real as unknown as Lab} toast={toast} onBack={back} /> : <section className={rc.empty}><b>Create a new project to start</b></section>}
       {room && mode === "wide" && s.panel.open && <aside className={css.aside} aria-label="Project Panel"><RealPanel real={real} /></aside>}

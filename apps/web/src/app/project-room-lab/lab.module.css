@@ -122,14 +122,14 @@
 .meta b { font-weight: 600; }
 .meta time { color: var(--ink3); font-size: 11.5px; }
 .orgTag { font-size: 11px; font-weight: 700; }
-.bubbleWrap { display: flex; align-items: flex-start; gap: 6px; max-width: 100%; min-width: 0; }
+.bubbleWrap { display: flex; align-items: flex-start; gap: 6px; width: 100%; max-width: 100%; min-width: 0; }
 .row[data-mine="true"] .bubbleWrap { flex-direction: row-reverse; }
-.bubble { min-width: 0; max-width: min(34rem, calc(100% - 130px)); padding: 8px 12px; border-radius: 4px 14px 14px 14px; background: var(--surface); box-shadow: 0 1px 1px rgba(0,0,0,.05); overflow-wrap: anywhere; -webkit-touch-callout: none; }
+.bubble { min-width: 0; width: fit-content; max-width: min(34rem, calc(100% - 130px)); padding: 8px 12px; border-radius: 4px 14px 14px 14px; background: var(--surface); box-shadow: 0 1px 1px rgba(0,0,0,.05); word-break: break-word; overflow-wrap: break-word; -webkit-touch-callout: none; }
 .bubble[data-mine="true"] { background: var(--accent-soft); border-radius: 14px 4px 14px 14px; }
 .bubble[data-failed="true"] { opacity: .7; box-shadow: inset 0 0 0 1px var(--danger); }
 .bubble[data-file="true"] { padding: 6px; }
 .bubble[data-file="true"] .text { padding: 4px 6px 2px; }
-.text { white-space: pre-wrap; font-size: 14.5px; line-height: 1.5; }
+.text { white-space: pre-wrap; word-break: break-word; overflow-wrap: break-word; font-size: 14.5px; line-height: 1.5; }
 .text mark, .fileMeta mark { background: #fbd34d; border-radius: 3px; color: inherit; }
 .quote { display: grid; width: 100%; text-align: left; padding: 3px 8px; margin-bottom: 5px; border-left: 3px solid var(--accent); background: rgba(0,0,0,.04); border-radius: 0 6px 6px 0; font-size: 12.5px; }
 .quote b { font-weight: 600; color: var(--accent-ink); }
@@ -353,6 +353,7 @@
 /* ── phone: one pane at a time, like any messenger ── */
 @media (max-width: 699px) {
   .app, .app[data-panel="true"] { grid-template-columns: minmax(0, 1fr); }
+  .bubble { max-width: min(34rem, calc(100% - 36px)); }
   .app[data-view="list"] .chat, .app[data-view="chat"] .side { display: none; }
   .side { border-right: 0; }
   .onlyNarrow { display: inline-flex; }
