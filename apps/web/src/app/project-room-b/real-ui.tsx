@@ -2,10 +2,11 @@
 
 import * as Dialog from "@radix-ui/react-dialog";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { Check, ChevronsUpDown, GitCompare, History, Sparkles, CornerDownRight, Download, FileUp, FolderPlus, GitBranch, Hash, LockKeyhole, LogOut, Plus, Send, ShieldCheck, UserPlus, X } from "lucide-react";
+import { Check, ChevronsUpDown, GitCompare, History, Sparkles, CornerDownRight, Download, FileUp, FolderPlus, GitBranch, Hash, LockKeyhole, LogOut, Plus, Send, ShieldCheck, Smartphone, UserPlus, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { OrgMark } from "../project-room-lab/message";
 import { formatSize, timeOf } from "../project-room-lab/demo/adapter";
+import { usePwa } from "@/components/pwa/PwaProvider";
 import css from "../project-room-lab/lab.module.css";
 import rc from "./real.module.css";
 import type { Real, RealFile, SplitSuggestion } from "./use-real";
@@ -183,6 +184,7 @@ export function Invite({ real, open, onClose }: { real: Real; open: boolean; onC
 export function RealSidebar({ real, onOpen }: { real: Real; onOpen: (id: string) => void }) {
   const { s, myRooms, room, user, org, meId, actions } = real;
   const [dlg, setDlg] = useState<"project" | "sub" | null>(null);
+  const pwa = usePwa();
   const myOrg = org(s.orgId);
   const groups = useMemo(() => {
     const map = new Map<string, { name: string; rooms: typeof myRooms }>();
@@ -210,6 +212,11 @@ export function RealSidebar({ real, onOpen }: { real: Real; onOpen: (id: string)
                   {m.orgId === s.orgId && <Check size={15} />}
                 </DropdownMenu.Item>
               ))}
+              {!pwa.isInstalled && (
+                <DropdownMenu.Item className={css.menuItem} onSelect={() => void pwa.promptInstall()}>
+                  <Smartphone size={15} />Install App
+                </DropdownMenu.Item>
+              )}
               <DropdownMenu.Item className={css.menuItem} onSelect={() => void actions.signOut()}><LogOut size={15} />Log out</DropdownMenu.Item>
             </DropdownMenu.Content>
           </DropdownMenu.Portal>
@@ -250,6 +257,21 @@ export function RealSidebar({ real, onOpen }: { real: Real; onOpen: (id: string)
           </div>
         ))}
       </div>
+      {!pwa.isInstalled && (
+        <div className="px-3 py-2 border-t border-slate-200/80 bg-slate-50/60 flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium">
+            <Smartphone size={14} className="text-teal-700" />
+            <span>Mobile / Desktop App</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => void pwa.promptInstall()}
+            className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-teal-700 text-white hover:bg-teal-800 transition shadow-xs"
+          >
+            Install
+          </button>
+        </div>
+      )}
       <div className={css.sideFoot}>
         <span>STAGING · Real Backend (Test DB)</span>
         {process.env.NEXT_PUBLIC_SR_NETWORK_PILOT === "1" && (

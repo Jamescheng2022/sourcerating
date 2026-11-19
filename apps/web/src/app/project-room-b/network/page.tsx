@@ -9,6 +9,7 @@ import { StatusPill } from "@/components/network/StatusPill";
 import { CompanyDossierCard } from "@/components/network/CompanyDossierCard";
 import { PersonDossierCard } from "@/components/network/PersonDossierCard";
 import { Building2, User, Users, FileEdit, ArrowLeft, Search, Plus } from "lucide-react";
+import { InstallPromptButton } from "@/components/pwa/InstallPromptButton";
 
 type OrgChoice = { id: string; name: string; role: string };
 type OrgProfile = {
@@ -412,9 +413,12 @@ export default function NetworkMemoryPage() {
               Gradually build personal, company, and customer/supplier relationships from real collaboration. Private by default; never automatically exposed from chat.
             </p>
           </div>
-          <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs text-amber-800">
-            Beta · Private Dossier Space
-          </span>
+          <div className="flex items-center gap-2">
+            <InstallPromptButton compact />
+            <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs text-amber-800">
+              Beta · Private Dossier Space
+            </span>
+          </div>
         </header>
 
         {error && <div className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-800" role="alert">{error}</div>}
