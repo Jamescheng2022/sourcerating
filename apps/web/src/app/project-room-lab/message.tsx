@@ -103,15 +103,14 @@ export const MessageItem = memo(function MessageItem({ lab, m, prev, highlight, 
       run: () => { void navigator.clipboard?.writeText(`${location.origin}${location.pathname}?room=${room.id}&msg=${m.id}`); toast("Link copied"); },
     });
     if (evidence.length) acts.push({ key: "ev", label: "View evidence", icon: <Stamp size={15} />, run: () => actions.openPanel("review") });
-    // WhatsApp/WeChat benchmark: Allow sender to recall/delete own sent messages
+    // Sender local dismissal (hides locally; server-side audit chain remains immutable)
     if (mine) {
       acts.push({
-        key: "recall",
-        label: "Recall",
+        key: "hide",
+        label: "Hide for me",
         icon: <Undo2 size={15} />,
-        run: () => { actions.remove(m.id); toast("Message recalled"); },
+        run: () => { actions.remove(m.id); toast("Hidden on this device (retained in room audit chain)"); },
         danger: true,
-        primary: true,
       });
     }
   }

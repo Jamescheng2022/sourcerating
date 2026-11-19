@@ -465,7 +465,22 @@ export function RealPanel({ real }: { real: Real }) {
               <section className={rc.stack}>
                 <h3>Send back to Main Room</h3>
                 <textarea value={share} onChange={(e) => setShare(e.target.value)} placeholder="Progress updates or conclusions for the main room" aria-label="Content to send back to main room" />
-                <button type="button" className={css.ghost} disabled={!share.trim()} onClick={() => void actions.shareToParent(share.trim()).then(() => setShare("")).catch(() => null)}>Send to Main Room</button>
+                <button
+                  type="button"
+                  className={css.ghost}
+                  disabled={!share.trim()}
+                  onClick={() => {
+                    const parentRoom = s.rooms.find((r) => r.id === room.parentId);
+                    const destOrgs = parentRoom
+                      ? Array.from(new Set(parentRoom.roomMembers.map((m) => m.orgId))).map((oid) => org(oid).name).join(", ")
+                      : "Main Room counterparties";
+                    if (window.confirm(`Send summary to Main Room?\n\nThis summary will be visible to external organizations:\n${destOrgs}\n\nOnce posted, it becomes an immutable part of the main room audit chain.`)) {
+                      void actions.shareToParent(share.trim()).then(() => setShare("")).catch(() => null);
+                    }
+                  }}
+                >
+                  Send to Main Room
+                </button>
               </section>
             )}
             <button type="button" className={css.ghost} onClick={() => void actions.exportEvidence().catch(() => null)}><Download size={15} />Export Evidence (JSON)</button>

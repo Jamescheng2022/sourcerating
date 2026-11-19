@@ -251,7 +251,13 @@ function Composer({ lab, initial, saveDraft }: { lab: Lab; initial: string; save
             }
           }}
           onCompositionStart={() => setComposing(true)} onCompositionEnd={() => setComposing(false)}
-          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !composing && !e.nativeEvent.isComposing) { e.preventDefault(); submit(); } }}
+          onKeyDown={(e) => {
+            const isTouch = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+            if (e.key === "Enter" && !isTouch && !e.shiftKey && !composing && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              submit();
+            }
+          }}
         />
         <button type="button" className={css.send} disabled={!text.trim() && !file} onClick={submit} aria-label="Send"><ArrowUp size={18} /></button>
       </div>
