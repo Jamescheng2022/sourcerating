@@ -10,6 +10,7 @@ import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import { formatSize } from "./demo/adapter";
 import { FileIcon, MessageItem, OrgMark } from "./message";
 import type { Lab } from "./use-lab";
+import { sendBuffer, type BufferedMessage } from "../project-room-b/send-buffer";
 import css from "./lab.module.css";
 
 const BASE = 100_000;
@@ -213,17 +214,64 @@ function Composer({ lab, initial, saveDraft }: { lab: Lab; initial: string; save
   useEffect(() => { if (adopted) ta.current?.focus(); }, [adopted]);
   useEffect(() => { saveDraft(room.id, text); }, [text, room.id, saveDraft]);
 
+  const [bufferedList, setBufferedList] = useState<BufferedMessage[]>([]);
+  useEffect(() => {
+    return sendBuffer.subscribe((list) => {
+      setBufferedList(list.filter((x) => x.roomId === room.id));
+    });
+  }, [room.id]);
+
   const submit = () => {
     const t = text.trim();
     if (!t && !file) return;
-    void actions.send(t, file ?? undefined);
-    setText(""); setFile(null);
+    const currentFile = file ?? undefined;
+
+    sendBuffer.enqueue(
+      room.id,
+      t,
+      async () => {
+        await actions.send(t, currentFile);
+      },
+      { file: currentFile, replyTo: s.replyTo ?? undefined }
+    );
+
+    setText("");
+    setFile(null);
     if (pick.current) pick.current.value = "";
   };
 
   return (
     <footer className={css.composer} data-internal={room.kind === "internal"}>
       {room.kind === "internal" && <div className={css.internalStrip}><LockKeyhole size={12} /> Internal Room · External organizations cannot view content here</div>}
+      {bufferedList.length > 0 && (
+        <div className={css.undoBar}>
+          <span>Sending in {bufferedList[0].secondsRemaining}s...</span>
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <button
+              type="button"
+              className={css.undoBtn}
+              onClick={() => {
+                const item = sendBuffer.cancel(bufferedList[0].id);
+                if (item) {
+                  setText(item.text);
+                  if (item.file) setFile(item.file);
+                }
+              }}
+            >
+              Undo
+            </button>
+            <button
+              type="button"
+              style={{ fontSize: 12, background: "none", border: "none", color: "#b45309", cursor: "pointer", textDecoration: "none" }}
+              onClick={() => {
+                void sendBuffer.commit(bufferedList[0].id);
+              }}
+            >
+              Send now
+            </button>
+          </div>
+        </div>
+      )}
       {reply && (
         <div className={css.replyBar}>
           <span><b>Reply to {user(reply.userId).name}</b>{reply.text ?? replyFile?.name ?? "Voice message"}</span>

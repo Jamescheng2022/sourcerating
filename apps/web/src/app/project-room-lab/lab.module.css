@@ -182,6 +182,9 @@
 .attach { border-left-color: var(--ink3); }
 .attach span { font-size: 12px; color: var(--ink3); overflow: hidden; }
 .attach b { color: var(--ink); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.undoBar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 6px 12px 0; padding: 6px 12px; background: #fef3c7; border-left: 3px solid #d97706; border-radius: 6px; font-size: 13px; color: #92400e; }
+.undoBtn { font-weight: 600; color: #b45309; text-decoration: underline; cursor: pointer; background: none; border: none; padding: 2px 6px; border-radius: 4px; }
+.undoBtn:hover { background: #fde68a; }
 .inputRow { display: flex; align-items: flex-end; gap: 4px; padding: 8px 10px; }
 .inputRow textarea { flex: 1; min-width: 0; resize: none; padding: 8px 12px; min-height: 38px; max-height: 132px; border-radius: 12px; background: var(--chrome); outline: none; font-size: 16px; line-height: 1.4; color: var(--ink); }
 .inputRow textarea:focus { box-shadow: 0 0 0 2px var(--accent); background: var(--surface); }

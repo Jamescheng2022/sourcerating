@@ -469,13 +469,23 @@ export function RealPanel({ real }: { real: Real }) {
                   type="button"
                   className={css.ghost}
                   disabled={!share.trim()}
-                  onClick={() => {
+                  onClick={async () => {
                     const parentRoom = s.rooms.find((r) => r.id === room.parentId);
-                    const destOrgs = parentRoom
+                    let destOrgs = parentRoom
                       ? Array.from(new Set(parentRoom.roomMembers.map((m) => m.orgId))).map((oid) => org(oid).name).join(", ")
                       : "Main Room counterparties";
+                    let digest: string | undefined;
+                    try {
+                      const aud = (await actions.getRoomAudience(room.id)) as { orgs?: { name: string }[]; digest?: string };
+                      if (aud?.orgs?.length) {
+                        destOrgs = aud.orgs.map((o) => o.name).join(", ");
+                      }
+                      if (aud?.digest) digest = aud.digest;
+                    } catch {
+                      // fallback
+                    }
                     if (window.confirm(`Send summary to Main Room?\n\nThis summary will be visible to external organizations:\n${destOrgs}\n\nOnce posted, it becomes an immutable part of the main room audit chain.`)) {
-                      void actions.shareToParent(share.trim()).then(() => setShare("")).catch(() => null);
+                      void actions.shareToParent(share.trim(), digest).then(() => setShare("")).catch(() => null);
                     }
                   }}
                 >

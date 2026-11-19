@@ -522,7 +522,42 @@ export function useReal() {
     addMember: async (userId: string, orgId: string) => { if (room) { await rpc("sr_add_room_member", { p_room_id: room.id, p_actor_organization_id: ref.current.orgId, p_user_id: userId, p_member_organization_id: orgId }); await refresh(); } },
     removeMember: async (userId: string) => { if (room) { await rpc("sr_remove_room_member", { p_room_id: room.id, p_actor_organization_id: ref.current.orgId, p_user_id: userId }); await refresh(); } },
     removeFromOrganization: async (userId: string) => { await rpc("sr_remove_org_member", { p_organization_id: ref.current.orgId, p_user_id: userId }); await refresh(); },
-    shareToParent: async (text: string) => { if (room) await rpc("sr_share_to_parent", { p_room_id: room.id, p_actor_organization_id: ref.current.orgId, p_client_msg_id: crypto.randomUUID(), p_text: text, p_source_event_ids: [] }); },
+    shareToParent: async (text: string, audienceDigest?: string) => {
+      if (!room) return;
+      try {
+        await rpc("sr_share_to_parent_confirmed", {
+          p_room_id: room.id,
+          p_actor_organization_id: ref.current.orgId,
+          p_client_msg_id: crypto.randomUUID(),
+          p_text: text,
+          p_source_event_ids: [],
+          p_audience_digest: audienceDigest ?? null,
+        });
+      } catch {
+        await rpc("sr_share_to_parent", {
+          p_room_id: room.id,
+          p_actor_organization_id: ref.current.orgId,
+          p_client_msg_id: crypto.randomUUID(),
+          p_text: text,
+          p_source_event_ids: [],
+        });
+      }
+    },
+    getRoomAudience: async (roomId: string) => {
+      return await rpc("sr_room_audience", { p_room_id: roomId });
+    },
+    redactMessage: async (eventId: string, reasonCode: string, reasonNote?: string) => {
+      if (!room) return;
+      await rpc("sr_redact_message", {
+        p_room_id: room.id,
+        p_message_event_id: eventId,
+        p_actor_organization_id: ref.current.orgId,
+        p_client_msg_id: crypto.randomUUID(),
+        p_reason_code: reasonCode,
+        p_reason_note: reasonNote ?? null,
+      });
+      await loadRoom(room.id);
+    },
     requestReview: async (fileId: string, note: string, clientMessageId: string) => { await rpc("sr_request_file_review", { p_file_version_id: fileId, p_actor_organization_id: ref.current.orgId, p_client_msg_id: clientMessageId, p_note: note || null }); },
     confirmFile: async (f: RealFile, decision: "confirmed" | "changes_requested", comment: string) => {
       const row = await rpc("sr_record_confirmation", { p_room_id: f.roomId, p_actor_organization_id: ref.current.orgId, p_client_msg_id: crypto.randomUUID(), p_decision: decision, p_file_version_id: f.id, p_file_sha256: f.sha256, p_comment: comment || null });
