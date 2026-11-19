@@ -4,7 +4,7 @@ import * as ContextMenu from "@radix-ui/react-context-menu";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
   AlertCircle, CornerUpLeft, Copy, FileSpreadsheet, FileText, GitCompare, Image as ImageIcon, Languages,
-  Link2, MessagesSquare, MoreHorizontal, Pause, Play, RotateCw, ScanSearch, Sparkles, Stamp, Trash2,
+  Link2, MessagesSquare, MoreHorizontal, Pause, Play, RotateCw, ScanSearch, Sparkles, Stamp, Trash2, Undo2,
 } from "lucide-react";
 import { memo, useEffect, useState, type ReactNode } from "react";
 import { dayOf, formatSize, timeOf } from "./demo/adapter";
@@ -84,19 +84,36 @@ export const MessageItem = memo(function MessageItem({ lab, m, prev, highlight, 
   } else {
     if (file) acts.push({ key: "preview", label: "Preview", icon: <ScanSearch size={15} />, run: () => actions.openFile(file.id), primary: true });
     acts.push({ key: "reply", label: "Reply", icon: <CornerUpLeft size={15} />, run: () => actions.setReply(m.id), primary: true });
-    acts.push({
-      key: "ai", label: "Ask AI", icon: <Sparkles size={15} />, primary: true,
-      run: () => actions.ask(file ? { type: "file", id: file.id } : { type: "message", id: m.id }, file ? "What is this file about?" : "Explain this message"),
-    });
-    if (m.tr || (lab.real && m.text)) acts.push({ key: "tr", label: translated ? "Hide translation" : "Translate", icon: <Languages size={15} />, run: () => actions.toggleTranslate(m.id), primary: !file });
+    // Only offer Ask AI on files or incoming counterparty messages (no need to ask AI about your own typed words)
+    if (!mine || file) {
+      acts.push({
+        key: "ai", label: "Ask AI", icon: <Sparkles size={15} />, primary: !mine,
+        run: () => actions.ask(file ? { type: "file", id: file.id } : { type: "message", id: m.id }, file ? "What is this file about?" : "Explain this message"),
+      });
+    }
+    // Only offer translation on incoming counterparty messages
+    if (!mine && (m.tr || (lab.real && m.text))) {
+      acts.push({ key: "tr", label: translated ? "Hide translation" : "Translate", icon: <Languages size={15} />, run: () => actions.toggleTranslate(m.id), primary: !file });
+    }
     if (file?.supersedes) acts.push({ key: "cmp", label: "Compare versions", icon: <GitCompare size={15} />, run: () => actions.openFile(file.id, "compare") });
     if (file) acts.push({ key: "rel", label: "Related messages", icon: <MessagesSquare size={15} />, run: () => actions.openFile(file.id, "related") });
-    if (m.text) acts.push({ key: "copy", label: "Copy text", icon: <Copy size={15} />, run: () => { void navigator.clipboard?.writeText(m.text!); toast("Copied"); } });
+    if (m.text) acts.push({ key: "copy", label: "Copy text", icon: <Copy size={15} />, run: () => { void navigator.clipboard?.writeText(m.text!); toast("Copied"); }, primary: mine });
     acts.push({
       key: "link", label: "Copy message link", icon: <Link2 size={15} />,
       run: () => { void navigator.clipboard?.writeText(`${location.origin}${location.pathname}?room=${room.id}&msg=${m.id}`); toast("Link copied"); },
     });
     if (evidence.length) acts.push({ key: "ev", label: "View evidence", icon: <Stamp size={15} />, run: () => actions.openPanel("review") });
+    // WhatsApp/WeChat benchmark: Allow sender to recall/delete own sent messages
+    if (mine) {
+      acts.push({
+        key: "recall",
+        label: "Recall",
+        icon: <Undo2 size={15} />,
+        run: () => { actions.remove(m.id); toast("Message recalled"); },
+        danger: true,
+        primary: true,
+      });
+    }
   }
 
   const bubble = (

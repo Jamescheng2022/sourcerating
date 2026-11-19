@@ -395,7 +395,8 @@ export function RealPanel({ real }: { real: Real }) {
         <div className={css.tabs} role="tablist">
           {([["people", "Members"], ["files", "Files & Confirmations"], ["review", "Review"], ["ai", "AI"]] as const).map(([k, label]) => (
             <button key={k} type="button" role="tab" data-state={tab === k ? "active" : ""} onClick={() => actions.openPanel(k)}>
-              {label}
+              <span className={k === "files" ? css.hideNarrow : ""}>{label}</span>
+              {k === "files" && <span className={css.onlyNarrow}>Files</span>}
               {k === "files" && files.length > 0 && <i style={{ background: "#575d64" }}>{lineages.length}</i>}
               {k === "review" && pendingProposals.length > 0 && <i style={{ background: "#0d9488" }}>{pendingProposals.length}</i>}
             </button>
@@ -410,9 +411,9 @@ export function RealPanel({ real }: { real: Real }) {
             <section>
               {Array.from(new Set(room.roomMembers.map((m) => m.orgId))).map((oid) => (
                 <div key={oid}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "10px 0 6px" }}>
-                    <h3 style={{ margin: 0 }}>{org(oid).name}</h3>
-                    <div style={{ display: "flex", gap: "6px" }}>
+                  <div className={rc.orgHeadingRow}>
+                    <h3>{org(oid).name}</h3>
+                    <div className={rc.orgHeadingActs}>
                       <a
                         href={`/companies/${encodeURIComponent(oid)}?fromRoom=${encodeURIComponent(room.id)}`}
                         className={rc.mini}
@@ -429,7 +430,8 @@ export function RealPanel({ real }: { real: Real }) {
                           style={{ color: "#0f766e", textDecoration: "none" }}
                           title="Save partner to private customer/supplier directory"
                         >
-                          + Save to Private CRM
+                          <span className={css.hideNarrow}>+ Save to Private CRM</span>
+                          <span className={css.onlyNarrow}>+ Private CRM</span>
                         </a>
                       )}
                     </div>
