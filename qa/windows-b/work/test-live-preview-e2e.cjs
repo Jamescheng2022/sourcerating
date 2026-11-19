@@ -170,7 +170,7 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
   const companyCapabilitiesHeader = await pageA1.getByText(/(Core|Main) Products & Engineering Capabilities|主营产品与工程技术能力/).count();
   const returnToRoomBtn = pageA1.getByRole('link', { name: /(Return to|Back to) Project Room|返回项目房间|返回项目协作房间/ });
   const hasReturnBtn = await returnToRoomBtn.count();
-  const returnHref = await returnToRoomBtn.getAttribute('href');
+  const returnHref = await returnToRoomBtn.first().getAttribute('href');
   console.log(`  Company dossier preview rendered: ${companyDraftPill > 0}`);
   console.log(`  Capabilities section rendered: ${companyCapabilitiesHeader > 0}`);
   console.log(`  Return to room button href: ${returnHref}`);
@@ -447,12 +447,12 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
 
   // Wait for Room B interface to mount and ensure panel is open with members tab
   await pageA1.waitForTimeout(2000);
-  const panelIsClosedAfterComp = (await pageA1.locator('aside[aria-label="项目面板"], div[class*="panel"]').count()) === 0;
+  const panelIsClosedAfterComp = (await pageA1.locator('div[role="tablist"]').count()) === 0;
   if (panelIsClosedAfterComp) {
     const toggleBtn = pageA1.getByLabel(/Open project panel|打开项目面板|查看成员|参与者/).first();
     await toggleBtn.waitFor({ timeout: 15000 });
     await toggleBtn.click();
-    await pageA1.locator('aside[aria-label="项目面板"], div[class*="panel"]').waitFor({ timeout: 15000 });
+    await pageA1.locator('div[role="tablist"]').first().waitFor({ timeout: 15000 });
   }
   const peopleTabComp = pageA1.locator('div[role="tablist"] button[role="tab"]').filter({ hasText: /Members|成员/ }).first();
   if (await peopleTabComp.count()) {
@@ -504,12 +504,12 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
 
   // Wait for Room B interface and ensure panel is open with files tab for subsequent regression
   await pageA1.waitForTimeout(2000);
-  const panelIsClosedAfterPerson = (await pageA1.locator('aside[aria-label="项目面板"], div[class*="panel"]').count()) === 0;
+  const panelIsClosedAfterPerson = (await pageA1.locator('div[role="tablist"]').count()) === 0;
   if (panelIsClosedAfterPerson) {
     const toggleBtn = pageA1.getByLabel(/Open project panel|打开项目面板|查看成员|参与者/).first();
     await toggleBtn.waitFor({ timeout: 15000 });
     await toggleBtn.click();
-    await pageA1.locator('aside[aria-label="项目面板"], div[class*="panel"]').waitFor({ timeout: 15000 });
+    await pageA1.locator('div[role="tablist"]').first().waitFor({ timeout: 15000 });
   }
 
   results.v45_frontend_integration.room_bidirectional_links = 'PASS (Bidirectional links to /companies/:id & /people/:id)';
