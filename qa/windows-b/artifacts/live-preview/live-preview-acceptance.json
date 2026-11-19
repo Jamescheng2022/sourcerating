@@ -1,9 +1,9 @@
 {
-  "timestamp": "2026-11-19T11:52:49.114Z",
+  "timestamp": "2026-11-19T12:38:46.338Z",
   "environment": "Live Preview on Vercel backed by migrated Supabase Staging (nunojlfangvnjlwggvvb)",
   "preview_url": "https://sourcerating-room-network-preview.vercel.app",
   "deployment_id": "dpl_Gj6QuwK1PNy6Hw4b4EDT2ngQ9vTj",
-  "deployment_sha": "02dbb5396962ec7d8911e79bd8fcef076416e9f5",
+  "deployment_sha": "61a37c519c559041eaa73342cb9f4ee9f170b075",
   "database_project": "nunojlfangvnjlwggvvb",
   "personas_tested": [
     "a1 (Buyer Admin)",
@@ -16,7 +16,7 @@
       "counterparty_room_detection": "PASS",
       "counterparty_prefill": "PASS (Authentic match: \"QA Supplier 11140033\")",
       "save_private_relationship": "PASS",
-      "ai_brochure_extraction": "PASS (Generated in 4439ms)",
+      "ai_brochure_extraction": "PASS (Generated in 4433ms)",
       "atomic_decision_rpc": "PASS",
       "cross_company_rls_isolation": "PASS (0 leaks)",
       "non_admin_role_gating": "PASS",
@@ -39,8 +39,8 @@
     "regression_room_b": {
       "messaging": "PASS (Persisted to Staging DB, verified after reload, multi-line preserved)",
       "chat_first_no_forced_modal": "PASS",
-      "files_and_approvals": "PASS (Uploaded qa-joint-spec-1795089131611.pdf, approval transitioned to: QB1 Confirmed)",
-      "ai_assist_available": "PASS (Real summary in 16674ms, len: 233)",
+      "files_and_approvals": "PASS (Uploaded qa-joint-spec-1795091897912.pdf, approval transitioned to: QB1 Confirmed)",
+      "ai_assist_available": "PASS (Real summary in 8057ms, len: 192)",
       "review_tab_available": "PASS"
     },
     "responsive_layouts": {
