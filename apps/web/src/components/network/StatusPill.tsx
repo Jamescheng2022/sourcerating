@@ -11,36 +11,36 @@ export function StatusPill({ role = "prospect", className = "" }: StatusPillProp
   const roleConfigs: Record<string, { label: string; classes: string }> = {
     // Relationship stages
     prospect: {
-      label: "待联系 (Prospect)",
+      label: "Prospect",
       classes: "bg-slate-100 text-slate-700 border-slate-300",
     },
     contacted: {
-      label: "已联系 (Contacted)",
+      label: "Contacted",
       classes: "bg-blue-50 text-blue-700 border-blue-200",
     },
     active: {
-      label: "合作中 (Active)",
+      label: "Active",
       classes: "bg-teal-50 text-teal-800 border-teal-300 font-semibold",
     },
     paused: {
-      label: "已暂停 (Paused)",
+      label: "Paused",
       classes: "bg-amber-50 text-amber-700 border-amber-200",
     },
     // Relationship kinds
     buyer: {
-      label: "客户 / 买方",
+      label: "Buyer / Client",
       classes: "bg-indigo-50 text-indigo-700 border-indigo-200",
     },
     supplier: {
-      label: "供应商",
+      label: "Supplier",
       classes: "bg-emerald-50 text-emerald-800 border-emerald-300 font-semibold",
     },
     partner: {
-      label: "合作伙伴",
+      label: "Partner",
       classes: "bg-purple-50 text-purple-700 border-purple-200",
     },
     other: {
-      label: "其他",
+      label: "Other",
       classes: "bg-slate-100 text-slate-600 border-slate-200",
     },
   };

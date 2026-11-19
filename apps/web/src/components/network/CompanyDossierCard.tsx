@@ -44,22 +44,22 @@ export function CompanyDossierCard({
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-4">
-            <Avatar type="org" name={displayName || "企业档案"} size="xl" verified={verified} />
+            <Avatar type="org" name={displayName || "Company"} size="xl" verified={verified} />
             <div className="space-y-1.5">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-xl font-bold tracking-tight text-slate-950 sm:text-2xl">
-                  {displayName || "待完善企业名称"}
+                  {displayName || "Unnamed Company"}
                 </h2>
 
                 {/* Truthful verification badges & privacy status */}
                 {isRestricted ? (
                   <span className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-700">
                     <Lock className="h-3 w-3 text-slate-500" />
-                    私有档案 · 仅限项目协作
+                    Private Dossier · Project Collaboration Only
                   </span>
                 ) : isDraft ? (
                   <span className="rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800">
-                    私有草稿 · 拟真预览
+                    Private Draft · Live Preview
                   </span>
                 ) : verified ? (
                   <VerificationBadge level="VERIFIED" size="sm" />
@@ -67,15 +67,15 @@ export function CompanyDossierCard({
                   <VerificationBadge level={verificationLevel} size="sm" />
                 ) : (
                   <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 font-mono text-[10px] text-slate-500">
-                    未公开核验
+                    Unverified
                   </span>
                 )}
               </div>
 
               <p className="text-xs font-medium text-slate-500 sm:text-sm">
                 {isRestricted
-                  ? (restrictedReason || "该企业尚未向公开目录发布档案，仅在当前协作项目中可见企业名称。")
-                  : "企业资料与工程能力卡片 · 真实协作沉淀"}
+                  ? (restrictedReason || "This company has not published a public profile. Name is visible only within authorized collaboration projects.")
+                  : "Company Profile & Engineering Capabilities · Verified Collaboration History"}
               </p>
 
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 font-mono text-xs text-slate-600">
@@ -95,14 +95,14 @@ export function CompanyDossierCard({
                       className="inline-flex items-center gap-1 text-teal-700 hover:underline"
                     >
                       <Globe className="h-3.5 w-3.5" />
-                      官方网站
+                      Official Website
                     </a>
                   </>
                 )}
                 {!isRestricted && (
                   <>
                     <span className="text-slate-300">|</span>
-                    <span>核心能力: {capabilities.length} 项</span>
+                    <span>Capabilities: {capabilities.length}</span>
                   </>
                 )}
               </div>
@@ -116,7 +116,7 @@ export function CompanyDossierCard({
                 onClick={onEditClick}
                 className="rounded-lg border border-slate-300 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
               >
-                编辑草稿
+                Edit Draft
               </button>
             )}
             <Link
@@ -124,7 +124,7 @@ export function CompanyDossierCard({
               className="inline-flex items-center gap-1 rounded-lg bg-teal-700 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-teal-800"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
-              返回项目房间
+              Back to Project Room
             </Link>
           </div>
         </div>
@@ -135,19 +135,19 @@ export function CompanyDossierCard({
         <div className="mb-3 flex items-center justify-between">
           <h3 className="flex items-center gap-2 text-base font-bold text-slate-900">
             <Layers className="h-4 w-4 text-teal-700" />
-            主营产品与工程技术能力
+            Main Products & Engineering Capabilities
           </h3>
           <span className="font-mono text-xs text-slate-400">
-            {isRestricted ? "受隐私与授权策略保护" : "来自主动提供或宣传册 AI 提取审核"}
+            {isRestricted ? "Protected by privacy policy" : "Self-declared or AI-extracted from brochure"}
           </span>
         </div>
 
         {isRestricted ? (
           <p className="text-xs text-slate-400">
-            核心产品与工程技术能力未对外部公开；未经授权不会因在同一聊天室而对外披露。
+            Core products and technical capabilities are private and not disclosed outside this collaboration project.
           </p>
         ) : capabilities.length === 0 ? (
-          <p className="text-xs text-slate-400">尚未填报主营产品或能力，可使用宣传册文字由 AI 辅助提取。</p>
+          <p className="text-xs text-slate-400">No capabilities recorded yet. You can extract them using brochure text with AI.</p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {capabilities.map((cap, i) => (
@@ -165,17 +165,17 @@ export function CompanyDossierCard({
 
       {/* 3. Company Description Section */}
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-        <h3 className="mb-2 text-base font-bold text-slate-900">企业简介与背景概况</h3>
+        <h3 className="mb-2 text-base font-bold text-slate-900">Company Overview & Background</h3>
         {isRestricted ? (
           <p className="text-xs text-slate-400">
-            企业详细简介未对外部公开。当前展示仅限于协作项目内已授权的基本标识。
+            Detailed company description is private. Only basic identification is displayed within authorized collaboration rooms.
           </p>
         ) : description ? (
           <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
             {description}
           </p>
         ) : (
-          <p className="text-xs text-slate-400">尚未录入企业详细介绍。</p>
+          <p className="text-xs text-slate-400">No company description provided yet.</p>
         )}
       </section>
     </article>

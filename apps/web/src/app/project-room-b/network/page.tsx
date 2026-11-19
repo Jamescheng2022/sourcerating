@@ -58,19 +58,19 @@ type CompanyForm = {
 
 const initialForm: CompanyForm = { display_name: "", description: "", website_url: "", country: "", capabilities: "" };
 const relationshipKinds = {
-  buyer: "客户 / 买方",
-  supplier: "供应商",
-  partner: "合作伙伴",
-  other: "其他",
+  buyer: "Buyer / Client",
+  supplier: "Supplier",
+  partner: "Partner",
+  other: "Other",
 };
 const relationshipStages = {
-  prospect: "待联系",
-  contacted: "已联系",
-  active: "合作中",
-  paused: "暂停",
+  prospect: "Prospect",
+  contacted: "Contacted",
+  active: "Active",
+  paused: "Paused",
 };
 const labels: Record<Draft["field_key"], string> = {
-  description: "公司简介", website_url: "网站", country: "国家 / 地区", capabilities: "主营能力",
+  description: "Company Overview", website_url: "Website", country: "Country / Region", capabilities: "Core Capabilities",
 };
 const section = "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6";
 const field = "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-offset-2 focus:border-teal-600";
@@ -96,7 +96,7 @@ function safeWebsite(value: string): string | null {
   const v = value.trim();
   if (!v) return null;
   try { if (new URL(v).protocol === "https:") return v; } catch { /* invalid */ }
-  throw new Error("企业网站必须是完整的 HTTPS 链接");
+  throw new Error("Company website must be a valid HTTPS URL");
 }
 
 export default function NetworkMemoryPage() {
@@ -199,7 +199,7 @@ export default function NetworkMemoryPage() {
       setContacts((relations.data ?? []) as Relationship[]);
       setDrafts((suggestions.data ?? []) as Draft[]);
     } catch (e) {
-      setError("资料库尚未启用或无法读取：" + errText(e));
+      setError("Dossier repository not enabled or failed to load: " + errText(e));
     }
   }, []);
 
@@ -239,8 +239,8 @@ export default function NetworkMemoryPage() {
 
   const report = (message: string) => { setNotice(message); setError(""); };
   const saveCompany = async (current: CompanyForm = form) => {
-    if (!userId || !orgId) throw new Error("请先登录并选择组织");
-    if (current.display_name.trim().length < 2) throw new Error("公司名称至少两个字符");
+    if (!userId || !orgId) throw new Error("Please log in and select an organization");
+    if (current.display_name.trim().length < 2) throw new Error("Company name must be at least 2 characters");
     const { error: saveError } = await supabase.from("sr_organization_profiles").upsert({
       organization_id: orgId,
       display_name: current.display_name.trim(),
@@ -257,14 +257,14 @@ export default function NetworkMemoryPage() {
 
   const saveManual = async () => {
     setBusy("company"); setError("");
-    try { await saveCompany(); report("企业资料已保存为私有草稿，未公开到 Marketplace。"); }
+    try { await saveCompany(); report("Company profile saved as private draft, not published to Marketplace."); }
     catch (e) { setError(errText(e)); } finally { setBusy(""); }
   };
 
   const savePerson = async () => {
     setBusy("person"); setError("");
     try {
-      if (!personal.display_name.trim()) throw new Error("请填写姓名");
+      if (!personal.display_name.trim()) throw new Error("Please enter your name");
       const { error: e } = await supabase.from("sr_person_profiles").upsert({
         user_id: userId, display_name: personal.display_name.trim(),
         headline: personal.headline.trim() || null,
@@ -272,14 +272,14 @@ export default function NetworkMemoryPage() {
         visibility: "private", published_at: null, updated_at: new Date().toISOString(),
       }, { onConflict: "user_id" });
       if (e) throw e;
-      report("个人资料已保存，仅自己可见。");
+      report("Personal profile saved, visible only to you.");
     } catch (e) { setError(errText(e)); } finally { setBusy(""); }
   };
 
   const addContact = async () => {
     setBusy("contact"); setError("");
     try {
-      if (contactName.trim().length < 2) throw new Error("请填写客户或供应商名称");
+      if (contactName.trim().length < 2) throw new Error("Please enter customer or supplier name");
       const existing = counterpartyOrgId
         ? contacts.find((c) => c.counterparty_organization_id === counterpartyOrgId && c.relationship_kind === contactKind)
         : null;
@@ -295,7 +295,7 @@ export default function NetworkMemoryPage() {
         if (e) throw e;
         setContactNotes("");
         await loadOrg(orgId, orgs.find((o) => o.id === orgId)?.name ?? "");
-        report("关系已更新并保存到本企业私有客户/供应商库。");
+        report("Relationship updated and saved to private customer/supplier directory.");
       } else {
         const { error: e } = await supabase.from("sr_organization_relationships").insert({
           owner_organization_id: orgId, counterparty_name: contactName.trim(),
@@ -306,7 +306,7 @@ export default function NetworkMemoryPage() {
         if (e) throw e;
         setContactName(""); setContactNotes(""); setCounterpartyOrgId(null); setSourceProjectId(null);
         await loadOrg(orgId, orgs.find((o) => o.id === orgId)?.name ?? "");
-        report("关系已保存到本企业私有客户/供应商库，不会通知对方。");
+        report("Relationship saved to private customer/supplier directory; counterparty will not be notified.");
       }
     } catch (e) { setError(errText(e)); } finally { setBusy(""); }
   };
@@ -319,16 +319,16 @@ export default function NetworkMemoryPage() {
         .eq("id", id).eq("owner_organization_id", orgId);
       if (e) throw e;
       setContacts((items) => items.map((c) => c.id === id ? { ...c, stage } : c));
-      report("联系状态已更新。");
+      report("Contact stage updated.");
     } catch (e) { setError(errText(e)); } finally { setBusy(""); }
   };
 
   const askAI = async () => {
     setBusy("ai"); setError(""); setGenerated([]);
     try {
-      if (sourceText.trim().length < 40) throw new Error("请先粘贴至少 40 个字符的宣传册或网站原文");
+      if (sourceText.trim().length < 40) throw new Error("Please paste at least 40 characters from brochure or website text");
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("登录已过期，请重新登录");
+      if (!session) throw new Error("Session expired, please log in again");
       const res = await fetch("/api/project-room-b/profile-suggest", {
         method: "POST", headers: {
           Authorization: `Bearer ${session.access_token}`,
@@ -340,9 +340,9 @@ export default function NetworkMemoryPage() {
         }),
       });
       const answer = await res.json().catch(() => ({}));
-      if (!res.ok || !answer.ok) throw new Error(answer.error || "AI 提取失败");
+      if (!res.ok || !answer.ok) throw new Error(answer.error || "AI extraction failed");
       setGenerated(Array.isArray(answer.suggestions) ? answer.suggestions : []);
-      report("AI 只生成了候选资料，请逐条审核。未写入资料库。");
+      report("AI generated candidate data only. Please review each item. Not saved to database.");
     } catch (e) { setError(errText(e)); } finally { setBusy(""); }
   };
 
@@ -353,13 +353,13 @@ export default function NetworkMemoryPage() {
         target_organization_id: orgId, target_user_id: null,
         field_key: item.fieldKey, proposed_value: item.value,
         source_kind: sourceKind,
-        source_label: ((sourceLabel.trim() || (sourceKind === "website_text" ? "用户粘贴的网站介绍" : "用户粘贴的公司宣传册")) + (item.evidenceNote ? ` · ${item.evidenceNote}` : "")).slice(0, 280),
+        source_label: ((sourceLabel.trim() || (sourceKind === "website_text" ? "User pasted website introduction" : "User pasted company brochure")) + (item.evidenceNote ? ` · ${item.evidenceNote}` : "")).slice(0, 280),
         confidence: item.confidence, status: "pending", created_by: userId,
       });
       if (e) throw e;
       setGenerated((items) => items.filter((g) => g.fieldKey !== item.fieldKey));
       await loadOrg(orgId, orgs.find((o) => o.id === orgId)?.name ?? "");
-      report("AI 建议已加入待确认队列，没有更新正式企业资料。");
+      report("AI suggestions added to pending review queue; official company profile untouched.");
     } catch (e) { setError(errText(e)); } finally { setBusy(""); }
   };
 
@@ -367,7 +367,7 @@ export default function NetworkMemoryPage() {
     setBusy(s.id); setError("");
     try {
       if (accept) {
-        if (!window.confirm("将这条建议应用到本企业私有资料？不会公开，也不会替代第三方资质核验。")) return;
+        if (!window.confirm("Apply this suggestion to private company profile? Will not be published or replace third-party verification.")) return;
       }
       const { error: rpcError } = await supabase.rpc("sr_decide_profile_suggestion", {
         p_suggestion_id: s.id,
@@ -377,7 +377,7 @@ export default function NetworkMemoryPage() {
       if (rpcError) throw rpcError;
       setDrafts((items) => items.filter((d) => d.id !== s.id));
       await loadOrg(orgId, orgs.find((o) => o.id === orgId)?.name ?? "");
-      report(accept ? "已采纳至私有企业资料。" : "已忽略该条建议。");
+      report(accept ? "Applied to private company profile." : "Suggestion dismissed.");
     } catch (e) { setError(errText(e)); } finally { setBusy(""); }
   };
 
@@ -405,29 +405,29 @@ export default function NetworkMemoryPage() {
               className="inline-flex items-center gap-1 text-sm font-semibold text-teal-700 hover:text-teal-800"
             >
               <ArrowLeft className="h-4 w-4" />
-              返回 Project Room
+              Return to Project Room
             </Link>
-            <h1 className="mt-2 text-2xl font-bold tracking-tight">关系与能力资料</h1>
+            <h1 className="mt-2 text-2xl font-bold tracking-tight">Relationship & Capabilities Dossier</h1>
             <p className="mt-1 max-w-2xl text-sm text-slate-500">
-              从真实协作中逐渐完善个人、公司和客户/供应商关系。默认私有，不从聊天自动公开。
+              Gradually build personal, company, and customer/supplier relationships from real collaboration. Private by default; never automatically exposed from chat.
             </p>
           </div>
           <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs text-amber-800">
-            内测 · 私有资料空间
+            Beta · Private Dossier Space
           </span>
         </header>
 
         {error && <div className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-800" role="alert">{error}</div>}
         {notice && <div className="rounded-xl border border-teal-200 bg-teal-50 p-3 text-sm text-teal-900" role="status">{notice}</div>}
 
-        {phase === "loading" && <div className={section} role="status">正在读取你的组织权限…</div>}
-        {phase === "signedout" && <div className={section}>请先<Link href="/project-room-b" className="ml-1 text-teal-700 underline">登录 Project Room</Link>。</div>}
-        {phase === "unavailable" && <div className={section}>网络资料模块暂不可用；现有聊天室不受影响。</div>}
+        {phase === "loading" && <div className={section} role="status">Loading your organization permissions…</div>}
+        {phase === "signedout" && <div className={section}>Please <Link href="/project-room-b" className="ml-1 text-teal-700 underline">log in to Project Room</Link> first.</div>}
+        {phase === "unavailable" && <div className={section}>Network dossier module temporarily unavailable; existing chat rooms are unaffected.</div>}
 
         {(phase === "ready" || phase === "noadmin") && (
           <>
             {/* Claude V4.5 Minimal-Diff Sub-navigation Tabs */}
-            <nav className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-2" aria-label="网络资料标签导航">
+            <nav className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-2" aria-label="Network dossier tab navigation">
               <button
                 type="button"
                 onClick={() => setActiveTab("edit")}
@@ -438,7 +438,7 @@ export default function NetworkMemoryPage() {
                 }`}
               >
                 <FileEdit className="h-3.5 w-3.5" />
-                资料维护与 AI
+                Maintenance & AI
               </button>
               <button
                 type="button"
@@ -450,7 +450,7 @@ export default function NetworkMemoryPage() {
                 }`}
               >
                 <Building2 className="h-3.5 w-3.5" />
-                企业档案拟真预览
+                Company Dossier Preview
               </button>
               <button
                 type="button"
@@ -462,7 +462,7 @@ export default function NetworkMemoryPage() {
                 }`}
               >
                 <User className="h-3.5 w-3.5" />
-                个人名片拟真预览
+                Person Dossier Preview
               </button>
               <button
                 type="button"
@@ -474,7 +474,7 @@ export default function NetworkMemoryPage() {
                 }`}
               >
                 <Users className="h-3.5 w-3.5" />
-                私有客户/供应商目录 ({contacts.length})
+                Private Customer/Supplier Directory ({contacts.length})
               </button>
             </nav>
 
@@ -483,11 +483,11 @@ export default function NetworkMemoryPage() {
               <section className="space-y-4">
                 {phase === "noadmin" && (
                   <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
-                    提示：当前您以普通工程成员登录。企业资料草稿由企业管理员编辑维护，以下为本企业私有档案拟真预览。
+                    Notice: You are logged in as a standard member. Company profile drafts are maintained by organization admins. Below is your company&apos;s private dossier preview.
                   </div>
                 )}
                 <CompanyDossierCard
-                  displayName={form.display_name || orgName || "待完善企业"}
+                  displayName={form.display_name || orgName || "Pending Company"}
                   websiteUrl={form.website_url || null}
                   country={form.country || null}
                   capabilities={csv(form.capabilities)}
@@ -505,7 +505,7 @@ export default function NetworkMemoryPage() {
             {activeTab === "person" && (
               <section className="space-y-4">
                 <PersonDossierCard
-                  displayName={personal.display_name || "待完善姓名"}
+                  displayName={personal.display_name || "Pending Name"}
                   headline={personal.headline || null}
                   bio={personal.bio || null}
                   skills={csv(personal.skills)}
@@ -523,9 +523,9 @@ export default function NetworkMemoryPage() {
               <section data-testid="network-directory-view" className="space-y-4">
                 <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <h2 className="text-base font-bold text-slate-900 sm:text-lg">企业私有客户与供应商库</h2>
+                    <h2 className="text-base font-bold text-slate-900 sm:text-lg">Private Customer & Supplier Directory</h2>
                     <p className="mt-0.5 text-xs text-slate-500">
-                      从真实协作沉淀的私有联系人。仅本企业内部可见，绝不进入公共 Marketplace。
+                      Private contacts accumulated from authentic collaboration. Visible only inside your organization, never listed on public Marketplace.
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -533,7 +533,7 @@ export default function NetworkMemoryPage() {
                       <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
                       <input
                         type="text"
-                        placeholder="搜索关系或备注..."
+                        placeholder="Search contacts or notes..."
                         value={directorySearch}
                         onChange={(e) => setDirectorySearch(e.target.value)}
                         className="rounded-lg border border-slate-300 bg-white py-1.5 pl-8 pr-3 text-xs text-slate-900 outline-offset-2 focus:border-teal-600"
@@ -546,7 +546,7 @@ export default function NetworkMemoryPage() {
                         className="inline-flex items-center gap-1 rounded-lg bg-teal-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-800"
                       >
                         <Plus className="h-3.5 w-3.5" />
-                        添加关系
+                        Add Contact
                       </button>
                     )}
                   </div>
@@ -556,8 +556,8 @@ export default function NetworkMemoryPage() {
                   <div className={section}>
                     <p className="text-sm text-slate-500">
                       {directorySearch
-                        ? "未找到匹配的关系记录。"
-                        : "暂无关系记录。在项目聊天或“资料维护”中添加合作方后，将仅在此处对本企业私有展示。"}
+                        ? "No matching relationship records found."
+                        : "No relationship records yet. Counterparties added in project chat or Maintenance will appear here privately for your organization."}
                     </p>
                   </div>
                 ) : (
@@ -573,7 +573,7 @@ export default function NetworkMemoryPage() {
                               <Avatar type="org" name={c.counterparty_name} size="md" verified={false} />
                               <div>
                                 <h3 className="text-sm font-semibold leading-snug text-slate-950">
-                                  {c.counterparty_name}
+                                   {c.counterparty_name}
                                 </h3>
                                 <div className="mt-1 flex flex-wrap items-center gap-1.5">
                                   <StatusPill role={c.relationship_kind} />
@@ -593,13 +593,13 @@ export default function NetworkMemoryPage() {
                         <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs text-slate-500">
                           {phase === "ready" ? (
                             <label className="flex items-center gap-1.5">
-                              <span>阶段:</span>
+                              <span>Stage:</span>
                               <select
                                 className="rounded border border-slate-200 bg-white px-2 py-0.5 text-xs text-slate-800"
                                 value={c.stage}
                                 disabled={!!busy}
                                 onChange={(e) => void changeStage(c.id, e.target.value as Relationship["stage"])}
-                                aria-label={`更新 ${c.counterparty_name} 合作阶段`}
+                                aria-label={`Update contact stage for ${c.counterparty_name}`}
                               >
                                 {Object.entries(relationshipStages).map(([k, v]) => (
                                   <option key={k} value={k}>{v}</option>
@@ -607,7 +607,7 @@ export default function NetworkMemoryPage() {
                               </select>
                             </label>
                           ) : (
-                            <span className="font-mono text-slate-400">仅管理员可修改阶段</span>
+                            <span className="font-mono text-slate-400">Only admins can update stage</span>
                           )}
 
                           {fromRoomId && (
@@ -615,7 +615,7 @@ export default function NetworkMemoryPage() {
                               href={`/project-room-b?room=${encodeURIComponent(fromRoomId)}`}
                               className="font-medium text-teal-700 hover:underline"
                             >
-                              返回房间 →
+                              Return to Room →
                             </Link>
                           )}
                         </div>
@@ -631,15 +631,15 @@ export default function NetworkMemoryPage() {
               <>
                 {phase === "noadmin" && (
                   <div className={section}>
-                    <h2 className="text-lg font-bold">我的个人资料</h2>
+                    <h2 className="text-lg font-bold">My Personal Profile</h2>
                     <p className="mt-1 text-sm text-slate-500">
-                      企业资料和企业私有客户库需要管理员权限；你的个人资料可由自己维护。
+                      Company profile and private customer directory require admin permissions; your personal profile can be maintained by yourself.
                     </p>
                     <div className="mt-3 space-y-3">
-                      <label className="block text-sm font-medium">显示姓名<input className={`mt-1 ${field}`} value={personal.display_name} onChange={(e) => setPersonal((p) => ({ ...p, display_name: e.target.value }))} /></label>
-                      <label className="block text-sm font-medium">职位 / 专业<input className={`mt-1 ${field}`} value={personal.headline} onChange={(e) => setPersonal((p) => ({ ...p, headline: e.target.value }))} /></label>
-                      <label className="block text-sm font-medium">擅长领域（逗号分隔）<input className={`mt-1 ${field}`} value={personal.skills} onChange={(e) => setPersonal((p) => ({ ...p, skills: e.target.value }))} /></label>
-                      <button type="button" className={primary} disabled={!!busy} onClick={() => void savePerson()}>保存我的私有资料</button>
+                      <label className="block text-sm font-medium">Display Name<input className={`mt-1 ${field}`} value={personal.display_name} onChange={(e) => setPersonal((p) => ({ ...p, display_name: e.target.value }))} /></label>
+                      <label className="block text-sm font-medium">Title / Specialty<input className={`mt-1 ${field}`} value={personal.headline} onChange={(e) => setPersonal((p) => ({ ...p, headline: e.target.value }))} /></label>
+                      <label className="block text-sm font-medium">Expertise & Skills (comma-separated)<input className={`mt-1 ${field}`} value={personal.skills} onChange={(e) => setPersonal((p) => ({ ...p, skills: e.target.value }))} /></label>
+                      <button type="button" className={primary} disabled={!!busy} onClick={() => void savePerson()}>Save My Private Profile</button>
                     </div>
                   </div>
                 )}
@@ -647,103 +647,103 @@ export default function NetworkMemoryPage() {
                 {phase === "ready" && (
                   <>
                     <label className="flex max-w-md flex-col gap-1 text-sm font-semibold text-slate-700">
-                      选择你管理的组织
+                      Select Managed Organization
                       <select className={field} value={orgId} onChange={(e) => setOrgId(e.target.value)}>
-                        {orgs.map((o) => <option key={o.id} value={o.id}>{o.name}（{o.role}）</option>)}
+                        {orgs.map((o) => <option key={o.id} value={o.id}>{o.name} ({o.role})</option>)}
                       </select>
                     </label>
 
                     <div className="grid gap-5 lg:grid-cols-2">
                       <section className={section}>
                         <div className="mb-4">
-                          <h2 className="text-lg font-bold">企业资料草稿</h2>
-                          <p className="mt-1 text-xs text-slate-500">管理员编辑，仅公司成员能看到草稿。发布到公开目录是未来的单独授权动作。</p>
+                          <h2 className="text-lg font-bold">Company Profile Draft</h2>
+                          <p className="mt-1 text-xs text-slate-500">Maintained by admins; only company members can view drafts. Publishing to public directory requires separate explicit authorization.</p>
                         </div>
                         <div className="space-y-3">
-                          {input("企业名称", form.display_name, (v) => updateForm("display_name", v), orgName)}
-                          {input("企业网站（HTTPS）", form.website_url, (v) => updateForm("website_url", v), "https://example.com")}
-                          {input("国家 / 地区", form.country, (v) => updateForm("country", v), "Thailand")}
-                          {input("主营产品与能力（逗号分隔）", form.capabilities, (v) => updateForm("capabilities", v), "PHC piles, precast components")}
-                          <label className="block text-sm font-medium text-slate-700">公司简介
+                          {input("Company Name", form.display_name, (v) => updateForm("display_name", v), orgName)}
+                          {input("Company Website (HTTPS)", form.website_url, (v) => updateForm("website_url", v), "https://example.com")}
+                          {input("Country / Region", form.country, (v) => updateForm("country", v), "Thailand")}
+                          {input("Core Products & Capabilities (comma-separated)", form.capabilities, (v) => updateForm("capabilities", v), "PHC piles, precast components")}
+                          <label className="block text-sm font-medium text-slate-700">Company Overview
                             <textarea className={`mt-1 min-h-28 ${field}`} maxLength={5000} value={form.description} onChange={(e) => updateForm("description", e.target.value)} />
                           </label>
-                          <button type="button" className={primary} disabled={!!busy} onClick={() => void saveManual()}>保存私有企业草稿</button>
+                          <button type="button" className={primary} disabled={!!busy} onClick={() => void saveManual()}>Save Private Company Draft</button>
                         </div>
                       </section>
 
                       <section className={section}>
-                        <h2 className="text-lg font-bold">AI 整理公司资料</h2>
-                        <p className="mt-1 text-xs text-slate-500">仅处理你主动粘贴且有权提供的内容；需调用已配置的 AI 服务。不会自动抓取网站、读取群聊或发布资料。</p>
+                        <h2 className="text-lg font-bold">AI Company Profile Extraction</h2>
+                        <p className="mt-1 text-xs text-slate-500">Only processes material you actively paste and have rights to provide; calls configured AI services. Does not scrape websites, read chats, or auto-publish.</p>
                         <div className="mt-4 space-y-3">
-                          <label className="block text-sm font-medium text-slate-700">素材来源
+                          <label className="block text-sm font-medium text-slate-700">Source Type
                             <select className={`mt-1 ${field}`} value={sourceKind} onChange={(e) => setSourceKind(e.target.value as "brochure_text" | "website_text")}>
-                              <option value="brochure_text">公司宣传册文字</option>
-                              <option value="website_text">公司网站介绍文字</option>
+                              <option value="brochure_text">Company Brochure Text</option>
+                              <option value="website_text">Company Website Intro Text</option>
                             </select>
                           </label>
-                          {input("来源标记（可选）", sourceLabel, setSourceLabel, "官网 About 页面 / 2026 版宣传册")}
-                          <label className="block text-sm font-medium text-slate-700">粘贴素材文字
-                            <textarea className={`mt-1 min-h-36 ${field}`} maxLength={12000} value={sourceText} onChange={(e) => setSourceText(e.target.value)} placeholder="粘贴公司简介、产品目录说明等；不要粘贴客户保密资料。" />
+                          {input("Source Tag (Optional)", sourceLabel, setSourceLabel, "Official About Page / 2026 Brochure")}
+                          <label className="block text-sm font-medium text-slate-700">Paste Source Material Text
+                            <textarea className={`mt-1 min-h-36 ${field}`} maxLength={12000} value={sourceText} onChange={(e) => setSourceText(e.target.value)} placeholder="Paste company overview, product catalog specs, etc. Do not paste confidential client data." />
                           </label>
                           <button type="button" className={primary} disabled={!!busy || sourceText.trim().length < 40} onClick={() => void askAI()}>
-                            {busy === "ai" ? "AI 正在整理…" : "提取资料建议"}
+                            {busy === "ai" ? "AI is organizing…" : "Extract Profile Suggestions"}
                           </button>
                           {!!generated.length && <div className="space-y-2 border-t border-slate-200 pt-3">
-                            <h3 className="text-sm font-bold">待保存的 AI 候选</h3>
+                            <h3 className="text-sm font-bold">Pending AI Suggestions</h3>
                             {generated.map((g) => <div key={g.fieldKey} className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
-                              <div className="font-semibold">{labels[g.fieldKey]} · 置信度 {Math.round(g.confidence * 100)}%</div>
-                              <p className="mt-1 break-words text-slate-700">{Array.isArray(g.value) ? g.value.join("、") : g.value}</p>
-                              {g.evidenceNote && <p className="mt-1 text-xs text-slate-500">依据：{g.evidenceNote}</p>}
-                              <button type="button" disabled={!!busy} onClick={() => void saveSuggestion(g)} className={`mt-2 ${secondary}`}>加入待确认队列</button>
+                              <div className="font-semibold">{labels[g.fieldKey]} · Confidence {Math.round(g.confidence * 100)}%</div>
+                              <p className="mt-1 break-words text-slate-700">{Array.isArray(g.value) ? g.value.join(", ") : g.value}</p>
+                              {g.evidenceNote && <p className="mt-1 text-xs text-slate-500">Basis: {g.evidenceNote}</p>}
+                              <button type="button" disabled={!!busy} onClick={() => void saveSuggestion(g)} className={`mt-2 ${secondary}`}>Add to Pending Queue</button>
                             </div>)}
                           </div>}
                         </div>
                       </section>
 
                       <section className={section}>
-                        <h2 className="text-lg font-bold">需要你确认</h2>
-                        <p className="mt-1 text-xs text-slate-500">AI 建议并非经验证的企业事实。采纳后只保存到私有档案，不自动进入公开目录。</p>
+                        <h2 className="text-lg font-bold">Action Required: Review AI Suggestions</h2>
+                        <p className="mt-1 text-xs text-slate-500">AI suggestions are not verified facts. Accepting applies them to private drafts only, never automatically to public directories.</p>
                         <div className="mt-3 space-y-3">
-                          {!drafts.length && <p className="text-sm text-slate-500">当前没有待确认的企业资料。</p>}
+                          {!drafts.length && <p className="text-sm text-slate-500">No pending company profile suggestions at this time.</p>}
                           {drafts.map((d) => <div key={d.id} className="rounded-xl border border-slate-200 p-3">
                             <div className="flex items-center justify-between gap-2">
                               <strong className="text-sm">{labels[d.field_key]}</strong>
                               <span className="text-xs text-slate-500">{d.source_kind}</span>
                             </div>
-                            <p className="mt-2 break-words text-sm">{Array.isArray(d.proposed_value) ? d.proposed_value.join("、") : String(d.proposed_value)}</p>
+                            <p className="mt-2 break-words text-sm">{Array.isArray(d.proposed_value) ? d.proposed_value.join(", ") : String(d.proposed_value)}</p>
                             {d.source_label && <p className="mt-1 text-xs text-slate-500">{d.source_label}</p>}
                             <div className="mt-3 flex gap-2">
-                              <button className={primary} type="button" disabled={!!busy} onClick={() => void decideSuggestion(d, true)}>确认并应用</button>
-                              <button className={secondary} type="button" disabled={!!busy} onClick={() => void decideSuggestion(d, false)}>忽略</button>
+                              <button className={primary} type="button" disabled={!!busy} onClick={() => void decideSuggestion(d, true)}>Confirm & Apply</button>
+                              <button className={secondary} type="button" disabled={!!busy} onClick={() => void decideSuggestion(d, false)}>Dismiss</button>
                             </div>
                           </div>)}
                         </div>
                       </section>
 
                       <section className={section}>
-                        <h2 className="text-lg font-bold">客户与供应商关系库</h2>
-                        <p className="mt-1 text-xs text-slate-500">本组织独有的联系人线索，不会自动与对方企业共享或发布到 Marketplace。</p>
+                        <h2 className="text-lg font-bold">Customer & Supplier Relationships</h2>
+                        <p className="mt-1 text-xs text-slate-500">Exclusive contact leads for your organization; will not be shared with the counterparty or published to Marketplace.</p>
                         <div className="mt-4 space-y-3">
-                          {counterpartyOrgId && <p className="rounded-lg bg-teal-50 px-3 py-2 text-xs text-teal-900">已根据你有权限访问的项目房间识别合作企业。保存后仅在本企业客户库中可见。</p>}
-                          {input("企业名称", contactName, setContactName, "待联系的客户或供应商")}
-                          <label className="block text-sm font-medium text-slate-700">关系
+                          {counterpartyOrgId && <p className="rounded-lg bg-teal-50 px-3 py-2 text-xs text-teal-900">Identified counterparty from project room you have access to. Saved records remain private to your company.</p>}
+                          {input("Company Name", contactName, setContactName, "Target customer or supplier name")}
+                          <label className="block text-sm font-medium text-slate-700">Relationship
                             <select className={`mt-1 ${field}`} value={contactKind} onChange={(e) => setContactKind(e.target.value as Relationship["relationship_kind"])}>
                               {Object.entries(relationshipKinds).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                             </select>
                           </label>
-                          <label className="block text-sm font-medium text-slate-700">私有备注（可选）
+                          <label className="block text-sm font-medium text-slate-700">Private Notes (Optional)
                             <textarea className={`mt-1 min-h-20 ${field}`} maxLength={4000} value={contactNotes} onChange={(e) => setContactNotes(e.target.value)} />
                           </label>
-                          <button type="button" className={primary} disabled={!!busy} onClick={() => void addContact()}>保存为私有关系</button>
+                          <button type="button" className={primary} disabled={!!busy} onClick={() => void addContact()}>Save as Private Relationship</button>
                           <div className="space-y-2 border-t border-slate-200 pt-4">
-                            {contacts.length === 0 && <p className="text-sm text-slate-500">暂无关系记录。将来可从你参与的项目中建议添加，但不会自动写入。</p>}
+                            {contacts.length === 0 && <p className="text-sm text-slate-500">No relationship records yet. Future recommendations from your projects will not be added automatically.</p>}
                             {contacts.map((c) => <div key={c.id} className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-slate-200 p-3">
                               <div className="min-w-0 flex-1">
                                 <div className="break-words font-semibold">{c.counterparty_name}</div>
                                 <p className="mt-1 text-xs text-slate-500">{relationshipKinds[c.relationship_kind]}</p>
                                 {c.private_notes && <p className="mt-2 whitespace-pre-wrap break-words text-xs text-slate-600">{c.private_notes}</p>}
                               </div>
-                              <select className="rounded-lg border border-slate-300 px-2 py-1 text-xs" disabled={!!busy} value={c.stage} onChange={(e) => void changeStage(c.id, e.target.value as Relationship["stage"])} aria-label={`更新 ${c.counterparty_name} 的联系阶段`}>
+                              <select className="rounded-lg border border-slate-300 px-2 py-1 text-xs" disabled={!!busy} value={c.stage} onChange={(e) => void changeStage(c.id, e.target.value as Relationship["stage"])} aria-label={`Update contact stage for ${c.counterparty_name}`}>
                                 {Object.entries(relationshipStages).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                               </select>
                             </div>)}
@@ -754,18 +754,18 @@ export default function NetworkMemoryPage() {
 
                     <section className={section}>
                       <div className="mb-3">
-                        <h2 className="text-lg font-bold">我的个人资料</h2>
-                        <p className="mt-1 text-xs text-slate-500">只保存自己的专业资料；不从跨企业聊天中推断或公开个人信息。</p>
+                        <h2 className="text-lg font-bold">My Personal Profile</h2>
+                        <p className="mt-1 text-xs text-slate-500">Maintain your professional profile only; personal data is never inferred or published from cross-company chats.</p>
                       </div>
                       <div className="grid gap-3 md:grid-cols-2">
-                        {input("显示姓名", personal.display_name, (v) => setPersonal((p) => ({ ...p, display_name: v })), "姓名")}
-                        {input("职位 / 专业", personal.headline, (v) => setPersonal((p) => ({ ...p, headline: v })), "采购经理 / 工程师")}
-                        {input("擅长领域（逗号分隔）", personal.skills, (v) => setPersonal((p) => ({ ...p, skills: v })), "Precast, Procurement")}
-                        <label className="block text-sm font-medium text-slate-700">个人简介
+                        {input("Display Name", personal.display_name, (v) => setPersonal((p) => ({ ...p, display_name: v })), "Full Name")}
+                        {input("Title / Specialty", personal.headline, (v) => setPersonal((p) => ({ ...p, headline: v })), "Procurement Manager / Engineer")}
+                        {input("Expertise & Skills (comma-separated)", personal.skills, (v) => setPersonal((p) => ({ ...p, skills: v })), "Precast, Procurement")}
+                        <label className="block text-sm font-medium text-slate-700">Personal Bio
                           <textarea className={`mt-1 min-h-20 ${field}`} maxLength={3000} value={personal.bio} onChange={(e) => setPersonal((p) => ({ ...p, bio: e.target.value }))} />
                         </label>
                       </div>
-                      <button type="button" className={`mt-3 ${primary}`} disabled={!!busy} onClick={() => void savePerson()}>保存我的私有资料</button>
+                      <button type="button" className={`mt-3 ${primary}`} disabled={!!busy} onClick={() => void savePerson()}>Save My Private Profile</button>
                     </section>
                   </>
                 )}

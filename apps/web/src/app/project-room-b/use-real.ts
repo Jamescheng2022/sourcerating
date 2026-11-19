@@ -74,17 +74,17 @@ const isViewingRoom = (state: State, roomId: string) =>
 function toMsg(e: EventRow, files: RealFile[]): Msg | null {
   const p = e.payload ?? {};
   const base = { id: e.id, userId: e.actor_user_id, at: e.created_at, status: "sent" as const, replyTo: str(p.reply_to) };
-  const ver = `${str(p.logical_name) ?? "文件"} v${p.version_no ?? "?"}`;
+  const ver = `${str(p.logical_name) ?? "File"} v${p.version_no ?? "?"}`;
   switch (e.event_type) {
     case "message.posted": return { ...base, text: str(p.text) ?? "" };
     case "file.attached": {
       const f = files.find((x) => x.sourceEventId === e.id || x.id === p.file_version_id);
       return { ...base, text: str(p.caption), fileId: f?.id ?? str(p.file_version_id) };
     }
-    case "room.summary_shared": return { ...base, text: `【${str(p.from_room_name) ?? "内部讨论"} · 摘要】\n${str(p.text) ?? ""}` };
-    case "file.review_requested": return { ...base, text: `请各方审核 ${ver}${p.note ? `\n${p.note}` : ""}` };
+    case "room.summary_shared": return { ...base, text: `[${str(p.from_room_name) ?? "Internal Discussion"} · Summary]\n${str(p.text) ?? ""}` };
+    case "file.review_requested": return { ...base, text: `Request team review for ${ver}${p.note ? `\n${p.note}` : ""}` };
     case "confirmation.recorded":
-      return { ...base, text: `${p.decision === "confirmed" ? "✓ 已确认" : "✎ 要求修改"} ${p.file_version_id ? `${ver} · ${String(p.sha256 ?? "").slice(0, 10)}` : "事项"}${p.comment ? `\n${p.comment}` : ""}` };
+      return { ...base, text: `${p.decision === "confirmed" ? "✓ Confirmed" : "✎ Changes Requested"} ${p.file_version_id ? `${ver} · ${String(p.sha256 ?? "").slice(0, 10)}` : "item"}${p.comment ? `\n${p.comment}` : ""}` };
     default: return null;
   }
 }
@@ -109,7 +109,7 @@ export function useReal() {
   const pending = useRef(new Map<string, { roomId: string; text: string; file?: File; replyTo?: string }>());
   const fail = (e: unknown) => set((p) => ({ ...p, error: e instanceof Error ? e.message : String((e as { message?: string })?.message ?? e) }));
 
-  const user = useCallback((id: string): User => s.users[id] ?? { id, name: "成员", orgId: "", title: "" }, [s.users]);
+  const user = useCallback((id: string): User => s.users[id] ?? { id, name: "Member", orgId: "", title: "" }, [s.users]);
   const org = useCallback((id: string): Org => s.orgs.find((o) => o.id === id) ?? { id, name: "—", short: "?", place: "", color: "#8a8f95" }, [s.orgs]);
 
   /** Organisations, rooms and members visible to this user. */
@@ -128,10 +128,10 @@ export function useReal() {
     if (err) return fail(err);
     const orgList: Org[] = (orgs.data ?? []).map((o) => ({ id: o.id, name: o.name, short: shortOf(o.name), place: "", color: PALETTE[hash(o.id) % PALETTE.length] }));
     const users: Record<string, User> = { ...ref.current.users };
-    for (const m of mem.data ?? []) users[m.user_id] = { id: m.user_id, name: m.display_name ?? users[m.user_id]?.name ?? "成员", orgId: m.organization_id, title: m.role };
-    for (const m of members.data ?? []) users[m.user_id] = { id: m.user_id, name: m.member_display_name ?? users[m.user_id]?.name ?? "成员", orgId: m.acting_organization_id, title: m.room_role };
+    for (const m of mem.data ?? []) users[m.user_id] = { id: m.user_id, name: m.display_name ?? users[m.user_id]?.name ?? "Member", orgId: m.organization_id, title: m.role };
+    for (const m of members.data ?? []) users[m.user_id] = { id: m.user_id, name: m.member_display_name ?? users[m.user_id]?.name ?? "Member", orgId: m.acting_organization_id, title: m.room_role };
     const memberships = (mem.data ?? []).filter((m) => m.user_id === uid).map((m) => ({ orgId: m.organization_id, role: m.role, displayName: m.display_name }));
-    const colleagues = (mem.data ?? []).filter((m) => m.user_id !== uid).map((m) => ({ userId: m.user_id, orgId: m.organization_id, name: m.display_name ?? "成员" }));
+    const colleagues = (mem.data ?? []).filter((m) => m.user_id !== uid).map((m) => ({ userId: m.user_id, orgId: m.organization_id, name: m.display_name ?? "Member" }));
     const saved = typeof localStorage !== "undefined" ? localStorage.getItem(ORG_KEY) : null;
     const orgId = memberships.find((m) => m.orgId === ref.current.orgId)?.orgId ?? memberships.find((m) => m.orgId === saved)?.orgId ?? memberships[0]?.orgId ?? "";
     const list: RealRoom[] = (rooms.data ?? []).map((r) => {
@@ -140,7 +140,7 @@ export function useReal() {
       for (const m of ms.filter((x) => x.user_id === uid)) unread[m.acting_organization_id] = Math.max(0, Number(r.last_seq) - Number(m.last_read_seq));
       const project = Array.isArray(r.projects) ? r.projects[0] : r.projects;
       return {
-        id: r.id, name: r.name, kind: internal(r.kind) ? "internal" : "external", rawKind: r.kind, project: (project as { name?: string } | null)?.name ?? "项目",
+        id: r.id, name: r.name, kind: internal(r.kind) ? "internal" : "external", rawKind: r.kind, project: (project as { name?: string } | null)?.name ?? "Project",
         projectId: r.project_id, ownerOrgId: r.owner_organization_id, memberIds: Array.from(new Set(ms.map((m) => m.user_id))), unread,
         roomMembers: ms.map((m) => ({ userId: m.user_id, orgId: m.acting_organization_id, displayName: m.member_display_name, role: m.room_role })),
         parentId: r.parent_room_id, purpose: r.purpose, lastSeq: Number(r.last_seq),
@@ -196,7 +196,7 @@ export function useReal() {
       };
     });
     const users = { ...ref.current.users };
-    for (const e of rows) if (!users[e.actor_user_id]) users[e.actor_user_id] = { id: e.actor_user_id, name: e.actor_display_name ?? "成员", orgId: e.actor_organization_id, title: "" };
+    for (const e of rows) if (!users[e.actor_user_id]) users[e.actor_user_id] = { id: e.actor_user_id, name: e.actor_display_name ?? "Member", orgId: e.actor_organization_id, title: "" };
     set((p) => version !== roomVersions.current.get(roomId) ? p : ({
       ...p, users,
       messages: { ...p.messages, [roomId]: [...msgs, ...(p.messages[roomId] ?? []).filter((m) => m.status !== "sent")] },
@@ -242,7 +242,7 @@ export function useReal() {
         if (m) set((p) => {
           const list = p.messages[e.room_id] ?? [];
           if (list.some((x) => x.id === e.id)) return p;
-          const users = p.users[e.actor_user_id] ? p.users : { ...p.users, [e.actor_user_id]: { id: e.actor_user_id, name: e.actor_display_name ?? "成员", orgId: e.actor_organization_id, title: "" } };
+          const users = p.users[e.actor_user_id] ? p.users : { ...p.users, [e.actor_user_id]: { id: e.actor_user_id, name: e.actor_display_name ?? "Member", orgId: e.actor_organization_id, title: "" } };
           const mine = e.client_msg_id ? list.findIndex((x) => x.id === e.client_msg_id) : -1;
           const merged = mine >= 0 ? list.map((x, i) => (i === mine ? m : x)) : [...list, m];
           merged.sort((a, b) => {
@@ -401,7 +401,7 @@ export function useReal() {
         patch(roomId, id, { tr: "…" });
         set((p) => ({ ...p, translated: [...p.translated, id] }));
         const r = await api("assist", { roomId, mode: "translate", eventId: id, language: navigator.language });
-        patch(roomId, id, { tr: r.ok ? String((r.result as { translation?: string })?.translation ?? "") : `翻译不可用：${r.error}` });
+        patch(roomId, id, { tr: r.ok ? String((r.result as { translation?: string })?.translation ?? "") : `Translation unavailable: ${r.error}` });
       } else set((p) => ({ ...p, translated: [...p.translated, id] }));
     },
     setFailNext: () => {},
@@ -420,7 +420,7 @@ export function useReal() {
       pending.current.set(id, { roomId: room.id, text, file, replyTo: ref.current.replyTo ?? undefined });
       set((p) => ({
         ...p, replyTo: null,
-        messages: { ...p.messages, [room.id]: [...(p.messages[room.id] ?? []), { id, userId: meId, at: new Date().toISOString(), text: text || (file ? `正在上传 ${file.name}…` : undefined), replyTo: p.replyTo ?? undefined, status: "sending" }] },
+        messages: { ...p.messages, [room.id]: [...(p.messages[room.id] ?? []), { id, userId: meId, at: new Date().toISOString(), text: text || (file ? `Uploading ${file.name}…` : undefined), replyTo: p.replyTo ?? undefined, status: "sending" }] },
       }));
       await deliver(id);
     },
@@ -455,14 +455,14 @@ export function useReal() {
       const res = (r.result ?? {}) as Record<string, unknown>;
       type Item = { text: string; sources?: string[]; owner?: string };
       const list = (k: string) => (Array.isArray(res[k]) ? (res[k] as Item[]) : []);
-      let answer = { answer: `AI 暂不可用：${r.error ?? "未知错误"}`, sources: [] as string[] };
+      let answer = { answer: `AI temporarily unavailable: ${r.error ?? "Unknown error"}`, sources: [] as string[] };
       if (r.ok && mode === "explain") answer = { answer: String(res.answer ?? ""), sources: (res.sources as string[]) ?? [] };
       if (r.ok && mode === "summary") {
-        const sections: AiSection[] = ([["已达成", "decided"], ["未解决", "open_questions"], ["待办", "todos"], ["矛盾", "contradictions"], ["版本变化", "version_notes"]] as const)
-          .map(([title, k]) => ({ title, items: list(k).map((x) => ({ text: x.owner ? `${x.text}（${x.owner}）` : x.text, sources: x.sources ?? [] })) }))
+        const sections: AiSection[] = ([["Decided", "decided"], ["Open Questions", "open_questions"], ["Action Items", "todos"], ["Contradictions", "contradictions"], ["Version Notes", "version_notes"]] as const)
+          .map(([title, k]) => ({ title, items: list(k).map((x) => ({ text: x.owner ? `${x.text} (${x.owner})` : x.text, sources: x.sources ?? [] })) }))
           .filter((x) => x.items.length);
         const clarify = (Array.isArray(res.clarify) ? (res.clarify as string[]) : []).map((text) => ({ text, sources: [] }));
-        if (clarify.length) sections.push({ title: "建议追问", items: clarify });
+        if (clarify.length) sections.push({ title: "Suggested Follow-ups", items: clarify });
         answer = { answer: String(res.summary ?? ""), sources: [] };
         set((p) => ({ ...p, aiSections: { ...p.aiSections, [id]: sections } }));
       }
@@ -471,7 +471,7 @@ export function useReal() {
           id: crypto.randomUUID(), roomId, name: String(x.name ?? ""), purpose: String(x.purpose ?? ""), kind: x.kind === "internal" ? "internal" : "external",
           memberNames: (x.member_names as string[]) ?? [], fileNames: (x.file_names as string[]) ?? [], reason: String(x.reason ?? ""), sources: (x.sources as string[]) ?? [],
         })).filter((x) => x.name);
-        answer = { answer: sug.length ? `建议拆出 ${sug.length} 个子房间，由你决定是否创建。` : "目前看不出需要拆分的独立方向。", sources: [] };
+        answer = { answer: sug.length ? `Suggested splitting into ${sug.length} sub-rooms. You decide whether to create.` : "No independent split directions identified at this time.", sources: [] };
         set((p) => ({ ...p, splits: [...p.splits.filter((x) => x.roomId !== roomId || x.dismissed), ...sug] }));
       }
       set((p) => ({ ...p, aiTurns: p.aiTurns.map((t) => (t.id === id ? { ...t, answer } : t)) }));
@@ -538,12 +538,12 @@ export function useReal() {
     fileUrl: async (fileId: string) => {
       let r = await api("gateway", { action: "sign", fileVersionId: fileId });
       if (!r.ok && r.verificationStatus === "pending") { await api("gateway", { action: "verify", fileVersionId: fileId }); r = await api("gateway", { action: "sign", fileVersionId: fileId }); }
-      if (!r.ok || !r.signedUrl) throw new Error(String(r.error ?? "无法打开文件"));
+      if (!r.ok || !r.signedUrl) throw new Error(String(r.error ?? "Failed to open file"));
       return r.signedUrl as string;
     },
     restoreVersion: async (f: RealFile) => {
       const blob = await (await fetch(await actions.fileUrl(f.id))).blob();
-      await actions.send(`恢复自 v${f.version}`, new File([blob], f.name, { type: blob.type || "application/pdf" }), f.name);
+      await actions.send(`Restored from v${f.version}`, new File([blob], f.name, { type: blob.type || "application/pdf" }), f.name);
     },
     exportEvidence: async () => {
       if (!room) return;

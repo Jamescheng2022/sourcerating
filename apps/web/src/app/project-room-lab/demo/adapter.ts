@@ -60,6 +60,6 @@ export function formatSize(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 export const timeOf = (iso: string) =>
-  new Date(iso).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Bangkok" });
+  new Date(iso).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Bangkok" });
 export const dayOf = (iso: string) =>
-  new Date(iso).toLocaleDateString("zh-CN", { month: "long", day: "numeric", weekday: "short", timeZone: "Asia/Bangkok" });
+  new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", weekday: "short", timeZone: "Asia/Bangkok" });

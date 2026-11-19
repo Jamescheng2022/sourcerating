@@ -19,21 +19,21 @@ export function AuthGate({ real, inviteToken }: { real: Real; inviteToken: strin
     e.preventDefault(); setErr(""); setNote(""); setBusy(true);
     try {
       if (mode === "in") await real.actions.signIn(email, pw);
-      else if (!(await real.actions.signUp(email, pw))) setNote("确认邮件已发出。点邮件里的链接后回到这里登录。");
+      else if (!(await real.actions.signUp(email, pw))) setNote("Confirmation email sent. Click the link in the email, then return here to log in.");
     } catch (x) { setErr(msg(x)); } finally { setBusy(false); }
   };
   return (
     <main className={rc.gate}>
       <form className={rc.box} onSubmit={go}>
-        <span className={rc.tag}>STAGING · 测试环境</span>
+        <span className={rc.tag}>STAGING · Test Environment</span>
         <h1>SourceRating</h1>
-        {inviteToken && <p>你收到一个项目邀请。用被邀请的邮箱{mode === "up" ? "注册" : "登录"}后加入。</p>}
-        <input type="email" required autoComplete="email" placeholder="邮箱" value={email} onChange={(e) => setEmail(e.target.value)} aria-label="邮箱" />
-        <input type="password" required minLength={10} autoComplete={mode === "in" ? "current-password" : "new-password"} placeholder="密码（至少 10 位）" value={pw} onChange={(e) => setPw(e.target.value)} aria-label="密码" />
+        {inviteToken && <p>You received a project invitation. Sign up or log in with your invited email to join.</p>}
+        <input type="email" required autoComplete="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} aria-label="Email" />
+        <input type="password" required minLength={10} autoComplete={mode === "in" ? "current-password" : "new-password"} placeholder="Password (min. 10 characters)" value={pw} onChange={(e) => setPw(e.target.value)} aria-label="Password" />
         {err && <span className={rc.err} role="alert">{err}</span>}
         {note && <p role="status">{note}</p>}
-        <button className={rc.go} disabled={busy}>{mode === "in" ? "登录" : "注册"}</button>
-        <button type="button" className={rc.link} onClick={() => setMode(mode === "in" ? "up" : "in")}>{mode === "in" ? "没有账号？注册" : "已有账号？登录"}</button>
+        <button className={rc.go} disabled={busy}>{mode === "in" ? "Log in" : "Sign up"}</button>
+        <button type="button" className={rc.link} onClick={() => setMode(mode === "in" ? "up" : "in")}>{mode === "in" ? "Don't have an account? Sign up" : "Already have an account? Log in"}</button>
       </form>
     </main>
   );
@@ -63,28 +63,28 @@ export function Onboard({ real, inviteToken, onDone }: { real: Real; inviteToken
   return (
     <main className={rc.gate}>
       <form className={rc.box} onSubmit={run}>
-        <span className={rc.tag}>STAGING · 测试环境</span>
+        <span className={rc.tag}>STAGING · Test Environment</span>
         {inviteToken ? (
           <>
-            <h1>{info ? info.project_name : "项目邀请"}</h1>
-            {info && <p>{info.invited_by} 邀请你加入「{info.room_name}」{colleague ? `，作为 ${info.organization_name} 的成员` : ""}</p>}
-            {info && info.state !== "open" && <span className={rc.err}>邀请已{info.state === "used" ? "使用" : info.state === "revoked" ? "撤销" : "过期"}</span>}
+            <h1>{info ? info.project_name : "Project Invitation"}</h1>
+            {info && <p>{info.invited_by} invited you to join &ldquo;{info.room_name}&rdquo;{colleague ? `, as a member of ${info.organization_name}` : ""}</p>}
+            {info && info.state !== "open" && <span className={rc.err}>Invitation {info.state === "used" ? "already used" : info.state === "revoked" ? "revoked" : "expired"}</span>}
           </>
-        ) : <h1>创建你的组织</h1>}
+        ) : <h1>Create your organization</h1>}
         {open && !colleague && admin.length > 0 && inviteToken && (
           <div className={rc.stack}>
             {admin.map((m) => (
               <button key={m.orgId} type="button" className={rc.mini} data-primary={useOrg === m.orgId} onClick={() => setUseOrg(useOrg === m.orgId ? "" : m.orgId)}>
-                {useOrg === m.orgId && <Check size={14} />}以 {org(m.orgId).name} 加入
+                {useOrg === m.orgId && <Check size={14} />}Join as {org(m.orgId).name}
               </button>
             ))}
           </div>
         )}
-        {open && !colleague && !useOrg && <input required minLength={2} placeholder="组织名称" value={orgName} onChange={(e) => setOrgName(e.target.value)} aria-label="组织名称" />}
-        {open && <input required={!useOrg} placeholder="你的姓名" value={me} onChange={(e) => setMe(e.target.value)} aria-label="你的姓名" />}
+        {open && !colleague && !useOrg && <input required minLength={2} placeholder="Organization Name" value={orgName} onChange={(e) => setOrgName(e.target.value)} aria-label="Organization Name" />}
+        {open && <input required={!useOrg} placeholder="Your Name" value={me} onChange={(e) => setMe(e.target.value)} aria-label="Your Name" />}
         {err && <span className={rc.err} role="alert">{err}</span>}
-        {open && <button className={rc.go} disabled={busy || (!!inviteToken && !info)}>{inviteToken ? "加入" : "创建"}</button>}
-        <button type="button" className={rc.link} onClick={() => (inviteToken && s.memberships.length ? onDone() : actions.signOut())}>{inviteToken && s.memberships.length ? "稍后" : `退出 ${s.me?.email ?? ""}`}</button>
+        {open && <button className={rc.go} disabled={busy || (!!inviteToken && !info)}>{inviteToken ? "Join" : "Create"}</button>}
+        <button type="button" className={rc.link} onClick={() => (inviteToken && s.memberships.length ? onDone() : actions.signOut())}>{inviteToken && s.memberships.length ? "Later" : `Sign out ${s.me?.email ?? ""}`}</button>
       </form>
     </main>
   );
@@ -107,10 +107,10 @@ function Modal({ open, onClose, title, children }: { open: boolean; onClose: () 
 export function NewProject({ real, open, onClose }: { real: Real; open: boolean; onClose: () => void }) {
   const [name, setName] = useState("");
   return (
-    <Modal open={open} onClose={onClose} title="新建项目">
+    <Modal open={open} onClose={onClose} title="New Project">
       <form className={rc.stack} onSubmit={async (e) => { e.preventDefault(); await real.actions.createProject(name.trim(), "participant").then(() => { setName(""); onClose(); }).catch(() => null); }}>
-        <input autoFocus required minLength={2} value={name} onChange={(e) => setName(e.target.value)} placeholder="项目名称" aria-label="项目名称" />
-        <div className={css.dialogActs}><small /><button type="button" className={css.ghost} onClick={onClose}>取消</button><button className={css.primary} disabled={name.trim().length < 2}>创建</button></div>
+        <input autoFocus required minLength={2} value={name} onChange={(e) => setName(e.target.value)} placeholder="Project Name" aria-label="Project Name" />
+        <div className={css.dialogActs}><small /><button type="button" className={css.ghost} onClick={onClose}>Cancel</button><button className={css.primary} disabled={name.trim().length < 2}>Create</button></div>
       </form>
     </Modal>
   );
@@ -129,13 +129,13 @@ export function NewSubRoom({ real, open, onClose, preset }: { real: Real; open: 
   }, [parent, s.colleagues, s.orgId, s.me, user, kind]);
   if (!parent) return null;
   return (
-    <Modal open={open} onClose={onClose} title={`「${parent.name}」下新建子房间`}>
+    <Modal open={open} onClose={onClose} title={`New Sub-Room under "${parent.name}"`}>
       <form className={rc.stack} onSubmit={async (e) => { e.preventDefault(); await actions.createSubRoom(name.trim(), purpose.trim(), kind, picked.filter((id) => candidates.some((c) => c.id === id))).then(() => { setName(""); setPurpose(""); setPicked([]); onClose(); }).catch(() => null); }}>
-        <input autoFocus required minLength={2} value={name} onChange={(e) => setName(e.target.value)} placeholder="名称，例如：运输与清关" aria-label="子房间名称" />
-        <input value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="目的（可选）" aria-label="目的" />
+        <input autoFocus required minLength={2} value={name} onChange={(e) => setName(e.target.value)} placeholder="Name, e.g. Shipping & Customs" aria-label="Sub-room Name" />
+        <input value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="Purpose (optional)" aria-label="Purpose" />
         <div className={css.kindPick}>
-          <button type="button" data-on={kind === "external"} onClick={() => setKind("external")}><Hash size={16} /><b>跨企业</b><small>只有选中的人可见</small></button>
-          <button type="button" data-on={kind === "internal"} data-internal onClick={() => setKind("internal")}><LockKeyhole size={16} /><b>内部</b><small>仅 {org(s.orgId).short}</small></button>
+          <button type="button" data-on={kind === "external"} onClick={() => setKind("external")}><Hash size={16} /><b>Cross-Company</b><small>Only visible to selected members</small></button>
+          <button type="button" data-on={kind === "internal"} data-internal onClick={() => setKind("internal")}><LockKeyhole size={16} /><b>Internal</b><small>{org(s.orgId).short} only</small></button>
         </div>
         <div className={css.invitePick}>
           {candidates.map((u) => (
@@ -144,7 +144,7 @@ export function NewSubRoom({ real, open, onClose, preset }: { real: Real; open: 
             </button>
           ))}
         </div>
-        <div className={css.dialogActs}><small>{preset ? "AI 建议 · 由你确认后才创建" : "不会复制主房间的消息和文件"}</small><button type="button" className={css.ghost} onClick={onClose}>取消</button><button className={css.primary} disabled={name.trim().length < 2}>创建</button></div>
+        <div className={css.dialogActs}><small>{preset ? "AI suggestion · created only after your confirmation" : "Messages and files from main room will not be copied"}</small><button type="button" className={css.ghost} onClick={onClose}>Cancel</button><button className={css.primary} disabled={name.trim().length < 2}>Create</button></div>
       </form>
     </Modal>
   );
@@ -156,24 +156,24 @@ export function Invite({ real, open, onClose }: { real: Real; open: boolean; onC
   const internal = room?.kind === "internal";
   const k = internal ? "org_member" : kind;
   return (
-    <Modal open={open} onClose={() => { setLink(""); onClose(); }} title="邀请">
+    <Modal open={open} onClose={() => { setLink(""); onClose(); }} title="Invite">
       {link ? (
         <div className={rc.stack}>
-          <p className={css.hint}>把链接发给 {email}。只有这个邮箱能使用，7 天内有效。</p>
+          <p className={css.hint}>Send this link to {email}. Valid for 7 days, usable only by this email.</p>
           <div className={rc.copy} data-testid="invite-link">{link}</div>
-          <div className={css.dialogActs}><small /><button type="button" className={css.primary} onClick={() => { void navigator.clipboard?.writeText(link); }}>复制链接</button></div>
+          <div className={css.dialogActs}><small /><button type="button" className={css.primary} onClick={() => { void navigator.clipboard?.writeText(link); }}>Copy Link</button></div>
         </div>
       ) : (
         <form className={rc.stack} onSubmit={async (e) => { e.preventDefault(); await actions.invite(email.trim(), k, orgName.trim()).then(setLink).catch(() => null); }}>
           {!internal && (
             <div className={css.kindPick}>
-              <button type="button" data-on={k === "organization"} onClick={() => setKind("organization")}><Hash size={16} /><b>另一家企业</b><small>对方用自己的组织加入</small></button>
-              <button type="button" data-on={k === "org_member"} onClick={() => setKind("org_member")}><UserPlus size={16} /><b>我方同事</b><small>加入 {org(s.orgId).short}</small></button>
+              <button type="button" data-on={k === "organization"} onClick={() => setKind("organization")}><Hash size={16} /><b>Partner Organization</b><small>Joins with their own organization</small></button>
+              <button type="button" data-on={k === "org_member"} onClick={() => setKind("org_member")}><UserPlus size={16} /><b>Colleague</b><small>Joins {org(s.orgId).short}</small></button>
             </div>
           )}
-          <input autoFocus type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="对方邮箱" aria-label="对方邮箱" />
-          {k === "organization" && <input value={orgName} onChange={(e) => setOrgName(e.target.value)} placeholder="对方企业名称（可选）" aria-label="对方企业名称" />}
-          <div className={css.dialogActs}><small /><button type="button" className={css.ghost} onClick={onClose}>取消</button><button className={css.primary}>生成邀请链接</button></div>
+          <input autoFocus type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Recipient Email" aria-label="Recipient Email" />
+          {k === "organization" && <input value={orgName} onChange={(e) => setOrgName(e.target.value)} placeholder="Partner Organization Name (optional)" aria-label="Partner Organization Name" />}
+          <div className={css.dialogActs}><small /><button type="button" className={css.ghost} onClick={onClose}>Cancel</button><button className={css.primary}>Generate Invitation Link</button></div>
         </form>
       )}
     </Modal>
@@ -190,11 +190,11 @@ export function RealSidebar({ real, onOpen }: { real: Real; onOpen: (id: string)
     return Array.from(map.values()).map((g) => ({ ...g, rooms: [...g.rooms.filter((r) => !r.parentId), ...g.rooms.filter((r) => r.parentId)] }));
   }, [myRooms]);
   return (
-    <nav className={css.side} aria-label="组织与聊天房间">
+    <nav className={css.side} aria-label="Organizations and chat rooms">
       <div className={css.sideTop}>
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild>
-            <button type="button" className={css.orgSwitch} aria-label={`当前组织 ${myOrg.name}`}>
+            <button type="button" className={css.orgSwitch} aria-label={`Current organization ${myOrg.name}`}>
               <OrgMark color={myOrg.color} short={myOrg.short} size={30} />
               <span><b>{myOrg.name}</b><small>{user(meId).name}</small></span>
               <ChevronsUpDown size={16} aria-hidden />
@@ -210,22 +210,22 @@ export function RealSidebar({ real, onOpen }: { real: Real; onOpen: (id: string)
                   {m.orgId === s.orgId && <Check size={15} />}
                 </DropdownMenu.Item>
               ))}
-              <DropdownMenu.Item className={css.menuItem} onSelect={() => void actions.signOut()}><LogOut size={15} />退出登录</DropdownMenu.Item>
+              <DropdownMenu.Item className={css.menuItem} onSelect={() => void actions.signOut()}><LogOut size={15} />Log out</DropdownMenu.Item>
             </DropdownMenu.Content>
           </DropdownMenu.Portal>
         </DropdownMenu.Root>
         <DropdownMenu.Root>
-          <DropdownMenu.Trigger asChild><button type="button" className={css.iconBtn} aria-label="新建"><Plus size={20} /></button></DropdownMenu.Trigger>
+          <DropdownMenu.Trigger asChild><button type="button" className={css.iconBtn} aria-label="New"><Plus size={20} /></button></DropdownMenu.Trigger>
           <DropdownMenu.Portal>
             <DropdownMenu.Content className={css.menu} align="end" sideOffset={6}>
-              <DropdownMenu.Item className={css.menuItem} onSelect={() => setDlg("project")}><FolderPlus size={15} />新建项目</DropdownMenu.Item>
-              {room && <DropdownMenu.Item className={css.menuItem} onSelect={() => setDlg("sub")}><GitBranch size={15} />新建子房间</DropdownMenu.Item>}
+              <DropdownMenu.Item className={css.menuItem} onSelect={() => setDlg("project")}><FolderPlus size={15} />New Project</DropdownMenu.Item>
+              {room && <DropdownMenu.Item className={css.menuItem} onSelect={() => setDlg("sub")}><GitBranch size={15} />New Sub-Room</DropdownMenu.Item>}
             </DropdownMenu.Content>
           </DropdownMenu.Portal>
         </DropdownMenu.Root>
       </div>
       <div className={css.rooms}>
-        {groups.length === 0 && <p className={css.none}>还没有项目。点右上角 + 新建。</p>}
+        {groups.length === 0 && <p className={css.none}>No projects yet. Click + in top-right to create one.</p>}
         {groups.map((g) => (
           <div key={g.name + g.rooms[0].id} className={css.group}>
             <h3>{g.name}</h3>
@@ -239,10 +239,10 @@ export function RealSidebar({ real, onOpen }: { real: Real; onOpen: (id: string)
                   <span className={css.roomMain}>
                     <span className={css.roomLine}><b>{r.name}</b>{last && <time>{timeOf(last.at)}</time>}</span>
                     <span className={css.roomLine}>
-                      <span className={css.preview}>{last ? `${last.userId === meId ? "你" : user(last.userId).name}：${last.text ?? "文件"}` : r.purpose ?? (r.parentId ? "子房间" : "主房间")}</span>
+                      <span className={css.preview}>{last ? `${last.userId === meId ? "You" : user(last.userId).name}: ${last.text ?? "File"}` : r.purpose ?? (r.parentId ? "Sub-room" : "Main room")}</span>
                       {unread > 0 && <i className={css.badge}>{unread}</i>}
                     </span>
-                    <span className={css.roomOrgs}>{r.kind === "internal" ? <em>内部</em> : partners.map((o) => <span key={o.id}><OrgMark color={o.color} short={o.short} size={12} />{o.short}</span>)}</span>
+                    <span className={css.roomOrgs}>{r.kind === "internal" ? <em>Internal</em> : partners.map((o) => <span key={o.id}><OrgMark color={o.color} short={o.short} size={12} />{o.short}</span>)}</span>
                   </span>
                 </button>
               );
@@ -251,13 +251,13 @@ export function RealSidebar({ real, onOpen }: { real: Real; onOpen: (id: string)
         ))}
       </div>
       <div className={css.sideFoot}>
-        <span>STAGING · 真实后端（测试库）</span>
+        <span>STAGING · Real Backend (Test DB)</span>
         {process.env.NEXT_PUBLIC_SR_NETWORK_PILOT === "1" && (
           <>
-            <a href="/project-room-b/network" style={{ color: "#0f766e", textDecoration: "underline", marginLeft: 8 }}>资料与客户库（内测）</a>
+            <a href="/project-room-b/network" style={{ color: "#0f766e", textDecoration: "underline", marginLeft: 8 }}>Private Network & CRM (Beta)</a>
             {room && room.roomMembers.some((m) => m.orgId && m.orgId !== s.orgId) && (
               <a href={`/project-room-b/network?fromRoom=${encodeURIComponent(room.id)}&counterpartyOrg=${encodeURIComponent(room.roomMembers.find((m) => m.orgId && m.orgId !== s.orgId)?.orgId ?? "")}`}
-                style={{ color: "#0f766e", textDecoration: "underline", marginLeft: 8 }}>将合作方加入关系库</a>
+                style={{ color: "#0f766e", textDecoration: "underline", marginLeft: 8 }}>Save Partner to Private CRM</a>
             )}
           </>
         )}
@@ -291,25 +291,25 @@ export function FileCard({ real, f, latest }: { real: Real; f: RealFile; latest:
   });
   return (
     <article className={rc.file} data-old={!latest} data-testid="file-version">
-      <header><span className={rc.ver}>v{f.version}</span><b className={rc.grow}>{f.name}</b>{!latest && <span className={css.hint}>旧版</span>}</header>
+      <header><span className={rc.ver}>v{f.version}</span><b className={rc.grow}>{f.name}</b>{!latest && <span className={css.hint}>Old version</span>}</header>
       <span className={css.hint}>{user(f.uploaderUserId).name} · {org(f.uploaderOrgId).short} · {new Date(f.createdAt).toLocaleString()} · {formatSize(f.size)}</span>
       <span className={rc.sha} title={f.sha256}>SHA-256 {f.sha256.slice(0, 16)}… · {f.verification}</span>
       <div className={rc.chips}>
-        {orgIds.map((id) => { const c = state(id); return <span key={id} className={rc.chip} data-d={c?.decision} title={c ? `${user(c.userId).name} · ${new Date(c.at).toLocaleString()}${c.comment ? ` · ${c.comment}` : ""}` : "尚未确认"}>{c?.decision === "confirmed" && <Check size={12} />}{org(id).short}{c ? (c.decision === "confirmed" ? " 已确认" : " 要求修改") : " 未确认"}</span>; })}
+        {orgIds.map((id) => { const c = state(id); return <span key={id} className={rc.chip} data-d={c?.decision} title={c ? `${user(c.userId).name} · ${new Date(c.at).toLocaleString()}${c.comment ? ` · ${c.comment}` : ""}` : "Unconfirmed"}>{c?.decision === "confirmed" && <Check size={12} />}{org(id).short}{c ? (c.decision === "confirmed" ? " Confirmed" : " Changes Requested") : " Unconfirmed"}</span>; })}
       </div>
       {mine?.decision !== "confirmed" && (
         <div className={rc.row}>
-          <input className={`${css.field} ${rc.grow}`} style={{ height: 32, fontSize: 13 }} value={note} onChange={(e) => setNote(e.target.value)} placeholder="确认可选；要求修改请填写原因" aria-label="确认意见" />
-          <button type="button" className={rc.mini} data-primary disabled={busy} onClick={act(() => actions.confirmFile(f, "confirmed", note))}><ShieldCheck size={14} />确认此版本</button>
-          <button type="button" className={rc.mini} disabled={busy || !note.trim()} onClick={act(() => actions.confirmFile(f, "changes_requested", note))}>要求修改</button>
+          <input className={`${css.field} ${rc.grow}`} style={{ height: 32, fontSize: 13 }} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Confirmation optional; state reason when requesting changes" aria-label="Review Note" />
+          <button type="button" className={rc.mini} data-primary disabled={busy} onClick={act(() => actions.confirmFile(f, "confirmed", note))}><ShieldCheck size={14} />Confirm this version</button>
+          <button type="button" className={rc.mini} disabled={busy || !note.trim()} onClick={act(() => actions.confirmFile(f, "changes_requested", note))}>Request Changes</button>
         </div>
       )}
       <div className={rc.row}>
-        <button type="button" className={rc.mini} disabled={busy} onClick={(event) => { if (event.detail <= 1) void requestReview(); }}><Send size={13} />请各方审核</button>
-        <button type="button" className={rc.mini} disabled={busy} onClick={act(async () => { window.open(await actions.fileUrl(f.id), "_blank", "noopener"); })}><Download size={13} />下载</button>
-        {f.sourceEventId && <button type="button" className={rc.mini} onClick={() => actions.jumpTo(f.sourceEventId!)}>来源消息</button>}
-        {prev && <button type="button" className={rc.mini} onClick={() => setCmp(true)}><GitCompare size={13} />对比 v{prev.version}</button>}
-        {!latest && <button type="button" className={rc.mini} disabled={busy} onClick={act(() => actions.restoreVersion(f))}><History size={13} />恢复为新版本</button>}
+        <button type="button" className={rc.mini} disabled={busy} onClick={(event) => { if (event.detail <= 1) void requestReview(); }}><Send size={13} />Request Team Review</button>
+        <button type="button" className={rc.mini} disabled={busy} onClick={act(async () => { window.open(await actions.fileUrl(f.id), "_blank", "noopener"); })}><Download size={13} />Download</button>
+        {f.sourceEventId && <button type="button" className={rc.mini} onClick={() => actions.jumpTo(f.sourceEventId!)}>Source Message</button>}
+        {prev && <button type="button" className={rc.mini} onClick={() => setCmp(true)}><GitCompare size={13} />Compare v{prev.version}</button>}
+        {!latest && <button type="button" className={rc.mini} disabled={busy} onClick={act(() => actions.restoreVersion(f))}><History size={13} />Restore as New Version</button>}
       </div>
       {cmp && prev && <Compare real={real} a={prev} b={f} onClose={() => setCmp(false)} />}
       {err && <span className={rc.err}>{err}</span>}
@@ -326,14 +326,14 @@ function Compare({ real, a, b, onClose }: { real: Real; a: RealFile; b: RealFile
   }, [a.id, b.id]);
   const note = (f: RealFile) => (s.messages[f.roomId] ?? []).find((m) => m.id === f.sourceEventId)?.text ?? "—";
   const rows: [string, (f: RealFile) => string][] = [
-    ["上传", (f) => `${user(f.uploaderUserId).name} · ${org(f.uploaderOrgId).short}`], ["时间", (f) => new Date(f.createdAt).toLocaleString()],
-    ["大小", (f) => formatSize(f.size)], ["SHA-256", (f) => f.sha256.slice(0, 20) + "…"], ["说明", note],
-    ["已确认", (f) => Array.from(new Set(s.confirmations.filter((c) => c.fileVersionId === f.id && c.decision === "confirmed").map((c) => org(c.orgId).short))).join("、") || "无"],
+    ["Uploader", (f) => `${user(f.uploaderUserId).name} · ${org(f.uploaderOrgId).short}`], ["Time", (f) => new Date(f.createdAt).toLocaleString()],
+    ["Size", (f) => formatSize(f.size)], ["SHA-256", (f) => f.sha256.slice(0, 20) + "…"], ["Note", note],
+    ["Confirmed By", (f) => Array.from(new Set(s.confirmations.filter((c) => c.fileVersionId === f.id && c.decision === "confirmed").map((c) => org(c.orgId).short))).join(", ") || "None"],
   ];
   const view = (f: RealFile, url: string) => f.kind === "image"
     // eslint-disable-next-line @next/next/no-img-element
     ? <img src={url} alt={`${f.name} v${f.version}`} className={rc.pane} />
-    : f.kind === "pdf" ? <iframe src={url} title={`${f.name} v${f.version}`} className={rc.pane} /> : <div className={rc.pane}>此格式不能在页面内预览</div>;
+    : f.kind === "pdf" ? <iframe src={url} title={`${f.name} v${f.version}`} className={rc.pane} /> : <div className={rc.pane}>Inline preview is not supported for this file format</div>;
   return (
     <Dialog.Root open onOpenChange={(v) => !v && onClose()}>
       <Dialog.Portal>
@@ -346,7 +346,7 @@ function Compare({ real, a, b, onClose }: { real: Real; a: RealFile; b: RealFile
           </table>
           {err && <span className={rc.err}>{err}</span>}
           {urls && <div className={rc.panes}>{view(a, urls[0])}{view(b, urls[1])}</div>}
-          <div className={css.dialogActs}><small>并排显示两份原文件；不做逐字差异</small><button type="button" className={css.ghost} onClick={onClose}>关闭</button></div>
+          <div className={css.dialogActs}><small>Side-by-side view of original files; character-level diff not performed</small><button type="button" className={css.ghost} onClick={onClose}>Close</button></div>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
@@ -371,7 +371,7 @@ export function RealPanel({ real }: { real: Real }) {
     <div className={css.panel}>
       <div className={css.panelHead}>
         <div className={css.tabs} role="tablist">
-          {([["people", "成员"], ["files", "文件与确认"], ["review", "待确认"], ["ai", "AI"]] as const).map(([k, label]) => (
+          {([["people", "Members"], ["files", "Files & Confirmations"], ["review", "Review"], ["ai", "AI"]] as const).map(([k, label]) => (
             <button key={k} type="button" role="tab" data-state={tab === k ? "active" : ""} onClick={() => actions.openPanel(k)}>
               {label}
               {k === "files" && files.length > 0 && <i style={{ background: "#575d64" }}>{lineages.length}</i>}
@@ -379,7 +379,7 @@ export function RealPanel({ real }: { real: Real }) {
             </button>
           ))}
         </div>
-        <button type="button" className={css.iconBtn} onClick={actions.closePanel} aria-label="关闭面板"><X size={18} /></button>
+        <button type="button" className={css.iconBtn} onClick={actions.closePanel} aria-label="Close panel"><X size={18} /></button>
       </div>
       <div className={rc.body}>
         {tab === "people" && (
@@ -395,19 +395,19 @@ export function RealPanel({ real }: { real: Real }) {
                         href={`/companies/${encodeURIComponent(oid)}?fromRoom=${encodeURIComponent(room.id)}`}
                         className={rc.mini}
                         style={{ color: "#0f766e", textDecoration: "none" }}
-                        title={`查看 ${org(oid).name} 企业档案`}
+                        title={`View ${org(oid).name} company profile`}
                         data-testid={`company-profile-link-${oid}`}
                       >
-                        企业档案
+                        Company Profile
                       </a>
                       {oid !== s.orgId && orgAdmin && (
                         <a
                           href={`/project-room-b/network?fromRoom=${encodeURIComponent(room.id)}&counterpartyOrg=${encodeURIComponent(oid)}`}
                           className={rc.mini}
                           style={{ color: "#0f766e", textDecoration: "none" }}
-                          title="将合作方加入本公司私有客户/供应商库"
+                          title="Save partner to private customer/supplier directory"
                         >
-                          + 存入私有关系库
+                          + Save to Private CRM
                         </a>
                       )}
                     </div>
@@ -416,47 +416,47 @@ export function RealPanel({ real }: { real: Real }) {
                     const id = member.userId, name = member.displayName ?? user(id).name;
                     return <div key={id} className={css.person}>
                       <OrgMark color={org(oid).color} short={name.slice(0, 1)} size={28} />
-                      <span className={rc.grow}><b>{name}{id === meId && <em>你</em>}</b><small>{member.role}</small></span>
+                      <span className={rc.grow}><b>{name}{id === meId && <em>You</em>}</b><small>{member.role}</small></span>
                       <a
                         href={`/people/${encodeURIComponent(id)}?fromRoom=${encodeURIComponent(room.id)}`}
                         className={rc.mini}
                         style={{ color: "#0f766e", textDecoration: "none" }}
-                        title={`查看 ${name} 个人名片`}
+                        title={`View ${name}'s personal card`}
                         data-testid={`person-card-link-${id}`}
                       >
-                        名片
+                        Personal Card
                       </a>
-                      {admin && id !== meId && <button type="button" className={rc.mini} data-danger onClick={() => { if (window.confirm(`确定要将成员 ${name} 移出该房间吗？`)) void actions.removeMember(id).catch(() => null); }}>移出</button>}
-                      {orgAdmin && oid === s.orgId && id !== meId && <button type="button" className={rc.mini} data-danger onClick={() => { if (window.confirm(`确定要将成员 ${name} 移出组织吗？`)) void actions.removeFromOrganization(id).catch(() => null); }}>移出组织</button>}
+                      {admin && id !== meId && <button type="button" className={rc.mini} data-danger onClick={() => { if (window.confirm(`Are you sure you want to remove member ${name} from this room?`)) void actions.removeMember(id).catch(() => null); }}>Remove</button>}
+                      {orgAdmin && oid === s.orgId && id !== meId && <button type="button" className={rc.mini} data-danger onClick={() => { if (window.confirm(`Are you sure you want to remove member ${name} from the organization?`)) void actions.removeFromOrganization(id).catch(() => null); }}>Remove from Org</button>}
                     </div>;
                   })}
                 </div>
               ))}
             </section>
-            {admin && <button type="button" className={css.primary} onClick={() => setInvite(true)}><UserPlus size={15} />邀请</button>}
+            {admin && <button type="button" className={css.primary} onClick={() => setInvite(true)}><UserPlus size={15} />Invite</button>}
             {s.colleagues.filter((c) => c.orgId === s.orgId && !room.memberIds.includes(c.userId)).map((c) => (
-              <div key={c.userId} className={css.person}><span className={rc.grow}><b>{c.name}</b><small>{org(c.orgId).short} · 不在此房间</small></span>{admin && <button type="button" className={rc.mini} onClick={() => void actions.addMember(c.userId, c.orgId).catch(() => null)}>加入</button>}</div>
+              <div key={c.userId} className={css.person}><span className={rc.grow}><b>{c.name}</b><small>{org(c.orgId).short} · Not in this room</small></span>{admin && <button type="button" className={rc.mini} onClick={() => void actions.addMember(c.userId, c.orgId).catch(() => null)}>Join</button>}</div>
             ))}
             {room.parentId && (
               <section className={rc.stack}>
-                <h3>发回主房间</h3>
-                <textarea value={share} onChange={(e) => setShare(e.target.value)} placeholder="写给主房间的进度或结论" aria-label="发回主房间的内容" />
-                <button type="button" className={css.ghost} disabled={!share.trim()} onClick={() => void actions.shareToParent(share.trim()).then(() => setShare("")).catch(() => null)}>发送到主房间</button>
+                <h3>Send back to Main Room</h3>
+                <textarea value={share} onChange={(e) => setShare(e.target.value)} placeholder="Progress updates or conclusions for the main room" aria-label="Content to send back to main room" />
+                <button type="button" className={css.ghost} disabled={!share.trim()} onClick={() => void actions.shareToParent(share.trim()).then(() => setShare("")).catch(() => null)}>Send to Main Room</button>
               </section>
             )}
-            <button type="button" className={css.ghost} onClick={() => void actions.exportEvidence().catch(() => null)}><Download size={15} />导出证据（JSON）</button>
+            <button type="button" className={css.ghost} onClick={() => void actions.exportEvidence().catch(() => null)}><Download size={15} />Export Evidence (JSON)</button>
             <Invite real={real} open={invite} onClose={() => setInvite(false)} />
           </>
         )}
         {tab === "files" && (
           <>
             <input ref={pick} type="file" hidden data-testid="version-input" onChange={(e) => { const f = e.target.files?.[0]; if (f) void actions.send("", f, target.current ?? undefined); e.target.value = ""; }} />
-            {lineages.length === 0 && <p className={css.hint}>在聊天里发一个文件，它会出现在这里。</p>}
+            {lineages.length === 0 && <p className={css.hint}>Send a file in chat, and it will appear here.</p>}
             {lineages.map((name) => {
               const vs = files.filter((f) => f.lineage === name).sort((a, b) => b.version - a.version);
               return (
                 <section key={name} className={rc.stack}>
-                  <div className={rc.row}><h3 className={rc.grow} style={{ margin: 0 }}>{name}</h3><button type="button" className={rc.mini} onClick={() => { target.current = name; pick.current?.click(); }}><FileUp size={13} />上传新版本</button></div>
+                  <div className={rc.row}><h3 className={rc.grow} style={{ margin: 0 }}>{name}</h3><button type="button" className={rc.mini} onClick={() => { target.current = name; pick.current?.click(); }}><FileUp size={13} />Upload New Version</button></div>
                   {vs.map((f, i) => <FileCard key={f.id} real={real} f={f} latest={i === 0} />)}
                 </section>
               );
@@ -466,10 +466,10 @@ export function RealPanel({ real }: { real: Real }) {
         {tab === "review" && (
           <>
             <div className={rc.row}>
-              <span className={`${css.hint} ${rc.grow}`}>AI 结构化整理事项 · 需由人类审核确认</span>
+              <span className={`${css.hint} ${rc.grow}`}>AI Structured Items · Human Review Required</span>
             </div>
             {proposals.length === 0 && (
-              <p className={css.hint}>当前房间暂无待确认或需决策的事项。</p>
+              <p className={css.hint}>No items pending review or requiring decision in this room.</p>
             )}
             {proposals.map((p) => (
               <div key={p.id} className={css.card} data-testid="proposal-card" style={{ marginBottom: 12 }}>
@@ -478,7 +478,7 @@ export function RealPanel({ real }: { real: Real }) {
                 <div className={rc.chips}>
                   {p.sources.filter(Boolean).map((id, i) => (
                     <button key={id} type="button" className={rc.chip} onClick={() => actions.jumpTo(id)}>
-                      来源消息 {i + 1}
+                      Source message {i + 1}
                     </button>
                   ))}
                 </div>
@@ -486,7 +486,7 @@ export function RealPanel({ real }: { real: Real }) {
                   p.forOrgId && p.forOrgId !== s.orgId ? (
                     <div className={rc.row} style={{ marginTop: 10 }}>
                       <span style={{ fontSize: 12, color: "#64748b" }}>
-                        待对端组织 ({org(p.forOrgId).name}) 审核确认
+                        Pending partner organization ({org(p.forOrgId).name}) review & confirmation
                       </span>
                     </div>
                   ) : (
@@ -499,7 +499,7 @@ export function RealPanel({ real }: { real: Real }) {
                           if (event.detail <= 1) void actions.review(p.id, "confirmed");
                         }}
                       >
-                        <Check size={13} /> 确认此项
+                        <Check size={13} /> Confirm Item
                       </button>
                       <button
                         type="button"
@@ -508,13 +508,13 @@ export function RealPanel({ real }: { real: Real }) {
                           if (event.detail <= 1) void actions.review(p.id, "rejected");
                         }}
                       >
-                        <X size={13} /> 驳回
+                        <X size={13} /> Reject
                       </button>
                     </div>
                   )
                 ) : (
                   <div className={rc.row} style={{ marginTop: 10, color: p.status === "confirmed" ? "#0f766e" : "#b91c1c", fontSize: 13, fontWeight: 600 }}>
-                    {p.status === "confirmed" ? "✓ 已确认并归档至规范证据" : "✕ 已驳回"}
+                    {p.status === "confirmed" ? "✓ Confirmed & filed as canonical evidence" : "✕ Rejected"}
                   </div>
                 )}
               </div>
@@ -524,25 +524,25 @@ export function RealPanel({ real }: { real: Real }) {
         {tab === "ai" && (
           <>
             <div className={rc.row}>
-              <span className={`${css.hint} ${rc.grow}`}><LockKeyhole size={12} />仅你可见 · 只读本房间</span>
-              <button type="button" className={rc.mini} onClick={() => void actions.ask({ type: "room", id: room.id }, "总结这个房间", "summary")}><Sparkles size={13} />总结</button>
-              {!room.parentId && <button type="button" className={rc.mini} onClick={() => void actions.ask({ type: "room", id: room.id }, "需要拆分子房间吗？", "split")}><GitBranch size={13} />建议拆分</button>}
+              <span className={`${css.hint} ${rc.grow}`}><LockKeyhole size={12} />Visible only to you · Read-only for this room</span>
+              <button type="button" className={rc.mini} onClick={() => void actions.ask({ type: "room", id: room.id }, "Summarize this room", "summary")}><Sparkles size={13} />Summarize</button>
+              {!room.parentId && <button type="button" className={rc.mini} onClick={() => void actions.ask({ type: "room", id: room.id }, "Should this room be split into sub-rooms?", "split")}><GitBranch size={13} />Suggest Split</button>}
             </div>
             {s.splits.filter((x) => x.roomId === room.id).map((x) => (
               <div key={x.id} className={css.card} data-testid="split-suggestion">
                 <h4>{x.kind === "internal" ? <LockKeyhole size={13} /> : <Hash size={13} />} {x.name}</h4>
                 <p>{x.purpose}</p>
-                {x.memberNames.length > 0 && <p>成员：{x.memberNames.join("、")}</p>}
-                {x.fileNames.length > 0 && <p>文件：{x.fileNames.join("、")}</p>}
-                <p>{x.kind === "internal" ? "仅本组织可见" : "仅选中的成员可见"}</p>
-                <div className={rc.chips}>{x.sources.map((id, i) => <button key={id} type="button" className={rc.chip} onClick={() => actions.jumpTo(id)}>来源 {i + 1}</button>)}</div>
+                {x.memberNames.length > 0 && <p>Members: {x.memberNames.join(", ")}</p>}
+                {x.fileNames.length > 0 && <p>Files: {x.fileNames.join(", ")}</p>}
+                <p>{x.kind === "internal" ? "Visible to this organization only" : "Visible to selected members only"}</p>
+                <div className={rc.chips}>{x.sources.map((id, i) => <button key={id} type="button" className={rc.chip} onClick={() => actions.jumpTo(id)}>Source {i + 1}</button>)}</div>
                 <div className={rc.row} style={{ marginTop: 8 }}>
-                  <button type="button" className={rc.mini} data-primary onClick={() => setPreset(x)}>创建…</button>
-                  <button type="button" className={rc.mini} onClick={() => actions.dismissSplit(x.id)}>忽略</button>
+                  <button type="button" className={rc.mini} data-primary onClick={() => setPreset(x)}>Create…</button>
+                  <button type="button" className={rc.mini} onClick={() => actions.dismissSplit(x.id)}>Dismiss</button>
                 </div>
               </div>
             ))}
-            {turns.length === 0 && <p className={css.hint}>在消息上点「问 AI」或「翻译」。</p>}
+            {turns.length === 0 && <p className={css.hint}>Click &ldquo;Ask AI&rdquo; or &ldquo;Translate&rdquo; on any message.</p>}
             {turns.map((t) => (
               <div key={t.id} className={css.card} data-testid="ai-turn">
                 <h4>{t.question}</h4>
@@ -551,12 +551,12 @@ export function RealPanel({ real }: { real: Real }) {
                   <div key={sec.title} style={{ marginTop: 8 }}>
                     <h3>{sec.title}</h3>
                     {sec.items.map((it, i) => (
-                      <p key={i}>· {it.text} {it.sources.map((id, j) => <button key={id + j} type="button" className={rc.chip} onClick={() => actions.jumpTo(id)}>来源</button>)}</p>
+                      <p key={i}>· {it.text} {it.sources.map((id, j) => <button key={id + j} type="button" className={rc.chip} onClick={() => actions.jumpTo(id)}>Source</button>)}</p>
                     ))}
                   </div>
                 ))}
-                {t.answer && t.answer.sources.length > 0 && <div className={rc.chips}>{t.answer.sources.map((id, i) => <button key={id} type="button" className={rc.chip} onClick={() => actions.jumpTo(id)}>来源 {i + 1}</button>)}</div>}
-                {t.answer && <button type="button" className={rc.mini} style={{ marginTop: 8 }} onClick={() => actions.insertDraft(t.answer!.answer)}>放进输入框</button>}
+                {t.answer && t.answer.sources.length > 0 && <div className={rc.chips}>{t.answer.sources.map((id, i) => <button key={id} type="button" className={rc.chip} onClick={() => actions.jumpTo(id)}>Source {i + 1}</button>)}</div>}
+                {t.answer && <button type="button" className={rc.mini} style={{ marginTop: 8 }} onClick={() => actions.insertDraft(t.answer!.answer)}>Put into composer</button>}
               </div>
             ))}
             {preset && <NewSubRoom key={preset.id} real={real} open onClose={() => { setPreset(null); }} preset={preset} />}

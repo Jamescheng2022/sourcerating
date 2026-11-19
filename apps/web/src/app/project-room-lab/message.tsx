@@ -36,7 +36,7 @@ function Voice({ seconds, transcript }: { seconds: number; transcript: string })
   }, [playing, seconds]);
   return (
     <div className={css.voice}>
-      <button type="button" className={css.voiceBtn} onClick={() => setPlaying((p) => !p)} aria-label={playing ? "暂停语音" : "播放语音（演示，无音频）"}>
+      <button type="button" className={css.voiceBtn} onClick={() => setPlaying((p) => !p)} aria-label={playing ? "Pause voice" : "Play voice (demo, no audio)"}>
         {playing ? <Pause size={16} /> : <Play size={16} />}
       </button>
       <span className={css.wave} aria-hidden>
@@ -79,24 +79,24 @@ export const MessageItem = memo(function MessageItem({ lab, m, prev, highlight, 
 
   const acts: Action[] = [];
   if (failed) {
-    acts.push({ key: "retry", label: "重新发送", icon: <RotateCw size={15} />, run: () => actions.retry(m.id), primary: true });
-    acts.push({ key: "del", label: "删除", icon: <Trash2 size={15} />, run: () => actions.remove(m.id), danger: true });
+    acts.push({ key: "retry", label: "Retry", icon: <RotateCw size={15} />, run: () => actions.retry(m.id), primary: true });
+    acts.push({ key: "del", label: "Delete", icon: <Trash2 size={15} />, run: () => actions.remove(m.id), danger: true });
   } else {
-    if (file) acts.push({ key: "preview", label: "预览", icon: <ScanSearch size={15} />, run: () => actions.openFile(file.id), primary: true });
-    acts.push({ key: "reply", label: "回复", icon: <CornerUpLeft size={15} />, run: () => actions.setReply(m.id), primary: true });
+    if (file) acts.push({ key: "preview", label: "Preview", icon: <ScanSearch size={15} />, run: () => actions.openFile(file.id), primary: true });
+    acts.push({ key: "reply", label: "Reply", icon: <CornerUpLeft size={15} />, run: () => actions.setReply(m.id), primary: true });
     acts.push({
-      key: "ai", label: "问 AI", icon: <Sparkles size={15} />, primary: true,
-      run: () => actions.ask(file ? { type: "file", id: file.id } : { type: "message", id: m.id }, file ? "这份文件讲了什么？" : "解释这条消息"),
+      key: "ai", label: "Ask AI", icon: <Sparkles size={15} />, primary: true,
+      run: () => actions.ask(file ? { type: "file", id: file.id } : { type: "message", id: m.id }, file ? "What is this file about?" : "Explain this message"),
     });
-    if (m.tr || (lab.real && m.text)) acts.push({ key: "tr", label: translated ? "隐藏译文" : "翻译", icon: <Languages size={15} />, run: () => actions.toggleTranslate(m.id), primary: !file });
-    if (file?.supersedes) acts.push({ key: "cmp", label: "比较版本", icon: <GitCompare size={15} />, run: () => actions.openFile(file.id, "compare") });
-    if (file) acts.push({ key: "rel", label: "相关消息", icon: <MessagesSquare size={15} />, run: () => actions.openFile(file.id, "related") });
-    if (m.text) acts.push({ key: "copy", label: "复制文字", icon: <Copy size={15} />, run: () => { void navigator.clipboard?.writeText(m.text!); toast("已复制"); } });
+    if (m.tr || (lab.real && m.text)) acts.push({ key: "tr", label: translated ? "Hide translation" : "Translate", icon: <Languages size={15} />, run: () => actions.toggleTranslate(m.id), primary: !file });
+    if (file?.supersedes) acts.push({ key: "cmp", label: "Compare versions", icon: <GitCompare size={15} />, run: () => actions.openFile(file.id, "compare") });
+    if (file) acts.push({ key: "rel", label: "Related messages", icon: <MessagesSquare size={15} />, run: () => actions.openFile(file.id, "related") });
+    if (m.text) acts.push({ key: "copy", label: "Copy text", icon: <Copy size={15} />, run: () => { void navigator.clipboard?.writeText(m.text!); toast("Copied"); } });
     acts.push({
-      key: "link", label: "复制消息链接", icon: <Link2 size={15} />,
-      run: () => { void navigator.clipboard?.writeText(`${location.origin}${location.pathname}?room=${room.id}&msg=${m.id}`); toast("链接已复制"); },
+      key: "link", label: "Copy message link", icon: <Link2 size={15} />,
+      run: () => { void navigator.clipboard?.writeText(`${location.origin}${location.pathname}?room=${room.id}&msg=${m.id}`); toast("Link copied"); },
     });
-    if (evidence.length) acts.push({ key: "ev", label: "查看证据记录", icon: <Stamp size={15} />, run: () => actions.openPanel("review") });
+    if (evidence.length) acts.push({ key: "ev", label: "View evidence", icon: <Stamp size={15} />, run: () => actions.openPanel("review") });
   }
 
   const bubble = (
@@ -104,11 +104,11 @@ export const MessageItem = memo(function MessageItem({ lab, m, prev, highlight, 
       {quoted && (
         <button type="button" className={css.quote} onClick={() => actions.jumpTo(quoted.id)}>
           <b>{user(quoted.userId).name}</b>
-          <span>{quoted.text ?? quotedFile?.name ?? "语音消息"}</span>
+          <span>{quoted.text ?? quotedFile?.name ?? "Voice message"}</span>
         </button>
       )}
       {file && (
-        <button type="button" className={css.fileCard} onClick={() => actions.openFile(file.id)} aria-label={`预览文件 ${file.name}`}>
+        <button type="button" className={css.fileCard} onClick={() => actions.openFile(file.id)} aria-label={`Preview file ${file.name}`}>
           {file.localUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={file.localUrl} alt="" className={css.thumb} />
@@ -120,7 +120,7 @@ export const MessageItem = memo(function MessageItem({ lab, m, prev, highlight, 
             <span>
               {formatSize(file.size)}
               {(file.version > 1 || s.files.some((f) => f.supersedes === file.id)) && <em className={css.ver}>v{file.version}</em>}
-              {s.files.some((f) => f.supersedes === file.id) && <em className={css.old}>已被新版取代</em>}
+              {s.files.some((f) => f.supersedes === file.id) && <em className={css.old}>Superseded</em>}
             </span>
           </span>
         </button>
@@ -129,7 +129,7 @@ export const MessageItem = memo(function MessageItem({ lab, m, prev, highlight, 
       {m.text && <p className={css.text}>{mark(m.text, query)}</p>}
       {translated && m.tr && (
         <div className={css.private}>
-          <span className={css.privateTag}><Languages size={12} /> 译文 · 仅你可见</span>
+          <span className={css.privateTag}><Languages size={12} /> Translation · Visible only to you</span>
           <p>{m.tr}</p>
         </div>
       )}
@@ -159,13 +159,13 @@ export const MessageItem = memo(function MessageItem({ lab, m, prev, highlight, 
                 </ContextMenu.Content>
               </ContextMenu.Portal>
             </ContextMenu.Root>
-            <div className={css.hoverBar} role="toolbar" aria-label="消息操作">
+            <div className={css.hoverBar} role="toolbar" aria-label="Message actions">
               {acts.filter((a) => a.primary).slice(0, 3).map((a) => (
                 <button key={a.key} type="button" title={a.label} aria-label={a.label} onClick={a.run}>{a.icon}</button>
               ))}
               <DropdownMenu.Root>
                 <DropdownMenu.Trigger asChild>
-                  <button type="button" aria-label="更多操作"><MoreHorizontal size={15} /></button>
+                  <button type="button" aria-label="More actions"><MoreHorizontal size={15} /></button>
                 </DropdownMenu.Trigger>
                 <DropdownMenu.Portal>
                   <DropdownMenu.Content className={css.menu} align={mine ? "end" : "start"} sideOffset={4}>
@@ -179,15 +179,15 @@ export const MessageItem = memo(function MessageItem({ lab, m, prev, highlight, 
           </div>
           {(m.status === "sending" || failed || evidence.some((p) => p.status === "confirmed")) && (
             <div className={css.under}>
-              {m.status === "sending" && <span className={css.sending}>发送中…</span>}
+              {m.status === "sending" && <span className={css.sending}>Sending…</span>}
               {failed && (
                 <button type="button" className={css.failed} onClick={() => actions.retry(m.id)}>
-                  <AlertCircle size={13} /> 未发出 · 点击重发
+                  <AlertCircle size={13} /> Failed to send · Click to retry
                 </button>
               )}
               {evidence.filter((p) => p.status === "confirmed").map((p) => (
-                <button key={p.id} type="button" className={css.evChip} data-status={p.status} onClick={() => actions.openPanel("review")} title="查看证据记录">
-                  <Stamp size={12} /> 已记录：{p.title}
+                <button key={p.id} type="button" className={css.evChip} data-status={p.status} onClick={() => actions.openPanel("review")} title="View evidence">
+                  <Stamp size={12} /> Recorded: {p.title}
                 </button>
               ))}
             </div>

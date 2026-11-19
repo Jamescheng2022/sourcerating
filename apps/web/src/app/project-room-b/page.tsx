@@ -64,21 +64,21 @@ export default function ProjectRoomB() {
   return (
     <div className={css.app} data-view={room ? s.view : "list"} data-panel={!!room && s.panel.open && mode === "wide"} style={{ height: vvh }}>
       <RealSidebar real={real} onOpen={openRoom} />
-      {room ? <ChatPane lab={real as unknown as Lab} toast={toast} onBack={back} /> : <section className={rc.empty}><b>新建一个项目开始</b></section>}
-      {room && mode === "wide" && s.panel.open && <aside className={css.aside} aria-label="项目面板"><RealPanel real={real} /></aside>}
+      {room ? <ChatPane lab={real as unknown as Lab} toast={toast} onBack={back} /> : <section className={rc.empty}><b>Create a new project to start</b></section>}
+      {room && mode === "wide" && s.panel.open && <aside className={css.aside} aria-label="Project Panel"><RealPanel real={real} /></aside>}
       {room && mode !== "wide" && (
         <Dialog.Root open={s.panel.open} onOpenChange={(v) => !v && actions.closePanel()}>
           <Dialog.Portal>
             <Dialog.Overlay className={css.overlay} />
             <Dialog.Content className={mode === "narrow" ? css.sheet : css.drawer} aria-describedby={undefined} data-testid={mode === "narrow" ? "bottom-sheet" : "drawer"}>
-              <Dialog.Title className={css.srOnly}>项目面板</Dialog.Title>
-              {mode === "narrow" && <button type="button" className={css.grab} onClick={actions.closePanel} aria-label="收起面板" />}
+              <Dialog.Title className={css.srOnly}>Project Panel</Dialog.Title>
+              {mode === "narrow" && <button type="button" className={css.grab} onClick={actions.closePanel} aria-label="Collapse panel" />}
               <RealPanel real={real} />
             </Dialog.Content>
           </Dialog.Portal>
         </Dialog.Root>
       )}
-      {s.error && <div className={rc.banner} role="alert">{s.error}<button type="button" onClick={actions.clearError} aria-label="关闭">×</button></div>}
+      {s.error && <div className={rc.banner} role="alert">{s.error}<button type="button" onClick={actions.clearError} aria-label="Close">×</button></div>}
       {toastText && <div className={css.toast} role="status">{toastText}</div>}
     </div>
   );

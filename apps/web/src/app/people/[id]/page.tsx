@@ -108,19 +108,19 @@ function PersonPageContent({ params }: { params: Promise<{ id: string }> }) {
             className="inline-flex items-center gap-1.5 text-xs font-semibold text-teal-700 hover:text-teal-800"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            {fromRoom ? "返回项目协作房间" : "返回 Project Room"}
+            {fromRoom ? "Back to Project Room" : "Back to Project Room"}
           </Link>
         </header>
 
         {loading && (
           <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500" role="status">
-            正在校验身份与隐私权限…
+            Verifying identity and privacy permissions…
           </div>
         )}
 
         {error && (
           <div className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-800" role="alert">
-            读取个人名片出错：{error}
+            Error loading member profile: {error}
           </div>
         )}
 
@@ -130,9 +130,9 @@ function PersonPageContent({ params }: { params: Promise<{ id: string }> }) {
             className="rounded-2xl border border-slate-200 bg-white p-8 text-center"
           >
             <User className="mx-auto h-12 w-12 text-slate-400" />
-            <h2 className="mt-3 text-lg font-bold text-slate-950">该成员个人名片不可见或用户不存在</h2>
+            <h2 className="mt-3 text-lg font-bold text-slate-950">Member Profile Restricted or User Not Found</h2>
             <p className="mx-auto mt-1.5 max-w-md text-xs leading-relaxed text-slate-500">
-              严格执行隐私保护规则。该用户未发布公开名片，且您未在当前已授权的项目房间中与该用户共同协作。
+              Privacy protection policy enforced. This user has not published a public profile, and you do not share an authorized collaboration project room.
             </p>
             {fromRoom && (
               <div className="mt-5">
@@ -141,7 +141,7 @@ function PersonPageContent({ params }: { params: Promise<{ id: string }> }) {
                   className="inline-flex items-center gap-1 rounded-lg bg-teal-700 px-4 py-2 text-xs font-semibold text-white hover:bg-teal-800"
                 >
                   <ArrowLeft className="h-3.5 w-3.5" />
-                  返回项目房间
+                  Back to Project Room
                 </Link>
               </div>
             )}
@@ -165,12 +165,12 @@ function PersonPageContent({ params }: { params: Promise<{ id: string }> }) {
               />
             ) : (
               <PersonDossierCard
-                displayName={roomMemberName || "项目协作成员"}
-                headline={roomMemberRole ? `项目角色：${roomMemberRole}` : null}
+                displayName={roomMemberName || "Project Member"}
+                headline={roomMemberRole ? `Project Role: ${roomMemberRole}` : null}
                 bio={null}
                 skills={[]}
                 isRestricted={true}
-                restrictedReason="该成员未向公开网络发布个人名片，仅在所属项目房间中协作。私有履历未经授权不会因同房而披露。"
+                restrictedReason="This member has not published a public profile and collaborates only within this project room. Career background is not disclosed without authorization."
                 verified={false}
                 verificationLevel={null}
                 onEditClick={isSelf ? () => { window.location.href = "/project-room-b/network"; } : undefined}
@@ -186,7 +186,7 @@ function PersonPageContent({ params }: { params: Promise<{ id: string }> }) {
 
 export default function PersonDetailPage({ params }: { params: Promise<{ id: string }> }) {
   return (
-    <Suspense fallback={<div className="p-6 text-xs text-slate-500">正在加载页面…</div>}>
+    <Suspense fallback={<div className="p-6 text-xs text-slate-500">Loading page…</div>}>
       <PersonPageContent params={params} />
     </Suspense>
   );

@@ -40,11 +40,11 @@ export function Sidebar({ lab, onOpen }: { lab: Lab; onOpen: (roomId: string) =>
   }, [myRooms, q, filter, s.proposals, s.orgId]);
 
   return (
-    <nav className={css.side} aria-label="组织与聊天房间">
+    <nav className={css.side} aria-label="Organizations and chat rooms">
       <div className={css.sideTop}>
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild>
-            <button type="button" className={css.orgSwitch} aria-label={`当前组织 ${myOrg.name}，切换组织`}>
+            <button type="button" className={css.orgSwitch} aria-label={`Current organization ${myOrg.name}, switch organization`}>
               <OrgMark color={myOrg.color} short={myOrg.short} size={30} />
               <span><b>{myOrg.name}</b><small>{me.name} · {me.title}</small></span>
               <ChevronsUpDown size={16} aria-hidden />
@@ -52,7 +52,7 @@ export function Sidebar({ lab, onOpen }: { lab: Lab; onOpen: (roomId: string) =>
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
             <DropdownMenu.Content className={css.menu} align="start" sideOffset={6}>
-              <DropdownMenu.Label className={css.menuLabel}>切换工作身份（演示账号）</DropdownMenu.Label>
+              <DropdownMenu.Label className={css.menuLabel}>Switch working identity (Demo accounts)</DropdownMenu.Label>
               {fixture.identities.map((i) => {
                 const o = org(i.orgId);
                 return (
@@ -66,17 +66,17 @@ export function Sidebar({ lab, onOpen }: { lab: Lab; onOpen: (roomId: string) =>
             </DropdownMenu.Content>
           </DropdownMenu.Portal>
         </DropdownMenu.Root>
-        <button type="button" className={css.iconBtn} onClick={() => setCreating(true)} aria-label="新建房间"><Plus size={20} /></button>
+        <button type="button" className={css.iconBtn} onClick={() => setCreating(true)} aria-label="New room"><Plus size={20} /></button>
       </div>
 
       <label className={css.sideSearch}>
         <Search size={16} aria-hidden />
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="搜索房间、项目、联系人" aria-label="搜索房间" />
-        {q && <button type="button" onClick={() => setQ("")} aria-label="清除搜索"><X size={14} /></button>}
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search rooms, projects, contacts" aria-label="Search rooms" />
+        {q && <button type="button" onClick={() => setQ("")} aria-label="Clear search"><X size={14} /></button>}
       </label>
 
-      <div className={css.filters} role="tablist" aria-label="筛选房间">
-        {([["all", "全部", 0], ["needs", "待你处理", totalNeeds], ["unread", "未读", totalUnread]] as const).map(([k, label, n]) => (
+      <div className={css.filters} role="tablist" aria-label="Filter rooms">
+        {([["all", "All", 0], ["needs", "Action Needed", totalNeeds], ["unread", "Unread", totalUnread]] as const).map(([k, label, n]) => (
           <button key={k} type="button" role="tab" aria-selected={filter === k} data-on={filter === k} data-kind={k} onClick={() => setFilter(k)}>
             {label}{n > 0 && <i>{n}</i>}
           </button>
@@ -84,7 +84,7 @@ export function Sidebar({ lab, onOpen }: { lab: Lab; onOpen: (roomId: string) =>
       </div>
 
       <div className={css.rooms}>
-        {groups.length === 0 && <p className={css.none}>没有匹配的房间</p>}
+        {groups.length === 0 && <p className={css.none}>No matching rooms</p>}
         {groups.map(([project, list]) => (
           <div key={project} className={css.group}>
             <h3>{project}</h3>
@@ -104,13 +104,13 @@ export function Sidebar({ lab, onOpen }: { lab: Lab; onOpen: (roomId: string) =>
                     </span>
                     <span className={css.roomLine}>
                       <span className={css.preview}>
-                        {last ? `${last.userId === meId ? "你" : user(last.userId).name}：${last.text ?? lastFile?.name ?? "语音消息"}` : "还没有消息"}
+                        {last ? `${last.userId === meId ? "You" : user(last.userId).name}: ${last.text ?? lastFile?.name ?? "Voice message"}` : "No messages yet"}
                       </span>
-                      {n > 0 && <i className={css.needDot} title={`${n} 项待你处理`}>{n}</i>}
+                      {n > 0 && <i className={css.needDot} title={`${n} items need your action`}>{n}</i>}
                       {unread > 0 && <i className={css.badge}>{unread}</i>}
                     </span>
                     <span className={css.roomOrgs}>
-                      {r.kind === "internal" ? <em>内部</em> : partners.map((o) => <span key={o.id}><OrgMark color={o.color} short={o.short} size={12} />{o.short}</span>)}
+                      {r.kind === "internal" ? <em>Internal</em> : partners.map((o) => <span key={o.id}><OrgMark color={o.color} short={o.short} size={12} />{o.short}</span>)}
                     </span>
                   </span>
                 </button>
@@ -121,8 +121,8 @@ export function Sidebar({ lab, onOpen }: { lab: Lab; onOpen: (roomId: string) =>
       </div>
 
       <div className={css.sideFoot}>
-        <span>DEMO 数据 · 未连接后端</span>
-        <Link href="/project-room">现有 Project Room →</Link>
+        <span>DEMO Data · Disconnected</span>
+        <Link href="/project-room">Existing Project Room →</Link>
       </div>
 
       <NewRoom open={creating} onClose={() => setCreating(false)} lab={lab} />
@@ -141,12 +141,12 @@ function NewRoom({ open, onClose, lab }: { open: boolean; onClose: () => void; l
       <Dialog.Portal>
         <Dialog.Overlay className={css.overlay} />
         <Dialog.Content className={css.dialog} aria-describedby={undefined}>
-          <Dialog.Title className={css.dialogTitle}>新建房间</Dialog.Title>
+          <Dialog.Title className={css.dialogTitle}>New Room</Dialog.Title>
           <form onSubmit={(e) => { e.preventDefault(); if (!name.trim()) return; actions.createRoom(name.trim(), kind, invite || null); setName(""); setInvite(""); onClose(); }}>
-            <input className={css.field} autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="房间名称，例如：检测报告审查" aria-label="房间名称" />
+            <input className={css.field} autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Room name, e.g. Inspection Report Review" aria-label="Room Name" />
             <div className={css.kindPick}>
-              <button type="button" data-on={kind === "external"} onClick={() => setKind("external")}><Hash size={16} /><b>跨企业</b><small>邀请其他组织一起工作</small></button>
-              <button type="button" data-on={kind === "internal"} data-internal onClick={() => setKind("internal")}><LockKeyhole size={16} /><b>内部</b><small>仅 {org(s.orgId).short} 成员可见</small></button>
+              <button type="button" data-on={kind === "external"} onClick={() => setKind("external")}><Hash size={16} /><b>Cross-Company</b><small>Invite other organizations to collaborate</small></button>
+              <button type="button" data-on={kind === "internal"} data-internal onClick={() => setKind("internal")}><LockKeyhole size={16} /><b>Internal</b><small>Visible to {org(s.orgId).short} members only</small></button>
             </div>
             {kind === "external" && (
               <div className={css.invitePick}>
@@ -158,9 +158,9 @@ function NewRoom({ open, onClose, lab }: { open: boolean; onClose: () => void; l
               </div>
             )}
             <div className={css.dialogActs}>
-              <small>演示：只在本页创建，不发送真实邀请</small>
-              <button type="button" className={css.ghost} onClick={onClose}>取消</button>
-              <button type="submit" className={css.primary} disabled={!name.trim()}>创建</button>
+              <small>Demo: created locally on page; no real invitations sent</small>
+              <button type="button" className={css.ghost} onClick={onClose}>Cancel</button>
+              <button type="submit" className={css.primary} disabled={!name.trim()}>Create</button>
             </div>
           </form>
         </Dialog.Content>

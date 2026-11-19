@@ -112,19 +112,19 @@ function CompanyPageContent({ params }: { params: Promise<{ id: string }> }) {
             className="inline-flex items-center gap-1.5 text-xs font-semibold text-teal-700 hover:text-teal-800"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            {fromRoom ? "返回项目协作房间" : "返回 Project Room"}
+            {fromRoom ? "Back to Project Room" : "Back to Project Room"}
           </Link>
         </header>
 
         {loading && (
           <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500" role="status">
-            正在校验组织权限并检索企业档案…
+            Verifying permissions and retrieving company profile…
           </div>
         )}
 
         {error && (
           <div className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-800" role="alert">
-            读取企业档案出错：{error}
+            Error loading company profile: {error}
           </div>
         )}
 
@@ -134,9 +134,9 @@ function CompanyPageContent({ params }: { params: Promise<{ id: string }> }) {
             className="rounded-2xl border border-slate-200 bg-white p-8 text-center"
           >
             <Building2 className="mx-auto h-12 w-12 text-slate-400" />
-            <h2 className="mt-3 text-lg font-bold text-slate-950">企业档案不可见或组织不存在</h2>
+            <h2 className="mt-3 text-lg font-bold text-slate-950">Company Profile Restricted or Organization Not Found</h2>
             <p className="mx-auto mt-1.5 max-w-md text-xs leading-relaxed text-slate-500">
-              严格执行多租户与数据隔离。您未获得该企业的公开授权，或未与该企业共同参与已授权的项目房间。
+              Multi-tenant privacy policy enforced. You do not have public access or shared project collaboration access with this company.
             </p>
             {fromRoom && (
               <div className="mt-5">
@@ -145,7 +145,7 @@ function CompanyPageContent({ params }: { params: Promise<{ id: string }> }) {
                   className="inline-flex items-center gap-1 rounded-lg bg-teal-700 px-4 py-2 text-xs font-semibold text-white hover:bg-teal-800"
                 >
                   <ArrowLeft className="h-3.5 w-3.5" />
-                  返回项目房间
+                  Back to Project Room
                 </Link>
               </div>
             )}
@@ -176,7 +176,7 @@ function CompanyPageContent({ params }: { params: Promise<{ id: string }> }) {
                 capabilities={[]}
                 description={null}
                 isRestricted={true}
-                restrictedReason="该企业档案未对外部公开。根据隐私规则，其私有资料与主营能力仅其内部成员可见。"
+                restrictedReason="This company profile is not publicly published. In accordance with privacy rules, its private capabilities and details are visible only to internal members."
                 verified={false}
                 verificationLevel={null}
                 onEditClick={isOrgAdmin ? () => { window.location.href = "/project-room-b/network"; } : undefined}
@@ -192,7 +192,7 @@ function CompanyPageContent({ params }: { params: Promise<{ id: string }> }) {
 
 export default function CompanyDetailPage({ params }: { params: Promise<{ id: string }> }) {
   return (
-    <Suspense fallback={<div className="p-6 text-xs text-slate-500">正在加载页面…</div>}>
+    <Suspense fallback={<div className="p-6 text-xs text-slate-500">Loading page…</div>}>
       <CompanyPageContent params={params} />
     </Suspense>
   );

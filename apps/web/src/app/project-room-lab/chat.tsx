@@ -82,55 +82,55 @@ export function ChatPane({ lab, toast, onBack }: { lab: Lab; toast: (t: string) 
   const parts = useMemo(() => ({
     Header: () => (
       <div className={css.listHead}>
-        {ended ? "已是最早的消息" : <button type="button" onClick={() => loadRef.current()}>加载更早消息</button>}
+        {ended ? "Beginning of message history" : <button type="button" onClick={() => loadRef.current()}>Load earlier messages</button>}
       </div>
     ),
     Footer: () => <div className={css.listFoot} />,
   }), [ended]);
 
   return (
-    <section className={css.chat} aria-label="聊天">
+    <section className={css.chat} aria-label="Chat">
       <header className={css.chatHead}>
-        <button type="button" className={`${css.iconBtn} ${css.onlyNarrow}`} onClick={onBack} aria-label="返回聊天列表"><ArrowLeft size={20} /></button>
-        <button type="button" className={css.title} onClick={() => actions.openPanel("people")} aria-label={`${room.name}，查看成员`}>
+        <button type="button" className={`${css.iconBtn} ${css.onlyNarrow}`} onClick={onBack} aria-label="Back to room list"><ArrowLeft size={20} /></button>
+        <button type="button" className={css.title} onClick={() => actions.openPanel("people")} aria-label={`${room.name}, view members`}>
           <span className={css.titleName}>
             {room.kind === "internal" ? <LockKeyhole size={15} className={css.internalInk} /> : <Hash size={15} />}
             <b>{room.name}</b>
           </span>
           <span className={css.titleSub}>
             {room.kind === "internal" ? (
-              <span className={css.internalInk}>仅 {orgs[0].short} 内部可见</span>
+              <span className={css.internalInk}>Internal to {orgs[0].short} only</span>
             ) : (
               orgs.map((o) => (<span key={o.id} className={css.orgChip}><OrgMark color={o.color} short={o.short} size={14} />{o.short}</span>))
             )}
           </span>
         </button>
         <div className={css.headActs}>
-          <button type="button" className={css.iconBtn} onClick={() => setSearching((v) => !v)} aria-label="搜索消息" aria-pressed={searching}><Search size={18} /></button>
+          <button type="button" className={css.iconBtn} onClick={() => setSearching((v) => !v)} aria-label="Search messages" aria-pressed={searching}><Search size={18} /></button>
           {pending > 0 && (
-            <button type="button" className={css.pill} onClick={() => actions.openPanel("review")} aria-label={`${pending} 项待确认`}>
-              <ListChecks size={15} /><span>{pending}</span><span className={css.hideNarrow}>待确认</span>
+            <button type="button" className={css.pill} onClick={() => actions.openPanel("review")} aria-label={`${pending} items pending review`}>
+              <ListChecks size={15} /><span>{pending}</span><span className={css.hideNarrow}>Review</span>
             </button>
           )}
-          <button type="button" className={`${css.iconBtn} ${css.hideNarrow}`} onClick={() => actions.openPanel("people")} aria-label="参与者">
+          <button type="button" className={`${css.iconBtn} ${css.hideNarrow}`} onClick={() => actions.openPanel("people")} aria-label="Participants">
             <Users size={18} /><small>{room.memberIds.length}</small>
           </button>
-          <button type="button" className={css.iconBtn} onClick={() => (s.panel.open ? actions.closePanel() : actions.openPanel(s.panel.tab))} aria-label={s.panel.open ? "关闭项目面板" : "打开项目面板"} aria-pressed={s.panel.open}>
+          <button type="button" className={css.iconBtn} onClick={() => (s.panel.open ? actions.closePanel() : actions.openPanel(s.panel.tab))} aria-label={s.panel.open ? "Close project panel" : "Open project panel"} aria-pressed={s.panel.open}>
             <PanelRight size={18} />
           </button>
           {!lab.real && (
           <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild>
-              <button type="button" className={css.demoBtn} aria-label="演示控制"><FlaskConical size={14} /><span className={css.hideNarrow}>DEMO</span></button>
+              <button type="button" className={css.demoBtn} aria-label="Demo controls"><FlaskConical size={14} /><span className={css.hideNarrow}>DEMO</span></button>
             </DropdownMenu.Trigger>
             <DropdownMenu.Portal>
               <DropdownMenu.Content className={css.menu} align="end" sideOffset={6}>
-                <DropdownMenu.Label className={css.menuLabel}>演示控制 · 不触达后端</DropdownMenu.Label>
+                <DropdownMenu.Label className={css.menuLabel}>Demo Controls · Simulated</DropdownMenu.Label>
                 <DropdownMenu.CheckboxItem className={css.menuItem} checked={s.failNext} onCheckedChange={(v) => actions.setFailNext(!!v)}>
-                  <span className={css.check} data-on={s.failNext} />模拟发送失败
+                  <span className={css.check} data-on={s.failNext} />Simulate send failure
                 </DropdownMenu.CheckboxItem>
-                <DropdownMenu.Item className={css.menuItem} onSelect={() => actions.simulateIncoming()}>模拟对方来消息</DropdownMenu.Item>
-                <DropdownMenu.Item className={css.menuItem} onSelect={() => { actions.loadOlder(2000); toast("已载入 2,000 条生成的历史消息"); }}>载入 2,000 条历史</DropdownMenu.Item>
+                <DropdownMenu.Item className={css.menuItem} onSelect={() => actions.simulateIncoming()}>Simulate incoming message</DropdownMenu.Item>
+                <DropdownMenu.Item className={css.menuItem} onSelect={() => { actions.loadOlder(2000); toast("Loaded 2,000 generated history messages"); }}>Load 2,000 history messages</DropdownMenu.Item>
               </DropdownMenu.Content>
             </DropdownMenu.Portal>
           </DropdownMenu.Root>
@@ -141,18 +141,18 @@ export function ChatPane({ lab, toast, onBack }: { lab: Lab; toast: (t: string) 
       {searching && (
         <div className={css.searchBar}>
           <Search size={16} aria-hidden />
-          <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="搜索这个房间的消息和文件" aria-label="搜索当前房间消息"
+          <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search messages and files in room" aria-label="Search messages in room"
             onKeyDown={(e) => { if (e.key === "Enter" && hits.length) setHit((h) => (h - 1 + hits.length) % hits.length); if (e.key === "Escape") { setSearching(false); setQ(""); } }} />
-          <span className={css.hitCount} aria-live="polite">{q.trim() ? (hits.length ? `${hit + 1}/${hits.length}` : "无结果") : ""}</span>
-          <button type="button" className={css.iconBtn} disabled={!hits.length} onClick={() => setHit((h) => (h - 1 + hits.length) % hits.length)} aria-label="上一条结果"><ChevronUp size={18} /></button>
-          <button type="button" className={css.iconBtn} disabled={!hits.length} onClick={() => setHit((h) => (h + 1) % hits.length)} aria-label="下一条结果"><ChevronDown size={18} /></button>
-          <button type="button" className={css.iconBtn} onClick={() => { setSearching(false); setQ(""); }} aria-label="关闭搜索"><X size={18} /></button>
+          <span className={css.hitCount} aria-live="polite">{q.trim() ? (hits.length ? `${hit + 1}/${hits.length}` : "No results") : ""}</span>
+          <button type="button" className={css.iconBtn} disabled={!hits.length} onClick={() => setHit((h) => (h - 1 + hits.length) % hits.length)} aria-label="Previous result"><ChevronUp size={18} /></button>
+          <button type="button" className={css.iconBtn} disabled={!hits.length} onClick={() => setHit((h) => (h + 1) % hits.length)} aria-label="Next result"><ChevronDown size={18} /></button>
+          <button type="button" className={css.iconBtn} onClick={() => { setSearching(false); setQ(""); }} aria-label="Close search"><X size={18} /></button>
         </div>
       )}
 
       <div className={css.listWrap}>
         {msgs.length === 0 ? (
-          <div className={css.empty}><Hash size={28} /><b>{room.name}</b><span>发第一条消息开始协作</span></div>
+          <div className={css.empty}><Hash size={28} /><b>{room.name}</b><span>Send the first message to start collaborating</span></div>
         ) : (
           <Virtuoso
             key={room.id}
@@ -176,14 +176,14 @@ export function ChatPane({ lab, toast, onBack }: { lab: Lab; toast: (t: string) 
         {!atBottom && msgs.length > 0 && (
           <button type="button" className={css.toBottom} data-fresh={fresh > 0}
             onClick={() => vref.current?.scrollToIndex({ index: msgs.length - 1, align: "end", behavior: "smooth" })}
-            aria-label={fresh ? `${fresh} 条新消息，回到底部` : "回到底部"}>
-            <ArrowDown size={16} />{fresh > 0 && <span>{fresh} 条新消息</span>}
+            aria-label={fresh ? `${fresh} new messages, scroll to bottom` : "Scroll to bottom"}>
+            <ArrowDown size={16} />{fresh > 0 && <span>{fresh} new messages</span>}
           </button>
         )}
       </div>
 
       {s.typing?.roomId === room.id && (
-        <div className={css.typing} aria-live="polite">{user(s.typing.userId).name} 正在输入<i /><i /><i /></div>
+        <div className={css.typing} aria-live="polite">{user(s.typing.userId).name} is typing<i /><i /><i /></div>
       )}
       <Composer key={room.id} lab={lab} initial={drafts[room.id] ?? ""} saveDraft={saveDraft} />
     </section>
@@ -223,31 +223,31 @@ function Composer({ lab, initial, saveDraft }: { lab: Lab; initial: string; save
 
   return (
     <footer className={css.composer} data-internal={room.kind === "internal"}>
-      {room.kind === "internal" && <div className={css.internalStrip}><LockKeyhole size={12} /> 内部房间 · 外部组织看不到这里的内容</div>}
+      {room.kind === "internal" && <div className={css.internalStrip}><LockKeyhole size={12} /> Internal Room · External organizations cannot view content here</div>}
       {reply && (
         <div className={css.replyBar}>
-          <span><b>回复 {user(reply.userId).name}</b>{reply.text ?? replyFile?.name ?? "语音消息"}</span>
-          <button type="button" className={css.iconBtn} onClick={() => actions.setReply(null)} aria-label="取消回复"><X size={16} /></button>
+          <span><b>Reply to {user(reply.userId).name}</b>{reply.text ?? replyFile?.name ?? "Voice message"}</span>
+          <button type="button" className={css.iconBtn} onClick={() => actions.setReply(null)} aria-label="Cancel reply"><X size={16} /></button>
         </div>
       )}
       {file && (
         <div className={css.attach}>
           <FileIcon kind={file.type.startsWith("image/") ? "image" : "pdf"} />
-          <span><b>{file.name}</b>{formatSize(file.size)}{lab.real ? "" : " · 演示：仅保存在本页，不上传"}</span>
-          <button type="button" className={css.iconBtn} onClick={() => { setFile(null); if (pick.current) pick.current.value = ""; }} aria-label="移除附件"><X size={16} /></button>
+          <span><b>{file.name}</b>{formatSize(file.size)}{lab.real ? "" : " · Demo: local only"}</span>
+          <button type="button" className={css.iconBtn} onClick={() => { setFile(null); if (pick.current) pick.current.value = ""; }} aria-label="Remove attachment"><X size={16} /></button>
         </div>
       )}
       <div className={css.inputRow}>
-        <input ref={pick} type="file" hidden onChange={(e) => setFile(e.target.files?.[0] ?? null)} aria-label="选择附件" data-testid="file-input" />
-        <button type="button" className={css.iconBtn} onClick={() => pick.current?.click()} aria-label="添加附件"><Paperclip size={20} /></button>
+        <input ref={pick} type="file" hidden onChange={(e) => setFile(e.target.files?.[0] ?? null)} aria-label="Select attachment" data-testid="file-input" />
+        <button type="button" className={css.iconBtn} onClick={() => pick.current?.click()} aria-label="Add attachment"><Paperclip size={20} /></button>
         <textarea
-          ref={ta} rows={1} value={text} aria-label="输入消息"
-          placeholder={room.kind === "internal" ? "发给内部同事" : others.length ? `发给 ${others.join("、")}` : "输入消息"}
+          ref={ta} rows={1} value={text} aria-label="Type message"
+          placeholder={room.kind === "internal" ? "Message internal team..." : others.length ? `Message ${others.join(", ")}...` : "Type a message..."}
           onChange={(e) => setText(e.target.value)}
           onCompositionStart={() => setComposing(true)} onCompositionEnd={() => setComposing(false)}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !composing && !e.nativeEvent.isComposing) { e.preventDefault(); submit(); } }}
         />
-        <button type="button" className={css.send} disabled={!text.trim() && !file} onClick={submit} aria-label="发送"><ArrowUp size={18} /></button>
+        <button type="button" className={css.send} disabled={!text.trim() && !file} onClick={submit} aria-label="Send"><ArrowUp size={18} /></button>
       </div>
     </footer>
   );

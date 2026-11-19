@@ -10,10 +10,10 @@ import type { Lab } from "./use-lab";
 import css from "./lab.module.css";
 
 const KIND: Record<Proposal["kind"], { label: string; icon: React.ReactNode }> = {
-  decision: { label: "决定", icon: <Stamp size={13} /> },
-  date: { label: "日期", icon: <CalendarClock size={13} /> },
-  needs_you: { label: "待处理", icon: <CircleDot size={13} /> },
-  requirement: { label: "要求", icon: <FileCheck2 size={13} /> },
+  decision: { label: "Decision", icon: <Stamp size={13} /> },
+  date: { label: "Date", icon: <CalendarClock size={13} /> },
+  needs_you: { label: "Action Needed", icon: <CircleDot size={13} /> },
+  requirement: { label: "Requirement", icon: <FileCheck2 size={13} /> },
 };
 
 /** Clickable provenance: every derived item links back to raw messages and files. */
@@ -22,12 +22,12 @@ export function Sources({ lab, ids, fileId }: { lab: Lab; ids: string[]; fileId?
   const all = Object.values(s.messages).flat();
   const fileIds = [...ids.filter((i) => s.files.some((f) => f.id === i)), ...(fileId && !ids.includes(fileId) ? [fileId] : [])];
   return (
-    <div className={css.sources} aria-label="来源">
+    <div className={css.sources} aria-label="Sources">
       {ids.map((id) => {
         const m = all.find((x) => x.id === id);
         if (!m) return null;
         return (
-          <button key={id} type="button" className={css.src} onClick={() => actions.jumpTo(id)} title="回到原始消息">
+          <button key={id} type="button" className={css.src} onClick={() => actions.jumpTo(id)} title="Back to original message">
             <CornerDownLeft size={12} />{user(m.userId).name} {timeOf(m.at)}
           </button>
         );
@@ -35,7 +35,7 @@ export function Sources({ lab, ids, fileId }: { lab: Lab; ids: string[]; fileId?
       {fileIds.map((id) => {
         const f = s.files.find((x) => x.id === id)!;
         return (
-          <button key={id} type="button" className={css.src} data-file onClick={() => actions.openFile(id)} title="打开文件">
+          <button key={id} type="button" className={css.src} data-file onClick={() => actions.openFile(id)} title="Open file">
             <FileIcon kind={f.kind} />{f.name.replace(/\.[^.]+$/, "")}{(f.version > 1 || f.supersedes) && ` v${f.version}`}
           </button>
         );
@@ -57,13 +57,13 @@ function ProposalCard({ lab, p }: { lab: Lab; p: Proposal }) {
       <Sources lab={lab} ids={p.sources} fileId={p.fileId} />
       {p.status === "pending" ? (
         <div className={css.cardActs}>
-          <button type="button" className={css.primary} onClick={() => actions.review(p.id, "confirmed")}><Check size={15} />确认</button>
-          <button type="button" className={css.ghost} onClick={() => actions.review(p.id, "rejected")}><X size={15} />驳回</button>
+          <button type="button" className={css.primary} onClick={() => actions.review(p.id, "confirmed")}><Check size={15} />Confirm</button>
+          <button type="button" className={css.ghost} onClick={() => actions.review(p.id, "rejected")}><X size={15} />Reject</button>
         </div>
       ) : (
         <div className={css.reviewed}>
-          <span>{p.status === "confirmed" ? "已确认" : "已驳回"} · {p.reviewedBy ? user(p.reviewedBy).name : ""}</span>
-          <button type="button" onClick={() => actions.review(p.id, "pending")}><Undo2 size={13} />撤销</button>
+          <span>{p.status === "confirmed" ? "Confirmed" : "Rejected"} · {p.reviewedBy ? user(p.reviewedBy).name : ""}</span>
+          <button type="button" onClick={() => actions.review(p.id, "pending")}><Undo2 size={13} />Undo</button>
         </div>
       )}
     </article>
@@ -89,14 +89,14 @@ export function ContextPanel({ lab }: { lab: Lab }) {
   return (
     <Tabs.Root className={css.panel} value={s.panel.tab} onValueChange={(v) => actions.openPanel(v as PanelTab)}>
       <div className={css.panelHead}>
-        <Tabs.List className={css.tabs} aria-label="项目面板">
-          <Tabs.Trigger value="overview">概览</Tabs.Trigger>
-          <Tabs.Trigger value="review">待确认{pending.length > 0 && <i>{pending.length}</i>}</Tabs.Trigger>
-          <Tabs.Trigger value="files">文件</Tabs.Trigger>
-          <Tabs.Trigger value="people">成员</Tabs.Trigger>
+        <Tabs.List className={css.tabs} aria-label="Project Panel">
+          <Tabs.Trigger value="overview">Overview</Tabs.Trigger>
+          <Tabs.Trigger value="review">Review{pending.length > 0 && <i>{pending.length}</i>}</Tabs.Trigger>
+          <Tabs.Trigger value="files">Files</Tabs.Trigger>
+          <Tabs.Trigger value="people">Members</Tabs.Trigger>
           <Tabs.Trigger value="ai"><Sparkles size={13} />AI</Tabs.Trigger>
         </Tabs.List>
-        <button type="button" className={css.iconBtn} onClick={actions.closePanel} aria-label="关闭面板"><X size={18} /></button>
+        <button type="button" className={css.iconBtn} onClick={actions.closePanel} aria-label="Close panel"><X size={18} /></button>
       </div>
 
       <Tabs.Content value="overview" className={css.tabBody}>
@@ -107,14 +107,14 @@ export function ContextPanel({ lab }: { lab: Lab }) {
             <small>{room.project}</small>
           </div>
         </div>
-        <h5>谁能看到这里</h5>
+        <h5>Who can see this</h5>
         <div className={css.orgRow}>
           {orgIds.map((id) => (
-            <span key={id} className={css.orgBlock}><OrgMark color={org(id).color} short={org(id).short} size={22} /><b>{org(id).short}</b><small>{room.memberIds.filter((u) => user(u).orgId === id).length} 人</small></span>
+            <span key={id} className={css.orgBlock}><OrgMark color={org(id).color} short={org(id).short} size={22} /><b>{org(id).short}</b><small>{room.memberIds.filter((u) => user(u).orgId === id).length} members</small></span>
           ))}
         </div>
-        <h5>已确认</h5>
-        {done.filter((p) => p.status === "confirmed").length === 0 && <p className={css.none}>还没有确认的事项</p>}
+        <h5>Confirmed</h5>
+        {done.filter((p) => p.status === "confirmed").length === 0 && <p className={css.none}>No confirmed items yet</p>}
         {done.filter((p) => p.status === "confirmed").map((p) => (
           <div key={p.id} className={css.fact}>
             <span className={css.kind} data-kind={p.kind}>{KIND[p.kind].icon}</span>
@@ -122,23 +122,23 @@ export function ContextPanel({ lab }: { lab: Lab }) {
           </div>
         ))}
         {pending.length > 0 && (
-          <button type="button" className={css.linkRow} onClick={() => actions.openPanel("review")}>{pending.length} 项 AI 整理的事项等待确认 →</button>
+          <button type="button" className={css.linkRow} onClick={() => actions.openPanel("review")}>{pending.length} AI structured items awaiting review →</button>
         )}
       </Tabs.Content>
 
       <Tabs.Content value="review" className={css.tabBody}>
-        <p className={css.hint}><Sparkles size={13} /> AI 从聊天中整理，确认后才成为项目记录</p>
-        {mine.length > 0 && <h5>需要你方处理</h5>}
+        <p className={css.hint}><Sparkles size={13} /> AI structured from chat; becomes project record upon confirmation</p>
+        {mine.length > 0 && <h5>Action Required by Your Team</h5>}
         {mine.map((p) => <ProposalCard key={p.id} lab={lab} p={p} />)}
-        {rest.length > 0 && <h5>待确认</h5>}
+        {rest.length > 0 && <h5>Pending Review</h5>}
         {rest.map((p) => <ProposalCard key={p.id} lab={lab} p={p} />)}
-        {pending.length === 0 && <p className={css.none}>没有待确认的事项</p>}
-        {done.length > 0 && <h5>已处理</h5>}
+        {pending.length === 0 && <p className={css.none}>No pending items</p>}
+        {done.length > 0 && <h5>Processed</h5>}
         {done.map((p) => <ProposalCard key={p.id} lab={lab} p={p} />)}
       </Tabs.Content>
 
       <Tabs.Content value="files" className={css.tabBody}>
-        {files.length === 0 && <p className={css.none}>这个房间还没有文件</p>}
+        {files.length === 0 && <p className={css.none}>No files in this room yet</p>}
         {files.slice().reverse().map((f) => {
           const src = allMsgs.find((m) => m.fileId === f.id);
           const old = files.some((x) => x.supersedes === f.id);
@@ -148,7 +148,7 @@ export function ContextPanel({ lab }: { lab: Lab }) {
               <span className={css.fileMeta}>
                 <b>{f.name}</b>
                 <span>{src ? `${user(src.userId).name} · ${timeOf(src.at)} · ` : ""}{formatSize(f.size)}
-                  {(f.version > 1 || old) && <em className={css.ver}>v{f.version}</em>}{old && <em className={css.old}>旧版</em>}</span>
+                  {(f.version > 1 || old) && <em className={css.ver}>v{f.version}</em>}{old && <em className={css.old}>Old version</em>}</span>
               </span>
             </button>
           );
@@ -162,21 +162,21 @@ export function ContextPanel({ lab }: { lab: Lab }) {
             {room.memberIds.filter((u) => user(u).orgId === id).map((uid) => (
               <div key={uid} className={css.person}>
                 <span className={css.avatar} style={{ background: org(id).color }}>{user(uid).name.slice(0, 1)}</span>
-                <span><b>{user(uid).name}{uid === meId && <em>你</em>}</b><small>{user(uid).title}</small></span>
+                <span><b>{user(uid).name}{uid === meId && <em>You</em>}</b><small>{user(uid).title}</small></span>
               </div>
             ))}
           </div>
         ))}
-        <p className={css.hint}>邀请新成员：演示版未接入邀请接口</p>
+        <p className={css.hint}>Invite members: Not connected in demo version</p>
       </Tabs.Content>
 
       <Tabs.Content value="ai" className={`${css.tabBody} ${css.aiBody}`}>
         <div className={css.aiScroll}>
-          <p className={css.privateNote}><EyeOff size={13} /> 仅你可见 · 不会发到群里</p>
+          <p className={css.privateNote}><EyeOff size={13} /> Visible only to you · Not shared with room</p>
           {turns.length === 0 && (
             <div className={css.aiEmpty}>
-              <button type="button" onClick={() => actions.ask({ type: "room", id: room.id }, "这个房间目前定了什么？")}>这个房间目前定了什么？</button>
-              <small>或在任意消息、文件上点 <Sparkles size={12} /> 问 AI</small>
+              <button type="button" onClick={() => actions.ask({ type: "room", id: room.id }, "What has been decided in this room so far?")}>What has been decided in this room so far?</button>
+              <small>Or click <Sparkles size={12} /> Ask AI on any message or file</small>
             </div>
           )}
           {turns.map((t) => {
@@ -192,10 +192,10 @@ export function ContextPanel({ lab }: { lab: Lab }) {
                     <p>{t.answer.answer}</p>
                     {t.answer.followup && <p className={css.follow}>{t.answer.followup}</p>}
                     <Sources lab={lab} ids={t.answer.sources} />
-                    <button type="button" className={css.useBtn} onClick={() => actions.insertDraft(t.answer!.answer)}>放进输入框（由你决定是否发送）</button>
+                    <button type="button" className={css.useBtn} onClick={() => actions.insertDraft(t.answer!.answer)}>Put into composer (you decide whether to send)</button>
                   </div>
                 ) : (
-                  <div className={css.thinking} aria-live="polite">正在读取你有权查看的上下文<i /><i /><i /></div>
+                  <div className={css.thinking} aria-live="polite">Reading authorized context<i /><i /><i /></div>
                 )}
               </div>
             );
@@ -203,8 +203,8 @@ export function ContextPanel({ lab }: { lab: Lab }) {
           <div ref={end} />
         </div>
         <form className={css.aiInput} onSubmit={(e) => { e.preventDefault(); if (!q.trim()) return; void actions.ask({ type: "room", id: room.id }, q.trim()); setQ(""); }}>
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="问这个房间的任何事" aria-label="向 AI 提问" />
-          <button type="submit" className={css.send} disabled={!q.trim()} aria-label="提问"><ArrowUp size={16} /></button>
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ask anything about this room" aria-label="Ask AI" />
+          <button type="submit" className={css.send} disabled={!q.trim()} aria-label="Send"><ArrowUp size={16} /></button>
         </form>
       </Tabs.Content>
     </Tabs.Root>

@@ -27,32 +27,32 @@ export function VerificationBadge({
     { label: string; icon: React.ComponentType<{ className?: string }>; classes: string; iconColor: string; title: string }
   > = {
     VERIFIED: {
-      label: "已核验",
+      label: "Verified",
       icon: ShieldCheck,
       classes: "bg-teal-950/80 text-teal-300 border-teal-700/60",
       iconColor: "text-teal-400",
-      title: "经真实合同、检测报告或平台凭据核验",
+      title: "Verified by signed contracts, test reports, or platform credentials",
     },
     SELF_CLAIMED: {
-      label: isPerson ? "个人自述" : "企业自述",
+      label: isPerson ? "Self-Reported" : "Company-Claimed",
       icon: UserCheck,
       classes: "bg-sky-950/80 text-sky-300 border-sky-700/60",
       iconColor: "text-sky-400",
-      title: "由主体自主维护填报，尚未经过第三方机构核验",
+      title: "Self-reported profile, not yet independently audited",
     },
     AI_CANDIDATE: {
-      label: "AI 提议事实",
+      label: "AI Suggested",
       icon: Bot,
       classes: "bg-amber-950/80 text-amber-300 border-amber-700/60",
       iconColor: "text-amber-400",
-      title: "由 AI 从会话或文件中结构化提取，待人工审核确认",
+      title: "Extracted by AI from messages or files, pending human review",
     },
     PLANNED: {
-      label: "待完善",
+      label: "Pending",
       icon: Clock,
       classes: "bg-slate-800 text-slate-400 border-slate-700",
       iconColor: "text-slate-400",
-      title: "信息待完善",
+      title: "Pending completion",
     },
   };
 
