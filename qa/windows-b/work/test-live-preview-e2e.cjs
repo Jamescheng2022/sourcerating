@@ -166,9 +166,9 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
   await pageA1.goto(`${PREVIEW_URL}/project-room-b/network?tab=company&fromRoom=${sharedRoomId}`, { waitUntil: 'domcontentloaded' });
   await pageA1.locator('[data-testid="company-dossier-preview"]').first().waitFor({ timeout: T });
 
-  const companyDraftPill = await pageA1.getByText(/Private Draft · Realistic Preview|私有草稿 · 拟真预览/).count();
-  const companyCapabilitiesHeader = await pageA1.getByText(/Core Products & Engineering Capabilities|主营产品与工程技术能力/).count();
-  const returnToRoomBtn = pageA1.getByRole('link', { name: /Return to Project Room|返回项目房间|返回项目协作房间/ });
+  const companyDraftPill = await pageA1.getByText(/Private Draft · (Realistic|Live) Preview|私有草稿 · 拟真预览/).count();
+  const companyCapabilitiesHeader = await pageA1.getByText(/(Core|Main) Products & Engineering Capabilities|主营产品与工程技术能力/).count();
+  const returnToRoomBtn = pageA1.getByRole('link', { name: /(Return to|Back to) Project Room|返回项目房间|返回项目协作房间/ });
   const hasReturnBtn = await returnToRoomBtn.count();
   const returnHref = await returnToRoomBtn.getAttribute('href');
   console.log(`  Company dossier preview rendered: ${companyDraftPill > 0}`);
@@ -185,8 +185,8 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
   await pageA1.goto(`${PREVIEW_URL}/project-room-b/network?tab=person&fromRoom=${sharedRoomId}`, { waitUntil: 'domcontentloaded' });
   await pageA1.locator('[data-testid="person-dossier-preview"]').first().waitFor({ timeout: T });
 
-  const personPill = await pageA1.getByText(/Personal Private · Profile Card|个人私有 · 拟真名片/).count();
-  const personSkillsHeader = await pageA1.getByText(/Engineering Expertise & Skill Tags|工程专业领域与技能标签/).count();
+  const personPill = await pageA1.getByText(/Personal Private · Profile Card|Private Profile · (Live|Profile) Preview|个人私有 · 拟真名片/).count();
+  const personSkillsHeader = await pageA1.getByText(/Engineering (Expertise|Domains) & Skill Tags|工程专业领域与技能标签/).count();
   console.log(`  Person dossier preview rendered: ${personPill > 0}`);
   console.log(`  Skills section rendered: ${personSkillsHeader > 0}`);
   const personPass = personPill > 0 && personSkillsHeader > 0;
@@ -324,7 +324,7 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
 
   // 1. Messaging Check
   console.log('[Regression 1] Verifying message input, multi-line preservation, and Staging DB persistence...');
-  const msgInput = pageA1.getByLabel(/Type a message|输入消息/).or(pageA1.getByPlaceholder(/Type a message|Send to|输入消息|发给/)).first();
+  const msgInput = pageA1.getByLabel(/Type (a )?message|输入消息/).or(pageA1.getByPlaceholder(/Type (a )?message|Message|Send to|输入消息|发给/)).first();
   await msgInput.waitFor({ timeout: T });
   const testMsg = `QA Live E2E Multi-line Verification ${Date.now()}\nLine 2: Multi-line preservation active\nLine 3: Spec check #101 verified`;
   await msgInput.fill(testMsg);
@@ -418,7 +418,7 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
 
   // Check RLS & privacy restricted state
   const isCompRestricted = (await pageA1.locator('[data-testid="company-restricted-view"]').count()) > 0;
-  const compRestrictedPill = (await pageA1.getByText(/Private Profile · Limited to Project Collaboration|私有档案 · 仅限项目协作/).count()) > 0;
+  const compRestrictedPill = (await pageA1.getByText(/Private (Profile|Dossier) · (Limited to Project Collaboration|Project Collaboration Only)|私有档案 · 仅限项目协作/).count()) > 0;
   console.log(`  Supplier profile rendered restricted private state: ${isCompRestricted}`);
   console.log(`  Supplier profile restricted pill visible: ${compRestrictedPill}`);
 
@@ -440,7 +440,7 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
   console.log('  Captured screenshot: ' + ssTargetComp);
 
   // Return to Room B
-  const returnFromComp = pageA1.getByRole('link', { name: /Return to Project Room|返回项目协作房间|返回项目房间/ }).first();
+  const returnFromComp = pageA1.getByRole('link', { name: /(Return to|Back to) Project Room|返回项目协作房间|返回项目房间/ }).first();
   await returnFromComp.click();
   await pageA1.waitForURL(url => url.pathname.includes('/project-room-b'), { timeout: T });
   console.log('  Returned to Room B from company profile successfully.');
@@ -474,7 +474,7 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
 
   // Check RLS & privacy restricted state
   const isPersonRestricted = (await pageA1.locator('[data-testid="person-restricted-view"]').count()) > 0;
-  const personRestrictedPill = (await pageA1.getByText(/Personal card not public · Limited to project collaboration|个人名片未公开 · 仅限项目协作/).count()) > 0;
+  const personRestrictedPill = (await pageA1.getByText(/(Personal card not public|Personal profile not public|Private Profile) · (Limited to project collaboration|Project Collaboration Only)|个人名片未公开 · 仅限项目协作/).count()) > 0;
   console.log(`  Member profile rendered restricted private state: ${isPersonRestricted}`);
   console.log(`  Member profile restricted pill visible: ${personRestrictedPill}`);
 
@@ -496,7 +496,7 @@ const { chromium } = require(path.resolve(__dirname, '../../../apps/web/node_mod
   console.log('  Captured screenshot: ' + ssTargetPerson);
 
   // Return to Room B
-  const returnFromPerson = pageA1.getByRole('link', { name: /Return to Project Room|返回项目协作房间|返回项目房间/ }).first();
+  const returnFromPerson = pageA1.getByRole('link', { name: /(Return to|Back to) Project Room|返回项目协作房间|返回项目房间/ }).first();
   await returnFromPerson.click();
   await pageA1.waitForURL(url => url.pathname.includes('/project-room-b'), { timeout: T });
   console.log('  Returned to Room B from person card successfully.');

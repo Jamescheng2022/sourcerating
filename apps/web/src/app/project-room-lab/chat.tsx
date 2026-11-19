@@ -241,7 +241,7 @@ function Composer({ lab, initial, saveDraft }: { lab: Lab; initial: string; save
         <input ref={pick} type="file" hidden onChange={(e) => setFile(e.target.files?.[0] ?? null)} aria-label="Select attachment" data-testid="file-input" />
         <button type="button" className={css.iconBtn} onClick={() => pick.current?.click()} aria-label="Add attachment"><Paperclip size={20} /></button>
         <textarea
-          ref={ta} rows={1} value={text} aria-label="Type message"
+          ref={ta} rows={1} value={text} aria-label="Type a message"
           placeholder={room.kind === "internal" ? "Message internal team..." : others.length ? `Message ${others.join(", ")}...` : "Type a message..."}
           onChange={(e) => setText(e.target.value)}
           onCompositionStart={() => setComposing(true)} onCompositionEnd={() => setComposing(false)}

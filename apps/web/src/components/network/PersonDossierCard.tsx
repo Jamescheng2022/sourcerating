@@ -53,11 +53,11 @@ export function PersonDossierCard({
                 {isRestricted ? (
                   <span className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-700">
                     <Lock className="h-3 w-3 text-slate-500" />
-                    Private Profile · Project Collaboration Only
+                    Personal card not public · Limited to project collaboration
                   </span>
                 ) : isDraft ? (
                   <span className="rounded-full border border-teal-200 bg-teal-50 px-2.5 py-0.5 text-[11px] font-semibold text-teal-800">
-                    Private Profile · Live Preview
+                    Personal Private · Profile Card
                   </span>
                 ) : verified ? (
                   <VerificationBadge level="VERIFIED" isPerson={true} size="sm" />
@@ -107,7 +107,7 @@ export function PersonDossierCard({
               className="inline-flex items-center gap-1 rounded-lg bg-teal-700 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-teal-800"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
-              Back to Project Room
+              Return to Project Room
             </Link>
           </div>
         </div>
@@ -118,7 +118,7 @@ export function PersonDossierCard({
         <div className="mb-3 flex items-center justify-between">
           <h3 className="flex items-center gap-2 text-base font-bold text-slate-900">
             <Award className="h-4 w-4 text-teal-700" />
-            Engineering Domains & Skill Tags
+            Engineering Expertise & Skill Tags
           </h3>
           <span className="font-mono text-xs text-slate-400">
             {isRestricted ? "Not publicly shared" : "Privately maintained and authorized"}
