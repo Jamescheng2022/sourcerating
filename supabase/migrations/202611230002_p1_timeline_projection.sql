@@ -153,7 +153,30 @@ $$;
 revoke all on function public.sr_redact_message(uuid, uuid, uuid, uuid, text, text) from public, anon;
 grant execute on function public.sr_redact_message(uuid, uuid, uuid, uuid, text, text) to authenticated;
 
--- 4. Room audience inspection for main-room sharing confirmation
+-- 4. Harden organization member removal to cascade to room memberships and synchronize effective audience
+create or replace function public.sr_remove_org_member(p_organization_id uuid, p_user_id uuid)
+returns boolean language plpgsql security definer set search_path = public, extensions as $$
+begin
+  if auth.uid() is null or coalesce(public.sr_org_role(p_organization_id), '') not in ('owner','admin') then
+    raise exception 'organization_admin_required' using errcode = '42501';
+  end if;
+  if exists (select 1 from public.organization_memberships
+              where organization_id = p_organization_id and user_id = p_user_id and role = 'owner') then
+    raise exception 'owner_cannot_be_removed' using errcode = '42501';
+  end if;
+
+  update public.organization_memberships set removed_at = clock_timestamp()
+   where organization_id = p_organization_id and user_id = p_user_id and removed_at is null;
+
+  update public.room_members set removed_at = clock_timestamp()
+   where acting_organization_id = p_organization_id and user_id = p_user_id and removed_at is null;
+
+  insert into public.audit_log(actor_user_id, actor_organization_id, action, target_type, target_id)
+  values (auth.uid(), p_organization_id, 'organization_member.removed', 'user', p_user_id::text);
+  return true;
+end; $$;
+
+-- 4b. Room audience inspection for main-room sharing confirmation
 create or replace function public.sr_room_audience(p_room_id uuid)
 returns jsonb language plpgsql security definer set search_path = public, extensions as $$
 declare
@@ -173,12 +196,23 @@ begin
   v_target_id := coalesce(v_room.parent_room_id, v_room.id);
   select * into v_parent from public.rooms where id = v_target_id;
 
-  -- Verify user has permission to inspect target room audience
+  -- Verify user has permission to inspect target room audience:
+  -- Must be an active member of target room or an authorized sub-room with active organization standing in both
   if not public.is_room_member(v_target_id) and not exists (
     select 1 from public.room_members sub_m
-    join public.room_members par_m on par_m.acting_organization_id = sub_m.acting_organization_id
+    join public.organization_memberships sub_om
+      on sub_om.organization_id = sub_m.acting_organization_id
+     and sub_om.user_id = sub_m.user_id
+     and sub_om.removed_at is null
+    join public.room_members par_m
+      on par_m.acting_organization_id = sub_m.acting_organization_id
+     and par_m.removed_at is null
+    join public.organization_memberships par_om
+      on par_om.organization_id = par_m.acting_organization_id
+     and par_om.user_id = par_m.user_id
+     and par_om.removed_at is null
     where sub_m.room_id = p_room_id and sub_m.user_id = auth.uid() and sub_m.removed_at is null
-      and par_m.room_id = v_target_id and par_m.removed_at is null
+      and par_m.room_id = v_target_id
   ) then
     raise exception 'room_access_denied' using errcode = '42501';
   end if;
@@ -211,6 +245,10 @@ begin
       rm.acting_organization_id::text || ':' || string_agg(rm.user_id::text, ';' order by rm.user_id) as digest_part
     from public.room_members rm
     join public.organizations org on org.id = rm.acting_organization_id
+    join public.organization_memberships om
+      on om.organization_id = rm.acting_organization_id
+     and om.user_id = rm.user_id
+     and om.removed_at is null
     where rm.room_id = v_target_id and rm.removed_at is null
     group by rm.acting_organization_id, org.name
   ) o;

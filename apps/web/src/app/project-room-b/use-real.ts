@@ -220,7 +220,8 @@ export function useReal() {
     }
     if (msgs.length === 0 && rows.length === PAGE && rows[0] && rows[0].seq > 1) {
       setTimeout(() => {
-        if (ref.current.roomId === roomId) {
+        const curActive = activeRoomFor(ref.current)?.id;
+        if (curActive === roomId) {
           actionsRef.current?.loadOlder(roomId);
         }
       }, 50);
@@ -451,9 +452,9 @@ export function useReal() {
     },
 
     loadOlder: (targetRoomId?: string) => {
-      const activeRoom = ref.current.roomId;
-      const roomId = targetRoomId ?? room?.id;
-      if (!roomId || (targetRoomId && activeRoom !== targetRoomId)) return 0;
+      const curActive = activeRoomFor(ref.current)?.id;
+      const roomId = targetRoomId ?? curActive;
+      if (!roomId || (targetRoomId && curActive !== targetRoomId)) return 0;
       if (ref.current.ended[roomId]) return 0;
       const currentLowest = minSeq.current[roomId];
       const first = currentLowest !== undefined
@@ -484,7 +485,8 @@ export function useReal() {
         }));
         if (batch.length === 0 && !isEnded) {
           setTimeout(() => {
-            if (ref.current.roomId === roomId) {
+            const curActive = activeRoomFor(ref.current)?.id;
+            if (curActive === roomId) {
               actionsRef.current?.loadOlder(roomId);
             }
           }, 50);
