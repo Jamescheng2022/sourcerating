@@ -348,7 +348,15 @@ export function useReal() {
   const msgs = room ? s.messages[room.id] ?? [] : [];
   const meId = s.me?.id ?? "";
 
-  useEffect(() => { if (room && !ref.current.messages[room.id]) void loadRoom(room.id); }, [room, loadRoom]);
+  useEffect(() => {
+    if (room) {
+      if (!ref.current.messages[room.id]) {
+        void loadRoom(room.id);
+      } else if ((ref.current.messages[room.id]?.length ?? 0) === 0 && !ref.current.ended[room.id]) {
+        void actionsRef.current?.loadOlder(room.id);
+      }
+    }
+  }, [room, loadRoom]);
 
   const patch = (roomId: string, id: string, m: Partial<Msg>) =>
     set((p) => ({ ...p, messages: { ...p.messages, [roomId]: (p.messages[roomId] ?? []).map((x) => (x.id === id ? { ...x, ...m } : x)) } }));
