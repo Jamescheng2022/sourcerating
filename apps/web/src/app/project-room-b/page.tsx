@@ -78,6 +78,25 @@ export default function ProjectRoomB() {
   useEffect(() => { if (s.jump && mode !== "wide") actions.closePanel();   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s.jump]);
 
+  // Auto-pop update guide once on first login/entry after a new release
+  useEffect(() => {
+    if (s.phase !== "ready") return;
+    try {
+      const seen = localStorage.getItem("sr_seen_update_v1_1_0");
+      if (!seen) {
+        setAboutTab("updates");
+        setAboutOpen(true);
+      }
+    } catch {}
+  }, [s.phase]);
+
+  const closeAbout = useCallback(() => {
+    try {
+      localStorage.setItem("sr_seen_update_v1_1_0", "true");
+    } catch {}
+    setAboutOpen(false);
+  }, []);
+
   const done = () => { setInvite(null); localStorage.removeItem("sr_b_invite"); history.replaceState(history.state, "", location.pathname); };
   const openRoom = (id: string) => { actions.openRoom(id); if (modeOf(window.innerWidth) === "narrow" && history.state?.lab !== "chat") history.pushState({ lab: "chat" }, ""); };
   const back = () => (history.state?.lab === "chat" ? history.back() : actions.backToList());
@@ -129,7 +148,7 @@ export default function ProjectRoomB() {
         open={aboutOpen}
         tab={aboutTab}
         onTabChange={setAboutTab}
-        onClose={() => setAboutOpen(false)}
+        onClose={closeAbout}
       />
     </div>
   );

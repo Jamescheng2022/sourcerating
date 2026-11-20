@@ -89,8 +89,9 @@ export function AboutSettingsDialog({ real, open, onClose, tab: controlledTab, o
               data-active={tab === "updates"}
               onClick={() => setTab("updates")}
             >
-              <Sparkles size={15} />
-              <span>本次更新与试用引导</span>
+              <Sparkles size={16} />
+              <span className={css.tabLabelFull}>本次更新与引导</span>
+              <span className={css.tabLabelShort}>更新</span>
             </button>
             <button
               type="button"
@@ -98,8 +99,9 @@ export function AboutSettingsDialog({ real, open, onClose, tab: controlledTab, o
               data-active={tab === "profile"}
               onClick={() => setTab("profile")}
             >
-              <Building2 size={15} />
-              <span>企业与个人档案</span>
+              <Building2 size={16} />
+              <span className={css.tabLabelFull}>企业与个人档案</span>
+              <span className={css.tabLabelShort}>档案</span>
             </button>
             <button
               type="button"
@@ -107,8 +109,9 @@ export function AboutSettingsDialog({ real, open, onClose, tab: controlledTab, o
               data-active={tab === "preferences"}
               onClick={() => setTab("preferences")}
             >
-              <Settings size={15} />
-              <span>聊天与偏好设置</span>
+              <Settings size={16} />
+              <span className={css.tabLabelFull}>聊天与偏好设置</span>
+              <span className={css.tabLabelShort}>设置</span>
             </button>
             <button
               type="button"
@@ -116,8 +119,9 @@ export function AboutSettingsDialog({ real, open, onClose, tab: controlledTab, o
               data-active={tab === "roadmap"}
               onClick={() => setTab("roadmap")}
             >
-              <Scale size={15} />
-              <span>存证体系与里程碑</span>
+              <Scale size={16} />
+              <span className={css.tabLabelFull}>存证体系与路线</span>
+              <span className={css.tabLabelShort}>存证</span>
             </button>
           </div>
 

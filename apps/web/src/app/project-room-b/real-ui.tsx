@@ -277,21 +277,6 @@ export function RealSidebar({ real, onOpen, onOpenAbout }: { real: Real; onOpen:
           </button>
         </div>
       )}
-      {onOpenAbout && (
-        <div className={rc.versionBar}>
-          <button
-            type="button"
-            className={rc.versionPillBtn}
-            onClick={() => onOpenAbout("updates")}
-            title="查看版本号、本次更新记录与试用功能引导"
-          >
-            <Sparkles size={13} />
-            <span className={rc.verNum}>v1.1.0 预览版</span>
-            <span className={rc.verDivider}>·</span>
-            <span className={rc.verText}>更新记录与设置</span>
-          </button>
-        </div>
-      )}
       <div className={css.sideFoot}>
         <span>STAGING · Real Backend (Test DB)</span>
         {process.env.NEXT_PUBLIC_SR_NETWORK_PILOT === "1" && (
