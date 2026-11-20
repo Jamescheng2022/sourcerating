@@ -166,7 +166,21 @@ export function ChatPane({ lab, toast, onBack, onOpenAbout }: { lab: Lab; toast:
 
       <div className={css.listWrap}>
         {msgs.length === 0 ? (
-          <div className={css.empty}><Hash size={28} /><b>{room.name}</b><span>Send the first message to start collaborating</span></div>
+          <div className={css.empty}>
+            <Hash size={28} />
+            <b>{room.name}</b>
+            <span>Send the first message to start collaborating</span>
+            {!s.ended?.[room.id] && (
+              <button
+                type="button"
+                className={css.pill}
+                style={{ marginTop: 12, cursor: "pointer" }}
+                onClick={() => actions.loadOlder()}
+              >
+                Load older messages
+              </button>
+            )}
+          </div>
         ) : (
           <Virtuoso
             key={room.id}
@@ -268,13 +282,15 @@ function Composer({ lab, initial, saveDraft, toast }: { lab: Lab; initial: strin
                 if (item) {
                   setText((prev) => (prev ? `${item.text}\n${prev}` : item.text));
                   if (item.file) {
-                    setFile((existing) => {
-                      if (!existing) return item.file!;
-                      toast?.("已恢复草稿文字；因输入框已有新附件，已保留新附件");
-                      return existing;
-                    });
+                    if (file) {
+                      toast?.("已恢复草稿文字；输入框已有新选附件，已保留新附件");
+                    } else {
+                      setFile(item.file);
+                      toast?.("已撤回并恢复到草稿区");
+                    }
+                  } else {
+                    toast?.("已撤回并恢复到草稿区");
                   }
-                  toast?.("已撤回并恢复到草稿区");
                 }
               }}
             >

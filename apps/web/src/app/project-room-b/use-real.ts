@@ -109,6 +109,7 @@ export function useReal() {
   const seqs = useRef(new Map<string, number>());
   const minSeq = useRef<Record<string, number>>({});
   const pending = useRef(new Map<string, { roomId: string; text: string; file?: File; replyTo?: string }>());
+  const actionsRef = useRef<{ loadOlder: () => number } | null>(null);
   const fail = (e: unknown) => set((p) => ({ ...p, error: e instanceof Error ? e.message : String((e as { message?: string })?.message ?? e) }));
 
   const user = useCallback((id: string): User => s.users[id] ?? { id, name: "Member", orgId: "", title: "" }, [s.users]);
@@ -216,6 +217,9 @@ export function useReal() {
     if (last) {
       await supabase.rpc("sr_mark_room_read", { p_room_id: roomId, p_seq: last });
       set((p) => ({ ...p, rooms: p.rooms.map((r) => (r.id === roomId ? { ...r, unread: { ...r.unread, [p.orgId]: 0 } } : r)) }));
+    }
+    if (msgs.length === 0 && rows.length === PAGE && rows[0] && rows[0].seq > 1) {
+      setTimeout(() => actionsRef.current?.loadOlder(), 50);
     }
   }, []);
 
@@ -455,7 +459,10 @@ export function useReal() {
       }
       set((p) => ({ ...p, ended: { ...p.ended, [roomId]: true } })); // re-opened below unless history is exhausted
       void supabase.from("room_events").select("*").eq("room_id", roomId).lt("seq", first).order("seq", { ascending: false }).limit(PAGE).then(({ data, error }) => {
-        if (error) return fail(error);
+        if (error) {
+          set((p) => ({ ...p, ended: { ...p.ended, [roomId]: false } }));
+          return fail(error);
+        }
         const rows = ((data ?? []) as EventRow[]).slice().reverse();
         rows.forEach((e) => seqs.current.set(e.id, e.seq));
         if (rows.length > 0) {
@@ -464,10 +471,14 @@ export function useReal() {
         const currentUserId = ref.current.me?.id ?? "";
         const hidden = getHiddenEventIds(ref.current.orgId, currentUserId);
         const batch = rows.map((e) => toMsg(e, ref.current.files)).filter((m): m is Msg => !!m && !hidden.has(m.id));
+        const isEnded = rows.length < PAGE || (rows[0] && rows[0].seq === 1);
         set((p) => ({
-          ...p, ended: { ...p.ended, [roomId]: rows.length < PAGE || (rows[0] && rows[0].seq === 1) }, older: { ...p.older, [roomId]: (p.older[roomId] ?? 0) + batch.length },
+          ...p, ended: { ...p.ended, [roomId]: isEnded }, older: { ...p.older, [roomId]: (p.older[roomId] ?? 0) + batch.length },
           messages: { ...p.messages, [roomId]: [...batch, ...(p.messages[roomId] ?? [])] },
         }));
+        if (batch.length === 0 && !isEnded) {
+          setTimeout(() => actionsRef.current?.loadOlder(), 50);
+        }
       });
       return PAGE;
     },
@@ -609,6 +620,7 @@ export function useReal() {
       a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
     },
   };
+  actionsRef.current = actions;
 
   return { s, set, meId, user, org, myRooms, room, msgs, actions, real: true as boolean };
 }

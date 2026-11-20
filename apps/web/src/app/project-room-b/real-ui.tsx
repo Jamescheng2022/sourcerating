@@ -410,12 +410,14 @@ export function ShareToMainRoomDialog({
   onClose: () => void;
   onSuccess: () => void;
 }) {
-  const { s, org, actions } = real;
+  const { s, org, user, actions } = real;
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [digest, setDigest] = useState<string | null>(null);
-  const [destOrgs, setDestOrgs] = useState<Array<{ id: string; name: string; count: number }>>([]);
+  const [destOrgs, setDestOrgs] = useState<
+    Array<{ id: string; name: string; member_count: number; members: Array<{ user_id: string; display_name: string }> }>
+  >([]);
 
   const parentRoom = s.rooms.find((r) => r.id === room.parentId);
 
@@ -427,23 +429,36 @@ export function ShareToMainRoomDialog({
     setDigest(null);
 
     const parentMembers = parentRoom?.roomMembers ?? [];
-    const orgMap = new Map<string, number>();
+    const orgMap = new Map<string, { name: string; members: Array<{ user_id: string; display_name: string }> }>();
     for (const m of parentMembers) {
       if (m.orgId) {
-        orgMap.set(m.orgId, (orgMap.get(m.orgId) ?? 0) + 1);
+        const item = orgMap.get(m.orgId) ?? { name: org(m.orgId).name, members: [] };
+        item.members.push({ user_id: m.userId, display_name: m.displayName ?? user(m.userId).name });
+        orgMap.set(m.orgId, item);
       }
     }
-    const computedOrgs = Array.from(orgMap.entries()).map(([oid, count]) => ({
+    const computedOrgs = Array.from(orgMap.entries()).map(([oid, data]) => ({
       id: oid,
-      name: org(oid).name,
-      count,
+      name: data.name,
+      member_count: data.members.length,
+      members: data.members,
     }));
 
     actions
       .getRoomAudience(parentRoom?.id ?? room.id)
       .then((aud: unknown) => {
         if (!live) return;
-        const res = aud as { digest?: string; orgs?: Array<{ id: string; name: string; count?: number }> };
+        const res = aud as {
+          digest?: string;
+          orgs?: Array<{
+            id: string;
+            name: string;
+            member_count?: number;
+            cnt?: number;
+            count?: number;
+            members?: Array<{ user_id: string; display_name: string }>;
+          }>;
+        };
         if (res && typeof res.digest === "string" && res.digest.trim()) {
           setDigest(res.digest.trim());
           if (Array.isArray(res.orgs) && res.orgs.length > 0) {
@@ -451,7 +466,8 @@ export function ShareToMainRoomDialog({
               res.orgs.map((o) => ({
                 id: o.id,
                 name: o.name,
-                count: o.count ?? orgMap.get(o.id) ?? 1,
+                member_count: o.member_count ?? o.cnt ?? o.count ?? orgMap.get(o.id)?.members.length ?? 1,
+                members: o.members ?? orgMap.get(o.id)?.members ?? [],
               }))
             );
           } else {
@@ -473,7 +489,7 @@ export function ShareToMainRoomDialog({
     return () => {
       live = false;
     };
-  }, [open, parentRoom, room.id, actions, org]);
+  }, [open, parentRoom, room.id, actions, org, user]);
 
   const handleConfirm = async () => {
     if (!digest) return;
@@ -525,9 +541,16 @@ export function ShareToMainRoomDialog({
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {destOrgs.map((o) => (
-                    <div key={o.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 10px", background: "#f1f5f9", borderRadius: 6, fontSize: 13 }}>
-                      <span style={{ fontWeight: 600, color: "#1e293b" }}>{o.name}</span>
-                      <span style={{ fontSize: 12, color: "#64748b" }}>{o.count} 位成员在室</span>
+                    <div key={o.id} style={{ padding: "8px 10px", background: "#f1f5f9", borderRadius: 6, fontSize: 13 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontWeight: 600, color: "#1e293b" }}>{o.name}</span>
+                        <span style={{ fontSize: 12, color: "#64748b" }}>{o.member_count} 位成员在室</span>
+                      </div>
+                      {o.members.length > 0 && (
+                        <div style={{ fontSize: 12, color: "#475569", marginTop: 4 }}>
+                          成员: {o.members.map((m) => m.display_name).join(", ")}
+                        </div>
+                      )}
                     </div>
                   ))}
                   {digest && (

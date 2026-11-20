@@ -50,13 +50,13 @@ begin
   from (
     select
       rm.acting_organization_id as org_id,
-      coalesce(org.display_name, org.name, 'Unknown') as org_name,
+      coalesce(org.name, 'Unknown') as org_name,
       count(*)::int as total_cnt,
       count(*) filter (where rm.last_read_seq >= p_seq)::int as read_cnt
     from public.room_members rm
     join public.organizations org on org.id = rm.acting_organization_id
     where rm.room_id = p_room_id and rm.removed_at is null
-    group by rm.acting_organization_id, org.display_name, org.name
+    group by rm.acting_organization_id, org.name
   ) o;
 
   return v_res;
@@ -179,22 +179,30 @@ begin
         jsonb_build_object(
           'id', o.org_id,
           'name', o.org_name,
-          'member_count', o.cnt
+          'member_count', o.cnt,
+          'members', o.members
         ) order by o.org_id
       ),
       '[]'::jsonb
     ),
-    coalesce(string_agg(o.org_id::text || ':' || o.cnt::text, ',' order by o.org_id), '')
+    coalesce(string_agg(o.digest_part, ',' order by o.org_id), '')
   into v_orgs, v_digest_input
   from (
     select
       rm.acting_organization_id as org_id,
-      coalesce(org.display_name, org.name, 'Organization') as org_name,
-      count(*)::int as cnt
+      coalesce(org.name, 'Organization') as org_name,
+      count(*)::int as cnt,
+      jsonb_agg(
+        jsonb_build_object(
+          'user_id', rm.user_id,
+          'display_name', coalesce(rm.display_name, 'Member')
+        ) order by rm.user_id
+      ) as members,
+      rm.acting_organization_id::text || ':' || string_agg(rm.user_id::text, ';' order by rm.user_id) as digest_part
     from public.room_members rm
     join public.organizations org on org.id = rm.acting_organization_id
     where rm.room_id = v_target_id and rm.removed_at is null
-    group by rm.acting_organization_id, org.display_name, org.name
+    group by rm.acting_organization_id, org.name
   ) o;
 
   v_digest := encode(digest(convert_to(v_digest_input, 'UTF8'), 'sha256'), 'hex');
@@ -210,6 +218,9 @@ $$;
 
 revoke all on function public.sr_room_audience(uuid) from public, anon;
 grant execute on function public.sr_room_audience(uuid) to authenticated;
+
+-- Revoke legacy unconfirmed share to parent RPC to prevent bypass
+revoke execute on function public.sr_share_to_parent(uuid, uuid, uuid, text, uuid[]) from public, authenticated, anon;
 
 -- 5. Confirmed sharing to parent room with audience digest check
 create or replace function public.sr_share_to_parent_confirmed(
@@ -237,12 +248,14 @@ begin
   if v_clean is null then raise exception 'invalid_summary' using errcode = '22023'; end if;
 
   -- Validate audience digest to prevent check-then-act race conditions
-  if p_audience_digest is not null then
-    v_aud := public.sr_room_audience(p_room_id);
-    v_current_digest := v_aud->>'digest';
-    if v_current_digest is not null and v_current_digest <> p_audience_digest then
-      raise exception 'audience_changed' using errcode = '22023';
-    end if;
+  if p_audience_digest is null or trim(p_audience_digest) = '' then
+    raise exception 'audience_digest_required' using errcode = '22023';
+  end if;
+
+  v_aud := public.sr_room_audience(p_room_id);
+  v_current_digest := v_aud->>'digest';
+  if v_current_digest is null or v_current_digest <> trim(p_audience_digest) then
+    raise exception 'audience_changed' using errcode = '22023';
   end if;
 
   -- Filter sources: never expose internal room references to parent room
