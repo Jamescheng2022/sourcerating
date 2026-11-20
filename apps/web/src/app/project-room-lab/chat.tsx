@@ -267,7 +267,13 @@ function Composer({ lab, initial, saveDraft, toast }: { lab: Lab; initial: strin
                 const item = sendBuffer.cancel(bufferedList[0].id);
                 if (item) {
                   setText((prev) => (prev ? `${item.text}\n${prev}` : item.text));
-                  if (item.file) setFile(item.file);
+                  if (item.file) {
+                    setFile((existing) => {
+                      if (!existing) return item.file!;
+                      toast?.("已恢复草稿文字；因输入框已有新附件，已保留新附件");
+                      return existing;
+                    });
+                  }
                   toast?.("已撤回并恢复到草稿区");
                 }
               }}

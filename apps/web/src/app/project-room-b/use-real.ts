@@ -107,6 +107,7 @@ export function useReal() {
     return version;
   };
   const seqs = useRef(new Map<string, number>());
+  const minSeq = useRef<Record<string, number>>({});
   const pending = useRef(new Map<string, { roomId: string; text: string; file?: File; replyTo?: string }>());
   const fail = (e: unknown) => set((p) => ({ ...p, error: e instanceof Error ? e.message : String((e as { message?: string })?.message ?? e) }));
 
@@ -178,6 +179,9 @@ export function useReal() {
     }));
     const rows = ((ev.data ?? []) as EventRow[]).slice().reverse();
     rows.forEach((e) => seqs.current.set(e.id, e.seq));
+    if (rows.length > 0) {
+      minSeq.current[roomId] = rows[0].seq;
+    }
     const currentUserId = ref.current.me?.id ?? "";
     const hidden = getHiddenEventIds(ref.current.orgId, currentUserId);
     const msgs = rows.map((e) => toMsg(e, files)).filter((m): m is Msg => !!m && !hidden.has(m.id));
@@ -441,18 +445,27 @@ export function useReal() {
     loadOlder: () => {
       if (!room || ref.current.ended[room.id]) return 0;
       const roomId = room.id;
-      const first = Math.min(...(ref.current.messages[roomId] ?? []).map((m) => seqs.current.get(m.id) ?? Infinity));
-      if (!Number.isFinite(first)) return 0;
+      const currentLowest = minSeq.current[roomId];
+      const first = currentLowest !== undefined
+        ? currentLowest
+        : Math.min(...(ref.current.messages[roomId] ?? []).map((m) => seqs.current.get(m.id) ?? Infinity));
+      if (!Number.isFinite(first) || first <= 1) {
+        set((p) => ({ ...p, ended: { ...p.ended, [roomId]: true } }));
+        return 0;
+      }
       set((p) => ({ ...p, ended: { ...p.ended, [roomId]: true } })); // re-opened below unless history is exhausted
       void supabase.from("room_events").select("*").eq("room_id", roomId).lt("seq", first).order("seq", { ascending: false }).limit(PAGE).then(({ data, error }) => {
         if (error) return fail(error);
         const rows = ((data ?? []) as EventRow[]).slice().reverse();
         rows.forEach((e) => seqs.current.set(e.id, e.seq));
+        if (rows.length > 0) {
+          minSeq.current[roomId] = rows[0].seq;
+        }
         const currentUserId = ref.current.me?.id ?? "";
         const hidden = getHiddenEventIds(ref.current.orgId, currentUserId);
         const batch = rows.map((e) => toMsg(e, ref.current.files)).filter((m): m is Msg => !!m && !hidden.has(m.id));
         set((p) => ({
-          ...p, ended: { ...p.ended, [roomId]: rows.length < PAGE }, older: { ...p.older, [roomId]: (p.older[roomId] ?? 0) + batch.length },
+          ...p, ended: { ...p.ended, [roomId]: rows.length < PAGE || (rows[0] && rows[0].seq === 1) }, older: { ...p.older, [roomId]: (p.older[roomId] ?? 0) + batch.length },
           messages: { ...p.messages, [roomId]: [...batch, ...(p.messages[roomId] ?? [])] },
         }));
       });
@@ -535,37 +548,20 @@ export function useReal() {
     addMember: async (userId: string, orgId: string) => { if (room) { await rpc("sr_add_room_member", { p_room_id: room.id, p_actor_organization_id: ref.current.orgId, p_user_id: userId, p_member_organization_id: orgId }); await refresh(); } },
     removeMember: async (userId: string) => { if (room) { await rpc("sr_remove_room_member", { p_room_id: room.id, p_actor_organization_id: ref.current.orgId, p_user_id: userId }); await refresh(); } },
     removeFromOrganization: async (userId: string) => { await rpc("sr_remove_org_member", { p_organization_id: ref.current.orgId, p_user_id: userId }); await refresh(); },
-    shareToParent: async (text: string, audienceDigest?: string) => {
+    shareToParent: async (text: string, audienceDigest: string) => {
       if (!room) return;
-      const clientMsgId = crypto.randomUUID();
-      try {
-        await rpc("sr_share_to_parent_confirmed", {
-          p_room_id: room.id,
-          p_actor_organization_id: ref.current.orgId,
-          p_client_msg_id: clientMsgId,
-          p_text: text,
-          p_source_event_ids: [],
-          p_audience_digest: audienceDigest ?? null,
-        });
-      } catch (err: unknown) {
-        const msg = String(err && typeof err === "object" && "message" in err ? (err as { message: string }).message : err);
-        // If audience check failed or digest was specified, NEVER bypass verification
-        if (audienceDigest || msg.includes("audience_changed") || msg.includes("audience")) {
-          throw err;
-        }
-        // Only if confirmed function does not exist on legacy deployment AND audienceDigest wasn't requested
-        if (msg.includes("does not exist") || msg.includes("42883")) {
-          await rpc("sr_share_to_parent", {
-            p_room_id: room.id,
-            p_actor_organization_id: ref.current.orgId,
-            p_client_msg_id: clientMsgId,
-            p_text: text,
-            p_source_event_ids: [],
-          });
-        } else {
-          throw err;
-        }
+      if (!audienceDigest || typeof audienceDigest !== "string" || !audienceDigest.trim()) {
+        throw new Error("audience_digest_required");
       }
+      const clientMsgId = crypto.randomUUID();
+      await rpc("sr_share_to_parent_confirmed", {
+        p_room_id: room.id,
+        p_actor_organization_id: ref.current.orgId,
+        p_client_msg_id: clientMsgId,
+        p_text: text,
+        p_source_event_ids: [],
+        p_audience_digest: audienceDigest.trim(),
+      });
     },
     getRoomAudience: async (roomId: string) => {
       return await rpc("sr_room_audience", { p_room_id: roomId });

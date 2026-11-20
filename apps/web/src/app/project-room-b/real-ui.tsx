@@ -2,14 +2,14 @@
 
 import * as Dialog from "@radix-ui/react-dialog";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { Check, ChevronsUpDown, GitCompare, History, Sparkles, CornerDownRight, Download, FileUp, FolderPlus, GitBranch, Hash, LockKeyhole, LogOut, Plus, Send, Settings, ShieldCheck, Smartphone, UserPlus, X } from "lucide-react";
+import { AlertCircle, Check, ChevronsUpDown, GitCompare, History, Sparkles, CornerDownRight, Download, FileUp, FolderPlus, GitBranch, Hash, LockKeyhole, LogOut, Plus, Send, Settings, ShieldCheck, Smartphone, UserPlus, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { OrgMark } from "../project-room-lab/message";
 import { formatSize, timeOf } from "../project-room-lab/demo/adapter";
 import { usePwa } from "@/components/pwa/PwaProvider";
 import css from "../project-room-lab/lab.module.css";
 import rc from "./real.module.css";
-import type { Real, RealFile, SplitSuggestion } from "./use-real";
+import type { Real, RealFile, RealRoom, SplitSuggestion } from "./use-real";
 
 const msg = (e: unknown) => (e instanceof Error ? e.message : String((e as { message?: string })?.message ?? e));
 
@@ -395,9 +395,185 @@ function Compare({ real, a, b, onClose }: { real: Real; a: RealFile; b: RealFile
   );
 }
 
+export function ShareToMainRoomDialog({
+  open,
+  text,
+  room,
+  real,
+  onClose,
+  onSuccess,
+}: {
+  open: boolean;
+  text: string;
+  room: RealRoom;
+  real: Real;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const { s, org, actions } = real;
+  const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [digest, setDigest] = useState<string | null>(null);
+  const [destOrgs, setDestOrgs] = useState<Array<{ id: string; name: string; count: number }>>([]);
+
+  const parentRoom = s.rooms.find((r) => r.id === room.parentId);
+
+  useEffect(() => {
+    if (!open) return;
+    let live = true;
+    setFetching(true);
+    setError(null);
+    setDigest(null);
+
+    const parentMembers = parentRoom?.roomMembers ?? [];
+    const orgMap = new Map<string, number>();
+    for (const m of parentMembers) {
+      if (m.orgId) {
+        orgMap.set(m.orgId, (orgMap.get(m.orgId) ?? 0) + 1);
+      }
+    }
+    const computedOrgs = Array.from(orgMap.entries()).map(([oid, count]) => ({
+      id: oid,
+      name: org(oid).name,
+      count,
+    }));
+
+    actions
+      .getRoomAudience(parentRoom?.id ?? room.id)
+      .then((aud: unknown) => {
+        if (!live) return;
+        const res = aud as { digest?: string; orgs?: Array<{ id: string; name: string; count?: number }> };
+        if (res && typeof res.digest === "string" && res.digest.trim()) {
+          setDigest(res.digest.trim());
+          if (Array.isArray(res.orgs) && res.orgs.length > 0) {
+            setDestOrgs(
+              res.orgs.map((o) => ({
+                id: o.id,
+                name: o.name,
+                count: o.count ?? orgMap.get(o.id) ?? 1,
+              }))
+            );
+          } else {
+            setDestOrgs(computedOrgs);
+          }
+        } else {
+          setError("服务端未能生成目标主室的受众签名摘要。为保障商业机密安全，禁止在无签名情况下向主室分发。");
+        }
+      })
+      .catch((err: unknown) => {
+        if (!live) return;
+        const errMsg = String(err && typeof err === "object" && "message" in err ? (err as { message: string }).message : err);
+        setError(`受众核验失败：${errMsg}。为防止商业机密泄露，发送已被安全拦截。`);
+      })
+      .finally(() => {
+        if (live) setFetching(false);
+      });
+
+    return () => {
+      live = false;
+    };
+  }, [open, parentRoom, room.id, actions, org]);
+
+  const handleConfirm = async () => {
+    if (!digest) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await actions.shareToParent(text, digest);
+      onSuccess();
+      onClose();
+    } catch (err: unknown) {
+      const errMsg = String(err && typeof err === "object" && "message" in err ? (err as { message: string }).message : err);
+      if (errMsg.includes("audience_changed") || errMsg.includes("audience")) {
+        setError("目标主室的受众成员刚刚发生了变动（签名已失效）！请关闭弹窗重新核验最新受众。");
+      } else {
+        setError(`分发失败：${errMsg}`);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog.Root open={open} onOpenChange={(v) => !v && !loading && onClose()}>
+      <Dialog.Portal>
+        <Dialog.Overlay className={css.overlay} />
+        <Dialog.Content className={css.dialog} aria-describedby={undefined} style={{ maxWidth: 520 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <Dialog.Title style={{ margin: 0, fontSize: 16, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+              <ShieldCheck size={18} style={{ color: "#0f766e" }} />
+              主室分发受众核验与确认 (Release A)
+            </Dialog.Title>
+            <button type="button" className={css.iconBtn} onClick={onClose} disabled={loading} aria-label="关闭">
+              <X size={18} />
+            </button>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#64748b", marginBottom: 4 }}>拟分发内容全文预览</div>
+              <div style={{ padding: 10, background: "#f8fafc", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13, lineHeight: 1.5, maxHeight: 120, overflowY: "auto", whiteSpace: "pre-wrap" }}>
+                {text}
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#64748b", marginBottom: 6 }}>目标商业主室与接收机构全员名单</div>
+              {fetching ? (
+                <div style={{ fontSize: 13, color: "#94a3b8", padding: 8 }}>正在向服务端查询主室最新受众...</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {destOrgs.map((o) => (
+                    <div key={o.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 10px", background: "#f1f5f9", borderRadius: 6, fontSize: 13 }}>
+                      <span style={{ fontWeight: 600, color: "#1e293b" }}>{o.name}</span>
+                      <span style={{ fontSize: 12, color: "#64748b" }}>{o.count} 位成员在室</span>
+                    </div>
+                  ))}
+                  {digest && (
+                    <div style={{ fontSize: 11, color: "#0f766e", marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>
+                      <Check size={13} />
+                      <span>服务端数字摘要已锁定: {digest.slice(0, 16)}...</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {error && (
+              <div style={{ padding: 10, background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, color: "#991b1b", fontSize: 13, display: "flex", alignItems: "flex-start", gap: 8 }}>
+                <AlertCircle size={16} style={{ flexShrink: 0, marginTop: 2 }} />
+                <span>{error}</span>
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 20 }}>
+            <button type="button" className={css.ghost} onClick={onClose} disabled={loading}>
+              取消
+            </button>
+            <button
+              type="button"
+              className={css.primary}
+              onClick={handleConfirm}
+              disabled={loading || fetching || !digest || !!error}
+              style={{ background: "#0f766e", color: "#fff" }}
+            >
+              {loading ? "正在签名入链..." : "确认受众并发送至主室"}
+            </button>
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
 export function RealPanel({ real }: { real: Real }) {
   const { s, room, user, org, meId, actions } = real;
-  const [invite, setInvite] = useState(false), [share, setShare] = useState(""), [preset, setPreset] = useState<SplitSuggestion | null>(null);
+  const [invite, setInvite] = useState(false);
+  const [share, setShare] = useState("");
+  const [shareConfirmOpen, setShareConfirmOpen] = useState(false);
+  const [preset, setPreset] = useState<SplitSuggestion | null>(null);
   const pick = useRef<HTMLInputElement>(null);
   const target = useRef<string | null>(null);
   if (!room) return null;
@@ -489,28 +665,18 @@ export function RealPanel({ real }: { real: Real }) {
                   type="button"
                   className={css.ghost}
                   disabled={!share.trim()}
-                  onClick={async () => {
-                    const parentRoom = s.rooms.find((r) => r.id === room.parentId);
-                    let destOrgs = parentRoom
-                      ? Array.from(new Set(parentRoom.roomMembers.map((m) => m.orgId))).map((oid) => org(oid).name).join(", ")
-                      : "Main Room counterparties";
-                    let digest: string | undefined;
-                    try {
-                      const aud = (await actions.getRoomAudience(room.id)) as { orgs?: { name: string }[]; digest?: string };
-                      if (aud?.orgs?.length) {
-                        destOrgs = aud.orgs.map((o) => o.name).join(", ");
-                      }
-                      if (aud?.digest) digest = aud.digest;
-                    } catch {
-                      // fallback
-                    }
-                    if (window.confirm(`Send summary to Main Room?\n\nThis summary will be visible to external organizations:\n${destOrgs}\n\nOnce posted, it becomes an immutable part of the main room audit chain.`)) {
-                      void actions.shareToParent(share.trim(), digest).then(() => setShare("")).catch(() => null);
-                    }
-                  }}
+                  onClick={() => setShareConfirmOpen(true)}
                 >
                   Send to Main Room
                 </button>
+                <ShareToMainRoomDialog
+                  open={shareConfirmOpen}
+                  text={share.trim()}
+                  room={room}
+                  real={real}
+                  onClose={() => setShareConfirmOpen(false)}
+                  onSuccess={() => setShare("")}
+                />
               </section>
             )}
             <button type="button" className={css.ghost} onClick={() => void actions.exportEvidence().catch(() => null)}><Download size={15} />Export Evidence (JSON)</button>
