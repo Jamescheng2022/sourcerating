@@ -23,6 +23,7 @@ export default function ProjectRoomB() {
   const [invite, setInvite] = useState<string | null>(null);
   const [toastText, setToastText] = useState<string | null>(null);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [aboutTab, setAboutTab] = useState<"updates" | "profile" | "preferences" | "roadmap">("updates");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const toast = useCallback((t: string) => { setToastText(t); if (timer.current) clearTimeout(timer.current); timer.current = setTimeout(() => setToastText(null), 1800); }, []);
   const deep = useRef<{ room: string | null; msg: string | null }>({ room: null, msg: null });
@@ -87,8 +88,27 @@ export default function ProjectRoomB() {
 
   return (
     <div className={css.app} data-view={room ? s.view : "list"} data-panel={!!room && s.panel.open && mode === "wide"} style={{ height: vvh, top: vvTop }}>
-      <RealSidebar real={real} onOpen={openRoom} onOpenAbout={() => setAboutOpen(true)} />
-      {room ? <ChatPane lab={real as unknown as Lab} toast={toast} onBack={back} onOpenAbout={() => setAboutOpen(true)} /> : <section className={rc.empty}><b>Create a new project to start</b></section>}
+      <RealSidebar
+        real={real}
+        onOpen={openRoom}
+        onOpenAbout={(tab = "preferences") => {
+          setAboutTab(tab);
+          setAboutOpen(true);
+        }}
+      />
+      {room ? (
+        <ChatPane
+          lab={real as unknown as Lab}
+          toast={toast}
+          onBack={back}
+          onOpenAbout={() => {
+            setAboutTab("updates");
+            setAboutOpen(true);
+          }}
+        />
+      ) : (
+        <section className={rc.empty}><b>Create a new project to start</b></section>
+      )}
       {room && mode === "wide" && s.panel.open && <aside className={css.aside} aria-label="Project Panel"><RealPanel real={real} /></aside>}
       {room && mode !== "wide" && (
         <Dialog.Root open={s.panel.open} onOpenChange={(v) => !v && actions.closePanel()}>
@@ -104,7 +124,13 @@ export default function ProjectRoomB() {
       )}
       {s.error && <div className={rc.banner} role="alert">{s.error}<button type="button" onClick={actions.clearError} aria-label="Close">×</button></div>}
       {toastText && <div className={css.toast} role="status">{toastText}</div>}
-      <AboutSettingsDialog real={real} open={aboutOpen} onClose={() => setAboutOpen(false)} />
+      <AboutSettingsDialog
+        real={real}
+        open={aboutOpen}
+        tab={aboutTab}
+        onTabChange={setAboutTab}
+        onClose={() => setAboutOpen(false)}
+      />
     </div>
   );
 }

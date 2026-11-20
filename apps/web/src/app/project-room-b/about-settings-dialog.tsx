@@ -3,20 +3,11 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import {
   Building2,
-  Check,
   CheckCircle2,
   Clock,
-  ExternalLink,
-  HelpCircle,
-  Info,
-  Keyboard,
-  Lock,
-  RotateCcw,
   Scale,
-  Send,
   Settings,
   Shield,
-  ShieldCheck,
   Smartphone,
   Sparkles,
   User,
@@ -24,50 +15,48 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import type { Real } from "./use-real";
+import {
+  getMobileEnterPref,
+  getUndoDelayPref,
+  setMobileEnterPref,
+  setUndoDelayPref,
+} from "./preferences";
 import css from "./about.module.css";
 
 interface Props {
   real: Real;
   open: boolean;
   onClose: () => void;
-  defaultTab?: "updates" | "profile" | "preferences" | "roadmap";
+  tab?: "updates" | "profile" | "preferences" | "roadmap";
+  onTabChange?: (tab: "updates" | "profile" | "preferences" | "roadmap") => void;
 }
 
 export const APP_VERSION = "v1.1.0-alpha";
 export const APP_RELEASE_DATE = "2026-11-20";
 
-export function AboutSettingsDialog({ real, open, onClose, defaultTab = "updates" }: Props) {
+export function AboutSettingsDialog({ real, open, onClose, tab: controlledTab, onTabChange }: Props) {
   const { s, user, org, meId } = real;
-  const [tab, setTab] = useState<"updates" | "profile" | "preferences" | "roadmap">(defaultTab);
+  const [internalTab, setInternalTab] = useState<"updates" | "profile" | "preferences" | "roadmap">("updates");
+  const tab = controlledTab ?? internalTab;
+  const setTab = (nextTab: "updates" | "profile" | "preferences" | "roadmap") => {
+    setInternalTab(nextTab);
+    onTabChange?.(nextTab);
+  };
   const myOrg = org(s.orgId);
   const myUser = user(meId);
 
-  // Preference states (stored in localStorage for persistent trial)
-  const [undoDelay, setUndoDelay] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("sr_pref_undo_delay") ?? "5";
-    }
-    return "5";
-  });
-  const [mobileEnter, setMobileEnter] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("sr_pref_mobile_enter") ?? "newline";
-    }
-    return "newline";
-  });
+  // Preference states backed by safe storage helpers
+  const [undoDelay, setUndoDelay] = useState<string>(() => getUndoDelayPref());
+  const [mobileEnter, setMobileEnter] = useState<string>(() => getMobileEnterPref());
 
   const handleUndoDelayChange = (val: string) => {
     setUndoDelay(val);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("sr_pref_undo_delay", val);
-    }
+    setUndoDelayPref(val);
   };
 
   const handleMobileEnterChange = (val: string) => {
     setMobileEnter(val);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("sr_pref_mobile_enter", val);
-    }
+    setMobileEnterPref(val);
   };
 
   return (
@@ -127,7 +116,7 @@ export function AboutSettingsDialog({ real, open, onClose, defaultTab = "updates
               data-active={tab === "roadmap"}
               onClick={() => setTab("roadmap")}
             >
-              <ShieldCheck size={15} />
+              <Scale size={15} />
               <span>存证体系与里程碑</span>
             </button>
           </div>
@@ -138,7 +127,7 @@ export function AboutSettingsDialog({ real, open, onClose, defaultTab = "updates
             {tab === "updates" && (
               <div>
                 <div className={css.sectionTitle}>
-                  <Sparkles size={16} className="text-amber-500" />
+                  <Sparkles size={16} />
                   <span>本次预览版本（{APP_VERSION}）更新亮点与即刻试用</span>
                 </div>
 
@@ -149,14 +138,14 @@ export function AboutSettingsDialog({ real, open, onClose, defaultTab = "updates
                     </div>
                     <div className={css.updateMain}>
                       <div className={css.updateHeader}>
-                        <span className={css.updateHeading}>1. 5秒撤回缓冲（Undo Send）</span>
+                        <span className={css.updateHeading}>1. 发送撤销缓冲（Undo Send）</span>
                         <span className={css.statusPill}>已上线 · 可试用</span>
                       </div>
                       <p className={css.updateDesc}>
-                        在输入框点击发送后，底部会弹出 5 秒倒计时提示条。倒计时结束前点击 <b>Undo</b>，消息直接撤回并恢复为草稿，<b>0 次网络请求、存证链零污染</b>。
+                        在输入框发送消息后，底部弹出倒计时黄色提示条（当前偏好：{undoDelay === "0" ? "即时发送（0秒）" : `${undoDelay} 秒缓冲`}）。倒计时内点击 <b>Undo</b>，消息直接撤回并完整保留输入框草稿，<b>0 次网络请求、零存证链污染</b>；亦可点击“Send now”提前提交。
                       </p>
                       <div className={css.howToTest}>
-                        👉 试用方式：在当前房间发任意消息，观察底部黄色提示条并点击 “Undo”。
+                        👉 试用方式：在当前房间发任意消息，观察底部的提示条并点击 “Undo”（恢复草稿）或 “Send now”。
                       </div>
                     </div>
                   </div>
@@ -167,14 +156,14 @@ export function AboutSettingsDialog({ real, open, onClose, defaultTab = "updates
                     </div>
                     <div className={css.updateMain}>
                       <div className={css.updateHeader}>
-                        <span className={css.updateHeading}>2. 触屏输入法回车换行优化</span>
+                        <span className={css.updateHeading}>2. 触屏软键盘回车换行优化</span>
                         <span className={css.statusPill}>已上线 · 可试用</span>
                       </div>
                       <p className={css.updateDesc}>
-                        对标移动端聊天标准：在手机/触屏软键盘按“换行”进行多行文字排版，彻底解决误触直接发送的问题；仅点击右侧向上箭头发送。桌面端保持 Enter 发送。
+                        对标 WhatsApp 触屏人体工学：手机软键盘按“换行”进行多行排版，彻底避免误触直接发送；点击输入框右侧向上箭头正式提交；桌面键盘按 Enter 发送；任何终端按 <b>Ctrl/⌘ + Enter</b> 均直接发送。
                       </p>
                       <div className={css.howToTest}>
-                        👉 试用方式：用手机浏览器登录本网址，在输入框多按几次“换行”键排版多行文字。
+                        👉 试用方式：用手机或移动模拟器登录本页面，在输入框多按几次“换行”键进行多行排版。
                       </div>
                     </div>
                   </div>
@@ -185,14 +174,14 @@ export function AboutSettingsDialog({ real, open, onClose, defaultTab = "updates
                     </div>
                     <div className={css.updateMain}>
                       <div className={css.updateHeader}>
-                        <span className={css.updateHeading}>3. 内部室转发主室受众确认（DLP 防护）</span>
+                        <span className={css.updateHeading}>3. 发送前确认受众（主室分发防护）</span>
                         <span className={css.statusPill}>已上线 · 可试用</span>
                       </div>
                       <p className={css.updateDesc}>
-                        将内部室（Internal Room）的会议纪要或结论推回外部商业主室时，强制弹窗展示接收方外部企业列表，必须二次确认后才入链，严防商业机密泄露。
+                        将内部室（Internal Room）结论分发回外部主室前，弹窗透明展示所有接收方机构与成员名单。用户确认后携带受众摘要哈希提交；服务端具备一致性校验，若受众发生变动则严格阻断并提示重新确认。
                       </p>
                       <div className={css.howToTest}>
-                        👉 试用方式：进入一个 Internal 子房间，在面板中找到 “Send back to Main Room” 点击发送测试。
+                        👉 试用方式：进入一个 Internal 子房间，在面板点击 “Send back to Main Room” 查看受众确认弹窗。
                       </div>
                     </div>
                   </div>
@@ -203,14 +192,14 @@ export function AboutSettingsDialog({ real, open, onClose, defaultTab = "updates
                     </div>
                     <div className={css.updateMain}>
                       <div className={css.updateHeader}>
-                        <span className={css.updateHeading}>4. 单机隐藏真实语义（Hide for me）</span>
+                        <span className={css.updateHeading}>4. 单设备免打扰隐藏（Hide for me）</span>
                         <span className={css.statusPill}>已上线 · 可试用</span>
                       </div>
                       <p className={css.updateDesc}>
-                        移除易造成误解的虚假撤回，改为明确的 `Hide for me`。提示用户存证链不可篡改，消息仅在当前会话设备隐藏，对外部对手方如实保留存证。
+                        真实诚信语义：摒弃单方伪撤回，提供明确的 `Hide for me`。消息在当前设备和账号下永久隐藏（页面刷新仍保持隐藏），同时遵守存证不可篡改原则，对手方审计链与时间戳完整保留。
                       </p>
                       <div className={css.howToTest}>
-                        👉 试用方式：点击自己已发送消息右侧 “...”，选择 “Hide for me”。
+                        👉 试用方式：在已发消息右侧点击 “...”，选择 “Hide for me”，页面刷新后该消息依然保持隐藏。
                       </div>
                     </div>
                   </div>
@@ -235,10 +224,10 @@ export function AboutSettingsDialog({ real, open, onClose, defaultTab = "updates
                     <span className={css.profileValue}>{myOrg.short}</span>
                   </div>
                   <div className={css.profileRow}>
-                    <span className={css.profileLabel}>存证认证状态</span>
+                    <span className={css.profileLabel}>企业认证状态</span>
                     <span className={css.profileValue}>
-                      <ShieldCheck size={14} className="text-emerald-600" />
-                      <span>已核验认证机构</span>
+                      <Shield size={14} style={{ color: "#d97706" }} />
+                      <span>系统内注册机构（正式资质认证对接中）</span>
                     </span>
                   </div>
                   <div className={css.profileRow}>
@@ -281,7 +270,7 @@ export function AboutSettingsDialog({ real, open, onClose, defaultTab = "updates
                   <div className={css.settingRow}>
                     <div className={css.settingMeta}>
                       <span className={css.settingTitle}>发送撤销缓冲时长</span>
-                      <span className={css.settingHelp}>给您后悔和修正的缓冲期，期间不向服务端发起入链</span>
+                      <span className={css.settingHelp}>给您后悔修正的时间，缓冲期内不向服务端发起入链，支持即时发送</span>
                     </div>
                     <select
                       className={css.selectInput}
@@ -312,11 +301,10 @@ export function AboutSettingsDialog({ real, open, onClose, defaultTab = "updates
                   <div className={css.settingRow}>
                     <div className={css.settingMeta}>
                       <span className={css.settingTitle}>多语言显示策略</span>
-                      <span className={css.settingHelp}>跨境采购沟通时的界面与默认翻译目标语言</span>
+                      <span className={css.settingHelp}>跨境采购沟通时的界面与默认翻译语言（更多语言包建设中）</span>
                     </div>
-                    <select className={css.selectInput} defaultValue="zh-CN">
-                      <option value="zh-CN">简体中文 (Simplified Chinese)</option>
-                      <option value="en-US">English (US)</option>
+                    <select className={css.selectInput} defaultValue="zh-CN" disabled title="默认系统语言 · 国际化多语言包建设中">
+                      <option value="zh-CN">简体中文 (默认 · 跨国即时翻译)</option>
                     </select>
                   </div>
                 </div>
@@ -356,11 +344,11 @@ export function AboutSettingsDialog({ real, open, onClose, defaultTab = "updates
                   </div>
                   <div className={css.profileRow}>
                     <span className={css.profileLabel}>01-08 (Phase 2 交付)</span>
-                    <span className={css.profileValue}>快捷回复 /、采购彩色标签、译后发送校验</span>
+                    <span className={css.profileValue}>快捷回复 /、采购彩色标签、受众变更审计报告</span>
                   </div>
                   <div className={css.profileRow}>
-                    <span className={css.profileLabel}>02-03 (Phase 3 交付)</span>
-                    <span className={css.profileValue}>时间锁密封报价、离线存证包验证</span>
+                    <span className={css.profileLabel}>02-03 (Phase 3 代码冻结)</span>
+                    <span className={css.profileValue}>时间锁密封报价、离线存证包验证、全链路穿透测试</span>
                   </div>
                 </div>
               </div>

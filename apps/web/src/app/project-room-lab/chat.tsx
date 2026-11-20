@@ -11,6 +11,7 @@ import { formatSize } from "./demo/adapter";
 import { FileIcon, MessageItem, OrgMark } from "./message";
 import type { Lab } from "./use-lab";
 import { sendBuffer, type BufferedMessage } from "../project-room-b/send-buffer";
+import { getMobileEnterPref } from "../project-room-b/preferences";
 import css from "./lab.module.css";
 
 const BASE = 100_000;
@@ -198,12 +199,12 @@ export function ChatPane({ lab, toast, onBack, onOpenAbout }: { lab: Lab; toast:
       {s.typing?.roomId === room.id && (
         <div className={css.typing} aria-live="polite">{user(s.typing.userId).name} is typing<i /><i /><i /></div>
       )}
-      <Composer key={room.id} lab={lab} initial={drafts[room.id] ?? ""} saveDraft={saveDraft} />
+      <Composer key={room.id} lab={lab} initial={drafts[room.id] ?? ""} saveDraft={saveDraft} toast={toast} />
     </section>
   );
 }
 
-function Composer({ lab, initial, saveDraft }: { lab: Lab; initial: string; saveDraft: (roomId: string, text: string) => void }) {
+function Composer({ lab, initial, saveDraft, toast }: { lab: Lab; initial: string; saveDraft: (roomId: string, text: string) => void; toast?: (t: string) => void }) {
   const { s, room, user, org, meId, actions } = lab;
   const [text, setText] = useState(initial);
   const [file, setFile] = useState<File | null>(null);
@@ -265,8 +266,9 @@ function Composer({ lab, initial, saveDraft }: { lab: Lab; initial: string; save
               onClick={() => {
                 const item = sendBuffer.cancel(bufferedList[0].id);
                 if (item) {
-                  setText(item.text);
+                  setText((prev) => (prev ? `${item.text}\n${prev}` : item.text));
                   if (item.file) setFile(item.file);
+                  toast?.("已撤回并恢复到草稿区");
                 }
               }}
             >
@@ -302,6 +304,11 @@ function Composer({ lab, initial, saveDraft }: { lab: Lab; initial: string; save
         <button type="button" className={css.iconBtn} onClick={() => pick.current?.click()} aria-label="Add attachment"><Paperclip size={20} /></button>
         <textarea
           ref={ta} rows={1} value={text} aria-label="Type a message"
+          enterKeyHint={
+            typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches && getMobileEnterPref() === "newline"
+              ? "enter"
+              : "send"
+          }
           placeholder={room.kind === "internal" ? "Message internal team..." : others.length ? `Message ${others.join(", ")}...` : "Type a message..."}
           onChange={(e) => setText(e.target.value)}
           onFocus={() => {
@@ -312,13 +319,25 @@ function Composer({ lab, initial, saveDraft }: { lab: Lab; initial: string; save
           }}
           onCompositionStart={() => setComposing(true)} onCompositionEnd={() => setComposing(false)}
           onKeyDown={(e) => {
-            const isTouch = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
-            const mobilePref = typeof window !== "undefined" ? (localStorage.getItem("sr_pref_mobile_enter") ?? "newline") : "newline";
-            const touchSends = isTouch && mobilePref === "send";
-            const desktopSends = !isTouch && !e.shiftKey;
-            if (e.key === "Enter" && (desktopSends || touchSends) && !composing && !e.nativeEvent.isComposing) {
+            if (composing || e.nativeEvent.isComposing) return;
+            // Shift+Enter always creates a newline
+            if (e.shiftKey) return;
+
+            // Ctrl+Enter or Cmd+Enter always sends
+            if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
               e.preventDefault();
               submit();
+              return;
+            }
+
+            if (e.key === "Enter") {
+              const isTouch = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+              const mobilePref = getMobileEnterPref();
+              const shouldSend = isTouch ? mobilePref === "send" : true;
+              if (shouldSend) {
+                e.preventDefault();
+                submit();
+              }
             }
           }}
         />

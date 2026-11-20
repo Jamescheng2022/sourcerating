@@ -181,7 +181,7 @@ export function Invite({ real, open, onClose }: { real: Real; open: boolean; onC
   );
 }
 
-export function RealSidebar({ real, onOpen, onOpenAbout }: { real: Real; onOpen: (id: string) => void; onOpenAbout?: () => void }) {
+export function RealSidebar({ real, onOpen, onOpenAbout }: { real: Real; onOpen: (id: string) => void; onOpenAbout?: (tab?: "updates" | "profile" | "preferences" | "roadmap") => void }) {
   const { s, myRooms, room, user, org, meId, actions } = real;
   const [dlg, setDlg] = useState<"project" | "sub" | null>(null);
   const pwa = usePwa();
@@ -213,7 +213,7 @@ export function RealSidebar({ real, onOpen, onOpenAbout }: { real: Real; onOpen:
                 </DropdownMenu.Item>
               ))}
               {onOpenAbout && (
-                <DropdownMenu.Item className={css.menuItem} onSelect={onOpenAbout}>
+                <DropdownMenu.Item className={css.menuItem} onSelect={() => onOpenAbout("preferences")}>
                   <Settings size={15} />设置与关于 (v1.1.0)
                 </DropdownMenu.Item>
               )}
@@ -282,7 +282,7 @@ export function RealSidebar({ real, onOpen, onOpenAbout }: { real: Real; onOpen:
           <button
             type="button"
             className={rc.versionPillBtn}
-            onClick={onOpenAbout}
+            onClick={() => onOpenAbout("updates")}
             title="查看版本号、本次更新记录与试用功能引导"
           >
             <Sparkles size={13} />
