@@ -166,13 +166,14 @@ begin
   end if;
 
   -- Acquire lock on the organization and associated commercial parent rooms to serialize with audience confirmation
-  perform 1 from public.organizations where id = p_organization_id for update;
+  -- Follow global lock hierarchy: 1. organizations (order by id), 2. rooms (order by id)
+  perform 1 from public.organizations where id = p_organization_id order by id for update;
   perform 1 from public.rooms where id in (
     select distinct coalesce(r.parent_room_id, r.id)
     from public.rooms r
     join public.room_members rm on rm.room_id = r.id
     where rm.acting_organization_id = p_organization_id and rm.removed_at is null
-  ) for update;
+  ) order by id for update;
 
   update public.organization_memberships set removed_at = clock_timestamp()
    where organization_id = p_organization_id and user_id = p_user_id and removed_at is null;
@@ -304,13 +305,13 @@ begin
   end if;
   if v_clean is null then raise exception 'invalid_summary' using errcode = '22023'; end if;
 
-  -- Acquire exclusive lock on parent room and its participating organizations to serialize concurrent audience membership changes
-  perform 1 from public.rooms where id = v_room.parent_room_id for update;
+  -- Acquire exclusive locks in global order: 1. organizations (order by id), 2. rooms (order by id)
   perform 1 from public.organizations where id in (
     select distinct rm.acting_organization_id
     from public.room_members rm
     where rm.room_id = v_room.parent_room_id and rm.removed_at is null
-  ) for update;
+  ) order by id for update;
+  perform 1 from public.rooms where id = v_room.parent_room_id order by id for update;
 
   -- Validate audience digest to prevent check-then-act race conditions
   if p_audience_digest is null or trim(p_audience_digest) = '' then
