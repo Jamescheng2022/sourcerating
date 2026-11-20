@@ -63,7 +63,21 @@ class SendBufferManager {
     options?: { file?: File; replyTo?: string; delayMs?: number }
   ): string {
     const id = crypto.randomUUID();
-    const delay = options?.delayMs ?? 5000;
+    let defaultDelay = 5000;
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("sr_pref_undo_delay");
+      if (stored !== null) {
+        const sec = parseInt(stored, 10);
+        if (!isNaN(sec) && sec >= 0) defaultDelay = sec * 1000;
+      }
+    }
+    const delay = options?.delayMs ?? defaultDelay;
+
+    if (delay <= 0) {
+      void onCommit();
+      return id;
+    }
+
     const now = Date.now();
     const endsAt = now + delay;
 

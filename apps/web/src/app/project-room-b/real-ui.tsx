@@ -2,7 +2,7 @@
 
 import * as Dialog from "@radix-ui/react-dialog";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { Check, ChevronsUpDown, GitCompare, History, Sparkles, CornerDownRight, Download, FileUp, FolderPlus, GitBranch, Hash, LockKeyhole, LogOut, Plus, Send, ShieldCheck, Smartphone, UserPlus, X } from "lucide-react";
+import { Check, ChevronsUpDown, GitCompare, History, Sparkles, CornerDownRight, Download, FileUp, FolderPlus, GitBranch, Hash, LockKeyhole, LogOut, Plus, Send, Settings, ShieldCheck, Smartphone, UserPlus, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { OrgMark } from "../project-room-lab/message";
 import { formatSize, timeOf } from "../project-room-lab/demo/adapter";
@@ -181,7 +181,7 @@ export function Invite({ real, open, onClose }: { real: Real; open: boolean; onC
   );
 }
 
-export function RealSidebar({ real, onOpen }: { real: Real; onOpen: (id: string) => void }) {
+export function RealSidebar({ real, onOpen, onOpenAbout }: { real: Real; onOpen: (id: string) => void; onOpenAbout?: () => void }) {
   const { s, myRooms, room, user, org, meId, actions } = real;
   const [dlg, setDlg] = useState<"project" | "sub" | null>(null);
   const pwa = usePwa();
@@ -212,6 +212,11 @@ export function RealSidebar({ real, onOpen }: { real: Real; onOpen: (id: string)
                   {m.orgId === s.orgId && <Check size={15} />}
                 </DropdownMenu.Item>
               ))}
+              {onOpenAbout && (
+                <DropdownMenu.Item className={css.menuItem} onSelect={onOpenAbout}>
+                  <Settings size={15} />设置与关于 (v1.1.0)
+                </DropdownMenu.Item>
+              )}
               {!pwa.isInstalled && (
                 <DropdownMenu.Item className={css.menuItem} onSelect={() => void pwa.promptInstall()}>
                   <Smartphone size={15} />Install App
@@ -269,6 +274,21 @@ export function RealSidebar({ real, onOpen }: { real: Real; onOpen: (id: string)
             className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-teal-700 text-white hover:bg-teal-800 transition shadow-xs"
           >
             Install
+          </button>
+        </div>
+      )}
+      {onOpenAbout && (
+        <div className={rc.versionBar}>
+          <button
+            type="button"
+            className={rc.versionPillBtn}
+            onClick={onOpenAbout}
+            title="查看版本号、本次更新记录与试用功能引导"
+          >
+            <Sparkles size={13} />
+            <span className={rc.verNum}>v1.1.0 预览版</span>
+            <span className={rc.verDivider}>·</span>
+            <span className={rc.verText}>更新记录与设置</span>
           </button>
         </div>
       )}

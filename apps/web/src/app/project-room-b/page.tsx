@@ -8,6 +8,7 @@ import css from "../project-room-lab/lab.module.css";
 import rc from "./real.module.css";
 import { AuthGate, Onboard, RealPanel, RealSidebar } from "./real-ui";
 import { useReal } from "./use-real";
+import { AboutSettingsDialog } from "./about-settings-dialog";
 
 type Mode = "wide" | "mid" | "narrow";
 const modeOf = (w: number): Mode => (w >= 1100 ? "wide" : w >= 700 ? "mid" : "narrow");
@@ -21,6 +22,7 @@ export default function ProjectRoomB() {
   const [vvTop, setVvTop] = useState("0px");
   const [invite, setInvite] = useState<string | null>(null);
   const [toastText, setToastText] = useState<string | null>(null);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const toast = useCallback((t: string) => { setToastText(t); if (timer.current) clearTimeout(timer.current); timer.current = setTimeout(() => setToastText(null), 1800); }, []);
   const deep = useRef<{ room: string | null; msg: string | null }>({ room: null, msg: null });
@@ -85,8 +87,8 @@ export default function ProjectRoomB() {
 
   return (
     <div className={css.app} data-view={room ? s.view : "list"} data-panel={!!room && s.panel.open && mode === "wide"} style={{ height: vvh, top: vvTop }}>
-      <RealSidebar real={real} onOpen={openRoom} />
-      {room ? <ChatPane lab={real as unknown as Lab} toast={toast} onBack={back} /> : <section className={rc.empty}><b>Create a new project to start</b></section>}
+      <RealSidebar real={real} onOpen={openRoom} onOpenAbout={() => setAboutOpen(true)} />
+      {room ? <ChatPane lab={real as unknown as Lab} toast={toast} onBack={back} onOpenAbout={() => setAboutOpen(true)} /> : <section className={rc.empty}><b>Create a new project to start</b></section>}
       {room && mode === "wide" && s.panel.open && <aside className={css.aside} aria-label="Project Panel"><RealPanel real={real} /></aside>}
       {room && mode !== "wide" && (
         <Dialog.Root open={s.panel.open} onOpenChange={(v) => !v && actions.closePanel()}>
@@ -102,6 +104,7 @@ export default function ProjectRoomB() {
       )}
       {s.error && <div className={rc.banner} role="alert">{s.error}<button type="button" onClick={actions.clearError} aria-label="Close">×</button></div>}
       {toastText && <div className={css.toast} role="status">{toastText}</div>}
+      <AboutSettingsDialog real={real} open={aboutOpen} onClose={() => setAboutOpen(false)} />
     </div>
   );
 }

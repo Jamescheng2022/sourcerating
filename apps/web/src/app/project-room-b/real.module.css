@@ -46,4 +46,10 @@
 .cmp tr[data-diff="true"] td { background: #fff7e0; }
 .panes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .pane { width: 100%; height: 52dvh; border: 1px solid var(--line); border-radius: 10px; background: #faf9f6; object-fit: contain; display: grid; place-items: center; color: var(--ink3); }
+.versionBar { padding: 8px 12px; border-top: 1px solid var(--line); background: #fbfbfa; display: flex; flex-direction: column; gap: 6px; }
+.versionPillBtn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; padding: 6px 10px; border-radius: 8px; border: 1px solid #ccfbf1; background: #f0fdfa; color: #0f766e; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s ease; }
+.versionPillBtn:hover { background: #ccfbf1; border-color: #99f6e4; }
+.verNum { font-weight: 700; }
+.verDivider { color: #99f6e4; }
+.verText { color: #115e59; }
 @media (max-width: 699px) { .panes { grid-template-columns: 1fr; } .pane { height: 38dvh; } }

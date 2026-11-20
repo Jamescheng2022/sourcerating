@@ -3,7 +3,7 @@
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
   ArrowDown, ArrowLeft, ArrowUp, ChevronDown, ChevronUp, FlaskConical, Hash, ListChecks, LockKeyhole,
-  PanelRight, Paperclip, Search, Users, X,
+  PanelRight, Paperclip, Search, Sparkles, Users, X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
@@ -15,7 +15,7 @@ import css from "./lab.module.css";
 
 const BASE = 100_000;
 
-export function ChatPane({ lab, toast, onBack }: { lab: Lab; toast: (t: string) => void; onBack: () => void }) {
+export function ChatPane({ lab, toast, onBack, onOpenAbout }: { lab: Lab; toast: (t: string) => void; onBack: () => void; onOpenAbout?: () => void }) {
   const { s, room, msgs, meId, user, org, actions } = lab;
   const vref = useRef<VirtuosoHandle>(null);
   const [atBottom, setAtBottom] = useState(true);
@@ -107,6 +107,18 @@ export function ChatPane({ lab, toast, onBack }: { lab: Lab; toast: (t: string) 
           </span>
         </button>
         <div className={css.headActs}>
+          {onOpenAbout && (
+            <button
+              type="button"
+              className={css.updateBadgeBtn}
+              onClick={onOpenAbout}
+              title="查看版本号、本次更新记录与试用功能"
+              aria-label="What's New & Settings"
+            >
+              <Sparkles size={13} />
+              <span>v1.1.0 引导</span>
+            </button>
+          )}
           <button type="button" className={css.iconBtn} onClick={() => setSearching((v) => !v)} aria-label="Search messages" aria-pressed={searching}><Search size={18} /></button>
           {pending > 0 && (
             <button type="button" className={css.pill} onClick={() => actions.openPanel("review")} aria-label={`${pending} items pending review`}>
@@ -301,7 +313,10 @@ function Composer({ lab, initial, saveDraft }: { lab: Lab; initial: string; save
           onCompositionStart={() => setComposing(true)} onCompositionEnd={() => setComposing(false)}
           onKeyDown={(e) => {
             const isTouch = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
-            if (e.key === "Enter" && !isTouch && !e.shiftKey && !composing && !e.nativeEvent.isComposing) {
+            const mobilePref = typeof window !== "undefined" ? (localStorage.getItem("sr_pref_mobile_enter") ?? "newline") : "newline";
+            const touchSends = isTouch && mobilePref === "send";
+            const desktopSends = !isTouch && !e.shiftKey;
+            if (e.key === "Enter" && (desktopSends || touchSends) && !composing && !e.nativeEvent.isComposing) {
               e.preventDefault();
               submit();
             }
