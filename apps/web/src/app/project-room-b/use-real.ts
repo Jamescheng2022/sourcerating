@@ -109,7 +109,7 @@ export function useReal() {
   const seqs = useRef(new Map<string, number>());
   const minSeq = useRef<Record<string, number>>({});
   const pending = useRef(new Map<string, { roomId: string; text: string; file?: File; replyTo?: string }>());
-  const actionsRef = useRef<{ loadOlder: () => number } | null>(null);
+  const actionsRef = useRef<{ loadOlder: (targetRoomId?: string) => number } | null>(null);
   const fail = (e: unknown) => set((p) => ({ ...p, error: e instanceof Error ? e.message : String((e as { message?: string })?.message ?? e) }));
 
   const user = useCallback((id: string): User => s.users[id] ?? { id, name: "Member", orgId: "", title: "" }, [s.users]);
@@ -219,7 +219,11 @@ export function useReal() {
       set((p) => ({ ...p, rooms: p.rooms.map((r) => (r.id === roomId ? { ...r, unread: { ...r.unread, [p.orgId]: 0 } } : r)) }));
     }
     if (msgs.length === 0 && rows.length === PAGE && rows[0] && rows[0].seq > 1) {
-      setTimeout(() => actionsRef.current?.loadOlder(), 50);
+      setTimeout(() => {
+        if (ref.current.roomId === roomId) {
+          actionsRef.current?.loadOlder(roomId);
+        }
+      }, 50);
     }
   }, []);
 
@@ -446,9 +450,11 @@ export function useReal() {
       }
     },
 
-    loadOlder: () => {
-      if (!room || ref.current.ended[room.id]) return 0;
-      const roomId = room.id;
+    loadOlder: (targetRoomId?: string) => {
+      const activeRoom = ref.current.roomId;
+      const roomId = targetRoomId ?? room?.id;
+      if (!roomId || (targetRoomId && activeRoom !== targetRoomId)) return 0;
+      if (ref.current.ended[roomId]) return 0;
       const currentLowest = minSeq.current[roomId];
       const first = currentLowest !== undefined
         ? currentLowest
@@ -477,7 +483,11 @@ export function useReal() {
           messages: { ...p.messages, [roomId]: [...batch, ...(p.messages[roomId] ?? [])] },
         }));
         if (batch.length === 0 && !isEnded) {
-          setTimeout(() => actionsRef.current?.loadOlder(), 50);
+          setTimeout(() => {
+            if (ref.current.roomId === roomId) {
+              actionsRef.current?.loadOlder(roomId);
+            }
+          }, 50);
         }
       });
       return PAGE;

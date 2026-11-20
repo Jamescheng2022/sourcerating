@@ -173,6 +173,16 @@ begin
   v_target_id := coalesce(v_room.parent_room_id, v_room.id);
   select * into v_parent from public.rooms where id = v_target_id;
 
+  -- Verify user has permission to inspect target room audience
+  if not public.is_room_member(v_target_id) and not exists (
+    select 1 from public.room_members sub_m
+    join public.room_members par_m on par_m.acting_organization_id = sub_m.acting_organization_id
+    where sub_m.room_id = p_room_id and sub_m.user_id = auth.uid() and sub_m.removed_at is null
+      and par_m.room_id = v_target_id and par_m.removed_at is null
+  ) then
+    raise exception 'room_access_denied' using errcode = '42501';
+  end if;
+
   select
     coalesce(
       jsonb_agg(
@@ -195,7 +205,7 @@ begin
       jsonb_agg(
         jsonb_build_object(
           'user_id', rm.user_id,
-          'display_name', coalesce(rm.display_name, 'Member')
+          'display_name', coalesce(rm.member_display_name, 'Member')
         ) order by rm.user_id
       ) as members,
       rm.acting_organization_id::text || ':' || string_agg(rm.user_id::text, ';' order by rm.user_id) as digest_part
@@ -246,6 +256,9 @@ begin
     raise exception 'room_access_denied' using errcode = '42501';
   end if;
   if v_clean is null then raise exception 'invalid_summary' using errcode = '22023'; end if;
+
+  -- Acquire exclusive lock on parent room to serialize concurrent audience membership changes
+  perform 1 from public.rooms where id = v_room.parent_room_id for update;
 
   -- Validate audience digest to prevent check-then-act race conditions
   if p_audience_digest is null or trim(p_audience_digest) = '' then
