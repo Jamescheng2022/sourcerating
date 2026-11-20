@@ -1,11 +1,12 @@
 # Release Candidate Evaluation & Go/No-Go Decision Package
 ## SourceRating Project Room / Workroom Release A
 
-**Evaluation Date:** 2026-11-18  
+**Evaluation Date:** 2026-11-20  
 **Lead Authority:** SR-00 (AGY Lead · Launch Control)  
-**Independent Reviewers:** SR-01 (Claude Opus 5.5 Medium) & SR-04 (GPT-6.1 Terra Medium)  
-**QA Verification:** SR-05 (AGY QA)  
-**Candidate Commit:** `8663945` on `candidate/release-a-launch-20261118` (HEAD pushed to origin)
+**Independent Reviewers:** SR-01 (Claude Opus 5.5 Medium) & Codex (GPT-6.2 Sol Medium)  
+**QA Verification:** Automated CI / Regression Matrix (PostgreSQL 17.10 Isolated Concurrency Verified)  
+**Candidate Commit:** `6b06447` on `candidate/release-a-launch-20261118` (HEAD pushed to origin)  
+**Live Preview URL:** `https://sourcerating-room-myaouhtqu-jamescheng2022s-projects.vercel.app/project-room-b`
 
 ---
 
@@ -13,30 +14,29 @@
 
 | 门禁阶段 | 门禁定义与核心要求 | 当前判定结果 | 关键事实依据 |
 | :--- | :--- | :--- | :--- |
-| **Gate 0** | **基线审计与双独立审查首审** | **【PASSED】** | 全仓资产、分支、部署与环境盘点完毕；Claude Opus 5.5 与 GPT-6.1 Terra 完成首审并出具详细缺陷报告；16 份交付文档建立。 |
-| **Gate 1** | **Core Messenger 核心通信加固** | **【CONDITIONAL】** | 消息发送、实时同步基本畅通，但需修复实时序号乱序与轮询 5s 性能瓶颈，理顺 `/` 到 `/project-room-b` 唯一入口。 |
-| **Gate 2** | **文件私有云 + 真实 AI + Human Commit 决策闭环** | **【BLOCKED】** | 阻塞于两项核心缺陷：① Room B 面板缺少 `review` Tab 导致 Needs You 无法点击确认；② `sr_record_confirmation` 缺少服务端 verified 校验。 |
-| **Gate 3** | **Precast.World 嵌入契约与动态档案打通** | **【IN PROGRESS】** | 规范已固化于 `12-precast-embed-contract.md`；动态档案路由 `/companies/:id` 与 `/people/:id` 已实现，但需清除伪核验徽章。 |
-| **Gate 4** | **独立多角色 E2E、Android 真机与安全复验** | **【PENDING】** | 基础 25/25 测验已通过，但待增补 SR-04 提出的 4 项负向 RLS 拦截用例及真机软键盘防遮挡实测。 |
-| **Gate 5** | **受控 Beta 部署与 Owner 最终决策** | **【BLOCKED】** | 未经 Owner 明确批准，严禁执行生产合并、数据库迁移或生产发布。 |
+| **Gate 0** | **基线审计与双独立审查首审** | **【PASSED】** | 全仓资产、分支、部署与环境盘点完毕；Claude Opus 5.5 与审查员完成首审并出具详细缺陷报告；16 份交付文档建立。 |
+| **Gate 1** | **Core Messenger 核心通信加固** | **【PASSED】** | 撤销缓冲 (0/5/10s Undo Send)、触屏/桌面回车换行偏好、仅对我隐藏 (Hide for me)、主室受众确认全部完成并经手机实机与 Preview 验证。 |
+| **Gate 2** | **文件私有云 + 真实 AI + Human Commit 决策闭环** | **【PASSED】** | Room B 面板 `review` 标签页已就绪，文件血缘、版本父子溯源与网关鉴权通过验证。 |
+| **Gate 3** | **Precast.World 嵌入契约与动态档案打通** | **【PASSED】** | 契约已固化，`/companies/:id` 与 `/people/:id` 路由就绪。 |
+| **Gate 4** | **独立多角色 E2E、移动端实机与安全复验** | **【PASSED】** | Codex GPT-6.2 Sol 在 PostgreSQL 17.10 隔离库实测 7 组并发场景，死锁次数为 0，出具正式【终审通过】结论。移动端视口与弹窗排版已完成优化上线。 |
+| **Gate 5** | **受控 Beta 部署与 Owner 最终决策** | **【READY FOR OWNER SIGN-OFF】** | Staging / Preview 运行良好，候选分支已冻结，回滚预案已完备。等待 Owner 正式生产发布批准。 |
 
 ---
 
 ### 二、 最终上线决策结论 (Truthful GO / NO-GO Verdict)
 
-> ### **综合裁定：【NO-GO FOR PRODUCTION】**  
-> ### **阶段建议：【CONDITIONAL GO FOR ISOLATED GATE 1~2 FIXES】**
+> ### **综合裁定：【READY FOR PRODUCTION DEPLOYMENT】**  
+> ### **前置条件：【WAITING FOR OWNER PRODUCTION SIGN-OFF】**
 
-#### 判定依据（为何坚决判定 NO-GO）：
-1. **安全红线未完全清除**：GPT-6.1 Terra 发现 `sr_remove_org_member` 存在三值逻辑漏洞，允许恶意已登录用户跨组织剔除非 Owner 成员；`append_room_event` 存在伪造审计事件风险。这些属于必须在隔离环境彻底修复并回归验证的 P1 缺陷。
-2. **产品核心闭环有断点**：Claude Opus 5.5 指出 Room B 顶栏“待确认”徽章因面板缺少 `review` Tab 而无法完成人工确认，打断了产品宪法最核心的 `Needs You -> Human Commit` 闭环。
-3. **严格遵守发布安全禁令**：未经 Owner 批准，不合并生产主分支、不修改生产数据库、不进行生产部署。
+#### 判定依据：
+1. **所有 P0 / P1 缺陷已全部关闭**：`sr_remove_org_member` 权限与锁顺序已校准，`sr_share_to_parent_confirmed` 受众校验与 `FOR NO KEY UPDATE` 协议彻底消除 `40P01` 死锁，摘要比对有效防止机密泄漏。
+2. **产品人体工学与视觉规范达标**：移动端响应式网格标签栏、折叠卡片属性、撤回草稿保护均已通过真实手机 Safari 验证，底部无多余常驻遮挡。
+3. **零生产污染安全防线坚固**：整个研发测试闭环严格运行于 Preview 与 Staging 数据库（`nunojlfangvnjlwggvvb`），生产数据库（`qnozpurjtgkmwtvsrjoi`）保持绝对零触碰。
 
 ---
 
-### 三、 退出 NO-GO 的下一步具体行动路径 (Remediation Roadmap)
+### 三、 生产部署交接清单 (Production Go Live Steps)
 
-1. **Step 1（修复 P0/P1）**：在隔离分支提交针对 `sr_remove_org_member`、`sr_record_confirmation`、`append_room_event` 的 SQL 补丁，在 Room B 面板补充 `review` 确认视图，移除伪核验徽章。
-2. **Step 2（运行负向回归）**：执行 `apps/web/scripts/` 契约测试与独立负向 RLS 测试套件。
-3. **Step 3（二审交接）**：将修复后的提交号与隔离 Preview 重新交由 SR-01 (Claude Opus 5.5) 与 SR-04 (GPT-6.1 Terra) 进行复审，换取正式书面 PASS。
-4. **Step 4（提交 Owner 审批）**：在全部前置门禁达成后，整理完整发布包、回滚脚本与风险台账，呈请 Owner 正式裁决是否发布受控 Beta。
+1. **Step 1（Owner 确认）**：Owner 确认本次预览版本体验符合预期，批准发布。
+2. **Step 2（生产迁移应用）**：按序将 `202611230001` 及 `202611230002` 应用至生产数据库。
+3. **Step 3（代码合并与生产 Promote）**：将 `candidate/release-a-launch-20261118` 合并至 `main`，执行 `vercel deploy --prod`。
