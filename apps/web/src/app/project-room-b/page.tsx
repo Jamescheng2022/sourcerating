@@ -42,10 +42,16 @@ export default function ProjectRoomB() {
         if (window.scrollY !== 0 || window.scrollX !== 0) {
           window.scrollTo(0, 0);
         }
-        setVvh(`${Math.round(vv.height)}px`);
-        setVvTop(`${Math.max(0, Math.round(vv.offsetTop))}px`);
+        const isKeyboardOpen = window.innerHeight - vv.height > 100;
+        if (isKeyboardOpen) {
+          setVvh(`${Math.round(vv.height)}px`);
+          setVvTop(`${Math.max(0, Math.round(vv.offsetTop))}px`);
+        } else {
+          setVvh("100dvh");
+          setVvTop("0px");
+        }
       } else {
-        setVvh(`${window.innerHeight}px`);
+        setVvh("100dvh");
         setVvTop("0px");
       }
     };

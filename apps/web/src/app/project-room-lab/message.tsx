@@ -3,7 +3,7 @@
 import * as ContextMenu from "@radix-ui/react-context-menu";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
-  AlertCircle, CornerUpLeft, Copy, FileSpreadsheet, FileText, GitCompare, Image as ImageIcon, Languages,
+  AlertCircle, CheckCheck, Clock, CornerUpLeft, Copy, FileSpreadsheet, FileText, GitCompare, Image as ImageIcon, Languages,
   Link2, MessagesSquare, MoreHorizontal, Pause, Play, RotateCw, ScanSearch, Sparkles, Stamp, Trash2, Undo2,
 } from "lucide-react";
 import { memo, useEffect, useState, type ReactNode } from "react";
@@ -142,7 +142,37 @@ export const MessageItem = memo(function MessageItem({ lab, m, prev, highlight, 
         </button>
       )}
       {m.voice && <Voice {...m.voice} />}
-      {m.text && <p className={css.text}>{mark(m.text, query)}</p>}
+      {m.text && (
+        <p className={css.text}>
+          {mark(m.text, query)}
+          <span className={css.bubbleFoot}>
+            <time className={css.bubbleTime}>{timeOf(m.at)}</time>
+            {mine && (
+              <span
+                className={css.ticks}
+                data-sending={m.status === "sending"}
+                title={m.status === "sending" ? "Sending..." : "Sent & Recorded"}
+              >
+                {m.status === "sending" ? <Clock size={11} /> : <CheckCheck size={13} />}
+              </span>
+            )}
+          </span>
+        </p>
+      )}
+      {!m.text && (
+        <span className={css.bubbleFoot}>
+          <time className={css.bubbleTime}>{timeOf(m.at)}</time>
+          {mine && (
+            <span
+              className={css.ticks}
+              data-sending={m.status === "sending"}
+              title={m.status === "sending" ? "Sending..." : "Sent & Recorded"}
+            >
+              {m.status === "sending" ? <Clock size={11} /> : <CheckCheck size={13} />}
+            </span>
+          )}
+        </span>
+      )}
       {translated && m.tr && (
         <div className={css.private}>
           <span className={css.privateTag}><Languages size={12} /> Translation · Visible only to you</span>
@@ -158,10 +188,9 @@ export const MessageItem = memo(function MessageItem({ lab, m, prev, highlight, 
       <div className={css.row} data-mine={mine} data-grouped={grouped} data-hl={highlight}>
         {!mine && <span className={css.avatar} style={{ background: o.color }} data-hidden={grouped} aria-hidden>{u.name.slice(0, 1)}</span>}
         <div className={css.col}>
-          {!grouped && (
+          {!grouped && !mine && (
             <div className={css.meta}>
-              {!mine && (<><b>{u.name}</b><span className={css.orgTag} style={{ color: o.color }}>{o.short}</span></>)}
-              <time>{timeOf(m.at)}</time>
+              <b>{u.name}</b><span className={css.orgTag} style={{ color: o.color }}>{o.short}</span>
             </div>
           )}
           <div className={css.bubbleWrap}>
