@@ -2,7 +2,37 @@
 
 import * as Dialog from "@radix-ui/react-dialog";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { AlertCircle, Check, ChevronsUpDown, GitCompare, History, Sparkles, CornerDownRight, Download, FileUp, FolderPlus, GitBranch, Hash, LockKeyhole, LogOut, Plus, Send, Settings, ShieldCheck, Smartphone, UserPlus, X } from "lucide-react";
+import {
+  AlertCircle,
+  Building2,
+  Check,
+  ChevronsUpDown,
+  CornerDownRight,
+  Download,
+  Factory,
+  FileCheck,
+  FileUp,
+  FolderPlus,
+  GitBranch,
+  GitCompare,
+  Hash,
+  History,
+  LockKeyhole,
+  LogOut,
+  MoreVertical,
+  Plus,
+  Scale,
+  Send,
+  Settings,
+  ShieldCheck,
+  Smartphone,
+  Trash2,
+  Truck,
+  UserMinus,
+  UserPlus,
+  X,
+  Sparkles,
+} from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { OrgMark } from "../project-room-lab/message";
 import { formatSize, timeOf } from "../project-room-lab/demo/adapter";
@@ -181,6 +211,87 @@ export function Invite({ real, open, onClose }: { real: Real; open: boolean; onC
   );
 }
 
+export function getRoomVisual(r: RealRoom, partners: { color: string; short: string }[]) {
+  const name = r.name.toLowerCase();
+  const purpose = (r.purpose ?? "").toLowerCase();
+
+  // 1. Internal Room (Private / Org Internal)
+  if (r.kind === "internal" || name.includes("internal") || purpose.includes("internal")) {
+    return {
+      icon: <LockKeyhole size={17} />,
+      bg: "#fef3c7",
+      color: "#b45309",
+      border: "#fde68a",
+      typeLabel: "内部私密",
+    };
+  }
+
+  // 2. Logistics & Shipping
+  if (name.includes("logistic") || name.includes("ship") || name.includes("运") || name.includes("仓") || purpose.includes("logistic")) {
+    return {
+      icon: <Truck size={17} />,
+      bg: "#e0f2fe",
+      color: "#0369a1",
+      border: "#bae6fd",
+      typeLabel: "物流仓储",
+    };
+  }
+
+  // 3. Factory & Manufacturing / Engineering
+  if (name.includes("factory") || name.includes("厂") || name.includes("造") || name.includes("prod") || name.includes("mfg")) {
+    return {
+      icon: <Factory size={17} />,
+      bg: "#f0fdf4",
+      color: "#15803d",
+      border: "#bbf7d0",
+      typeLabel: "制造工程",
+    };
+  }
+
+  // 4. Quality & QA/QC Inspection
+  if (name.includes("qa") || name.includes("qc") || name.includes("检") || name.includes("质")) {
+    return {
+      icon: <FileCheck size={17} />,
+      bg: "#ede9fe",
+      color: "#6d28d9",
+      border: "#ddd6fe",
+      typeLabel: "品质合规",
+    };
+  }
+
+  // 5. Commercial, Reverse Sourcing, Procurement & Contracts
+  if (name.includes("reverse") || name.includes("contract") || name.includes("采购") || name.includes("商务") || name.includes("法务")) {
+    return {
+      icon: <Scale size={17} />,
+      bg: "#fef2f2",
+      color: "#b91c1c",
+      border: "#fecaca",
+      typeLabel: "商务履约",
+    };
+  }
+
+  // 6. Sub-room
+  if (r.parentId) {
+    return {
+      icon: <CornerDownRight size={17} />,
+      bg: "#f1f5f9",
+      color: "#475569",
+      border: "#cbd5e1",
+      typeLabel: "子协作室",
+    };
+  }
+
+  // 7. General External Main Room: use counterpart org brand color!
+  const partnerColor = partners[0]?.color ?? "#0f766e";
+  return {
+    icon: <Building2 size={17} />,
+    bg: `${partnerColor}16`,
+    color: partnerColor,
+    border: `${partnerColor}35`,
+    typeLabel: "跨企主室",
+  };
+}
+
 export function RealSidebar({ real, onOpen, onOpenAbout }: { real: Real; onOpen: (id: string) => void; onOpenAbout?: (tab?: "updates" | "profile" | "preferences" | "roadmap") => void }) {
   const { s, myRooms, room, user, org, meId, actions } = real;
   const [dlg, setDlg] = useState<"project" | "sub" | null>(null);
@@ -245,11 +356,39 @@ export function RealSidebar({ real, onOpen, onOpenAbout }: { real: Real; onOpen:
               const last = (s.messages[r.id] ?? []).at(-1);
               const unread = r.unread[s.orgId] ?? 0;
               const partners = Array.from(new Set(r.roomMembers.map((m) => m.orgId))).filter((o) => o && o !== s.orgId).map(org);
+              const visual = getRoomVisual(r, partners);
               return (
                 <button key={r.id} type="button" className={`${css.room} ${r.parentId ? rc.sub : ""}`} data-active={r.id === room?.id} data-internal={r.kind === "internal"} onClick={() => onOpen(r.id)} data-testid="room">
-                  <span className={css.roomIcon}>{r.kind === "internal" ? <LockKeyhole size={16} /> : r.parentId ? <CornerDownRight size={16} /> : <Hash size={16} />}</span>
+                  <span
+                    className={css.roomIcon}
+                    style={{
+                      background: visual.bg,
+                      color: visual.color,
+                      border: `1px solid ${visual.border}`,
+                    }}
+                    title={visual.typeLabel}
+                  >
+                    {visual.icon}
+                  </span>
                   <span className={css.roomMain}>
-                    <span className={css.roomLine}><b>{r.name}</b>{last && <time>{timeOf(last.at)}</time>}</span>
+                    <span className={css.roomLine}>
+                      <b>{r.name}</b>
+                      <span
+                        style={{
+                          fontSize: 10.5,
+                          fontWeight: 700,
+                          padding: "1px 5px",
+                          borderRadius: 4,
+                          background: visual.bg,
+                          color: visual.color,
+                          border: `1px solid ${visual.border}`,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {visual.typeLabel}
+                      </span>
+                      {last && <time>{timeOf(last.at)}</time>}
+                    </span>
                     <span className={css.roomLine}>
                       <span className={css.preview}>{last ? `${last.userId === meId ? "You" : user(last.userId).name}: ${last.text ?? "File"}` : r.purpose ?? (r.parentId ? "Sub-room" : "Main room")}</span>
                       {unread > 0 && <i className={css.badge}>{unread}</i>}
@@ -645,17 +784,56 @@ export function RealPanel({ real }: { real: Real }) {
                     return <div key={id} className={css.person}>
                       <OrgMark color={org(oid).color} short={name.slice(0, 1)} size={28} />
                       <span className={rc.grow}><b>{name}{id === meId && <em>You</em>}</b><small>{member.role}</small></span>
-                      <a
-                        href={`/people/${encodeURIComponent(id)}?fromRoom=${encodeURIComponent(room.id)}`}
-                        className={rc.mini}
-                        style={{ color: "#0f766e", textDecoration: "none" }}
-                        title={`View ${name}'s personal card`}
-                        data-testid={`person-card-link-${id}`}
-                      >
-                        Personal Card
-                      </a>
-                      {admin && id !== meId && <button type="button" className={rc.mini} data-danger onClick={() => { if (window.confirm(`Are you sure you want to remove member ${name} from this room?`)) void actions.removeMember(id).catch(() => null); }}>Remove</button>}
-                      {orgAdmin && oid === s.orgId && id !== meId && <button type="button" className={rc.mini} data-danger onClick={() => { if (window.confirm(`Are you sure you want to remove member ${name} from the organization?`)) void actions.removeFromOrganization(id).catch(() => null); }}>Remove from Org</button>}
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                        <a
+                          href={`/people/${encodeURIComponent(id)}?fromRoom=${encodeURIComponent(room.id)}`}
+                          className={rc.mini}
+                          style={{ color: "#0f766e", textDecoration: "none", height: 26, fontSize: 11.5 }}
+                          title={`查看 ${name} 个人电子名片`}
+                          data-testid={`person-card-link-${id}`}
+                        >
+                          名片
+                        </a>
+                        {(admin || (orgAdmin && oid === s.orgId)) && id !== meId && (
+                          <DropdownMenu.Root>
+                            <DropdownMenu.Trigger asChild>
+                              <button type="button" className={rc.mini} style={{ height: 26, width: 26, padding: 0 }} aria-label="管理该成员" title="更多操作">
+                                <MoreVertical size={14} />
+                              </button>
+                            </DropdownMenu.Trigger>
+                            <DropdownMenu.Portal>
+                              <DropdownMenu.Content className={css.menu} align="end" sideOffset={4}>
+                                {admin && (
+                                  <DropdownMenu.Item
+                                    className={css.menuItem}
+                                    data-danger="true"
+                                    onSelect={() => {
+                                      if (window.confirm(`确定将成员 ${name} 移出当前项目协作室？`)) {
+                                        void actions.removeMember(id).catch(() => null);
+                                      }
+                                    }}
+                                  >
+                                    <UserMinus size={14} /> 移出当前协作室
+                                  </DropdownMenu.Item>
+                                )}
+                                {orgAdmin && oid === s.orgId && (
+                                  <DropdownMenu.Item
+                                    className={css.menuItem}
+                                    data-danger="true"
+                                    onSelect={() => {
+                                      if (window.confirm(`确定将成员 ${name} 从企业组织中移除？`)) {
+                                        void actions.removeFromOrganization(id).catch(() => null);
+                                      }
+                                    }}
+                                  >
+                                    <Trash2 size={14} /> 从企业组织除名
+                                  </DropdownMenu.Item>
+                                )}
+                              </DropdownMenu.Content>
+                            </DropdownMenu.Portal>
+                          </DropdownMenu.Root>
+                        )}
+                      </div>
                     </div>;
                   })}
                 </div>

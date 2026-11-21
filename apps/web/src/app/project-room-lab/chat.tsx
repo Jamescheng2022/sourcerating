@@ -15,15 +15,88 @@ import { getMobileEnterPref } from "../project-room-b/preferences";
 import { EnterpriseDossierDialog } from "../project-room-b/dossier-dialog";
 import css from "./lab.module.css";
 
-export type StageKind = "rfq" | "sampling" | "pilot" | "mass" | "after_sales";
+export type StageTemplateId = "manufacturing" | "contract" | "engineering" | "general";
 
-export const STAGES: { id: StageKind; name: string; short: string; color: string; bg: string; border: string }[] = [
-  { id: "rfq", name: "询价阶段 (RFQ)", short: "询价", color: "#b45309", bg: "#fef3c7", border: "#fde68a" },
-  { id: "sampling", name: "打样试制 (Sampling)", short: "打样", color: "#6d28d9", bg: "#ede9fe", border: "#ddd6fe" },
-  { id: "pilot", name: "小批试产 (Pilot Run)", short: "试产", color: "#1d4ed8", bg: "#dbeafe", border: "#bfdbfe" },
-  { id: "mass", name: "大批量产 (Mass Prod)", short: "量产", color: "#15803d", bg: "#dcfce7", border: "#bbf7d0" },
-  { id: "after_sales", name: "售后维保 (After-sales)", short: "售后", color: "#b91c1c", bg: "#fee2e2", border: "#fecaca" },
+export interface StageItem {
+  id: string;
+  name: string;
+  short: string;
+  color: string;
+  bg: string;
+  border: string;
+}
+
+export interface StageTemplate {
+  id: StageTemplateId;
+  name: string;
+  iconName: string;
+  stages: StageItem[];
+}
+
+export const STAGE_TEMPLATES: StageTemplate[] = [
+  {
+    id: "manufacturing",
+    name: "工业制造与跨境采购",
+    iconName: "🏭",
+    stages: [
+      { id: "rfq", name: "询价阶段 (RFQ)", short: "询价", color: "#b45309", bg: "#fef3c7", border: "#fde68a" },
+      { id: "sampling", name: "打样试制 (Sampling)", short: "打样", color: "#6d28d9", bg: "#ede9fe", border: "#ddd6fe" },
+      { id: "pilot", name: "小批试产 (Pilot Run)", short: "试产", color: "#1d4ed8", bg: "#dbeafe", border: "#bfdbfe" },
+      { id: "mass", name: "大批量产 (Mass Prod)", short: "量产", color: "#15803d", bg: "#dcfce7", border: "#bbf7d0" },
+      { id: "after_sales", name: "售后维保 (After-sales)", short: "售后", color: "#b91c1c", bg: "#fee2e2", border: "#fecaca" },
+    ],
+  },
+  {
+    id: "contract",
+    name: "通用商务合同与履约",
+    iconName: "🤝",
+    stages: [
+      { id: "negotiate", name: "意向洽谈 (Negotiation)", short: "洽谈", color: "#b45309", bg: "#fef3c7", border: "#fde68a" },
+      { id: "quote", name: "方案报价 (Quotation)", short: "报价", color: "#0369a1", bg: "#e0f2fe", border: "#bae6fd" },
+      { id: "signing", name: "合同签署 (Signing)", short: "签署", color: "#6d28d9", bg: "#ede9fe", border: "#ddd6fe" },
+      { id: "executing", name: "履约执行 (In Progress)", short: "履约", color: "#15803d", bg: "#dcfce7", border: "#bbf7d0" },
+      { id: "delivered", name: "验收结项 (Delivered)", short: "结项", color: "#475569", bg: "#f1f5f9", border: "#cbd5e1" },
+    ],
+  },
+  {
+    id: "engineering",
+    name: "技术研发与项目设计",
+    iconName: "🔬",
+    stages: [
+      { id: "req", name: "需求立项 (Spec)", short: "立项", color: "#b45309", bg: "#fef3c7", border: "#fde68a" },
+      { id: "design", name: "方案设计 (Design)", short: "设计", color: "#6d28d9", bg: "#ede9fe", border: "#ddd6fe" },
+      { id: "dev_test", name: "联调测试 (Testing)", short: "测试", color: "#1d4ed8", bg: "#dbeafe", border: "#bfdbfe" },
+      { id: "release", name: "交付投产 (Release)", short: "投产", color: "#15803d", bg: "#dcfce7", border: "#bbf7d0" },
+      { id: "maint", name: "运营维保 (Maintenance)", short: "维保", color: "#047857", bg: "#ecfdf5", border: "#a7f3d0" },
+    ],
+  },
+  {
+    id: "general",
+    name: "日常敏捷协同",
+    iconName: "📋",
+    stages: [
+      { id: "ongoing", name: "进行中 (Active)", short: "进行", color: "#0284c7", bg: "#e0f2fe", border: "#bae6fd" },
+      { id: "review", name: "待评审 (Review)", short: "待审", color: "#d97706", bg: "#fef3c7", border: "#fde68a" },
+      { id: "done", name: "已完成 (Closed)", short: "完成", color: "#15803d", bg: "#dcfce7", border: "#bbf7d0" },
+      { id: "none", name: "无特定阶段 (None)", short: "协同", color: "#64748b", bg: "#f8fafc", border: "#e2e8f0" },
+    ],
+  },
 ];
+
+export function inferDefaultTemplate(room: { name: string; kind: string; purpose?: string | null }): StageTemplateId {
+  const name = room.name.toLowerCase();
+  const purpose = (room.purpose ?? "").toLowerCase();
+  if (name.includes("factory") || name.includes("mfg") || name.includes("mold") || name.includes("制造") || name.includes("打样") || name.includes("量产") || purpose.includes("factory")) {
+    return "manufacturing";
+  }
+  if (name.includes("tech") || name.includes("dev") || name.includes("code") || name.includes("qa") || name.includes("设计")) {
+    return "engineering";
+  }
+  if (room.kind === "internal") {
+    return "general";
+  }
+  return "contract";
+}
 
 export interface QuickReply {
   shortcut: string;
@@ -82,34 +155,69 @@ export function ChatPane({ lab, toast, onBack, onOpenAbout }: { lab: Lab; toast:
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const saveDraft = useCallback((id: string, text: string) => setDrafts((d) => (d[id] === text ? d : { ...d, [id]: text })), []);
 
-  const [stage, setStage] = useState<StageKind>(() => {
-    if (typeof window === "undefined") return "rfq";
+  const [templateId, setTemplateId] = useState<StageTemplateId>(() => {
+    if (typeof window === "undefined") return "contract";
     try {
-      const saved = localStorage.getItem(`sr_stage_${room.id}`);
-      if (saved && STAGES.some((x) => x.id === saved)) return saved as StageKind;
+      const saved = localStorage.getItem(`sr_template_${room.id}`) as StageTemplateId;
+      if (saved && STAGE_TEMPLATES.some((t) => t.id === saved)) return saved;
     } catch {}
-    return "rfq";
+    return inferDefaultTemplate(room);
   });
 
-  // Re-sync stage when room changes
-  useEffect(() => {
+  const activeTemplate = STAGE_TEMPLATES.find((t) => t.id === templateId) ?? STAGE_TEMPLATES[0];
+
+  const [stage, setStage] = useState<string>(() => {
+    if (typeof window === "undefined") return activeTemplate.stages[0].id;
     try {
       const saved = localStorage.getItem(`sr_stage_${room.id}`);
-      if (saved && STAGES.some((x) => x.id === saved)) {
-        setStage(saved as StageKind);
+      if (saved && activeTemplate.stages.some((x) => x.id === saved)) return saved;
+    } catch {}
+    return activeTemplate.stages[0].id;
+  });
+
+  const roomPurpose = (room as unknown as { purpose?: string }).purpose;
+
+  // Re-sync template & stage when room changes
+  useEffect(() => {
+    try {
+      let tId = localStorage.getItem(`sr_template_${room.id}`) as StageTemplateId;
+      if (!tId || !STAGE_TEMPLATES.some((t) => t.id === tId)) {
+        tId = inferDefaultTemplate({ name: room.name, kind: room.kind, purpose: roomPurpose });
+      }
+      setTemplateId(tId);
+
+      const tmpl = STAGE_TEMPLATES.find((t) => t.id === tId) ?? STAGE_TEMPLATES[0];
+      const saved = localStorage.getItem(`sr_stage_${room.id}`);
+      if (saved && tmpl.stages.some((x) => x.id === saved)) {
+        setStage(saved);
       } else {
-        setStage("rfq");
+        setStage(tmpl.stages[0].id);
       }
     } catch {
-      setStage("rfq");
+      setTemplateId("contract");
+      setStage("negotiate");
     }
-  }, [room.id]);
+  }, [room.id, room.name, room.kind, roomPurpose]);
 
-  const currentStage = STAGES.find((x) => x.id === stage) ?? STAGES[0];
-  const handleStageChange = (next: StageKind) => {
+  const currentStage = activeTemplate.stages.find((x) => x.id === stage) ?? activeTemplate.stages[0];
+
+  const handleStageChange = (next: string) => {
     setStage(next);
     try { localStorage.setItem(`sr_stage_${room.id}`, next); } catch {}
-    toast(`已将项目切换至【${STAGES.find((x) => x.id === next)?.name}】`);
+    const sObj = activeTemplate.stages.find((x) => x.id === next);
+    toast(`已将推进阶段切换至【${sObj?.name ?? next}】`);
+  };
+
+  const handleTemplateChange = (nextTmpl: StageTemplateId) => {
+    setTemplateId(nextTmpl);
+    const tmpl = STAGE_TEMPLATES.find((t) => t.id === nextTmpl) ?? STAGE_TEMPLATES[0];
+    const initialStage = tmpl.stages[0].id;
+    setStage(initialStage);
+    try {
+      localStorage.setItem(`sr_template_${room.id}`, nextTmpl);
+      localStorage.setItem(`sr_stage_${room.id}`, initialStage);
+    } catch {}
+    toast(`已切换业务场景模型为【${tmpl.name}】`);
   };
 
   const [dossierOpen, setDossierOpen] = useState(false);
@@ -208,13 +316,13 @@ export function ChatPane({ lab, toast, onBack, onOpenAbout }: { lab: Lab; toast:
           {onOpenAbout && (
             <button
               type="button"
-              className={css.updateBadgeBtn}
+              className={`${css.updateBadgeBtn} ${css.hideNarrow}`}
               onClick={onOpenAbout}
               title="查看版本号、本次更新记录与试用功能"
               aria-label="What's New & Settings"
             >
               <Sparkles size={13} />
-              <span>v1.2.0 体验</span>
+              <span>v1.2.0</span>
             </button>
           )}
           <DropdownMenu.Root>
@@ -227,25 +335,44 @@ export function ChatPane({ lab, toast, onBack, onOpenAbout }: { lab: Lab; toast:
                   background: currentStage.bg,
                   borderColor: currentStage.border,
                 }}
-                title="点击切换当前项目采购制造阶段 (Phase 2 标签)"
-                aria-label={`当前采购阶段: ${currentStage.name}`}
+                title={`业务阶段: ${currentStage.name} (点击切换或更换业务模型)`}
+                aria-label={`当前推进阶段: ${currentStage.name}`}
               >
                 <Tag size={12} />
                 <span>{currentStage.short}</span>
               </button>
             </DropdownMenu.Trigger>
             <DropdownMenu.Portal>
-              <DropdownMenu.Content className={css.menu} align="end" sideOffset={6}>
-                <DropdownMenu.Label className={css.menuLabel}>切换采购与制造阶段标签 (Phase 2)</DropdownMenu.Label>
-                {STAGES.map((sItem) => (
+              <DropdownMenu.Content className={css.menu} align="end" sideOffset={6} style={{ minWidth: 230 }}>
+                <DropdownMenu.Label className={css.menuLabel} style={{ fontWeight: 700, color: "#0f766e" }}>
+                  {activeTemplate.iconName} {activeTemplate.name} · 业务阶段
+                </DropdownMenu.Label>
+                {activeTemplate.stages.map((sItem) => (
                   <DropdownMenu.Item
                     key={sItem.id}
                     className={css.menuItem}
                     onSelect={() => handleStageChange(sItem.id)}
+                    style={{ fontWeight: stage === sItem.id ? 700 : 400 }}
                   >
                     <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: sItem.color, marginRight: 6 }} />
                     <span style={{ flex: 1 }}>{sItem.name}</span>
                     {stage === sItem.id && <Check size={14} style={{ color: sItem.color }} />}
+                  </DropdownMenu.Item>
+                ))}
+                <div style={{ height: 1, background: "var(--line2)", margin: "4px 0" }} />
+                <DropdownMenu.Label className={css.menuLabel} style={{ fontSize: 11, color: "var(--ink3)" }}>
+                  切换业务场景模型
+                </DropdownMenu.Label>
+                {STAGE_TEMPLATES.map((tmpl) => (
+                  <DropdownMenu.Item
+                    key={tmpl.id}
+                    className={css.menuItem}
+                    onSelect={() => handleTemplateChange(tmpl.id)}
+                    style={{ fontSize: 12.5, fontWeight: templateId === tmpl.id ? 700 : 400, color: templateId === tmpl.id ? "#0f766e" : undefined }}
+                  >
+                    <span>{tmpl.iconName}</span>
+                    <span style={{ flex: 1 }}>{tmpl.name}</span>
+                    {templateId === tmpl.id && <span style={{ fontSize: 11, color: "#0f766e" }}>当前</span>}
                   </DropdownMenu.Item>
                 ))}
               </DropdownMenu.Content>
