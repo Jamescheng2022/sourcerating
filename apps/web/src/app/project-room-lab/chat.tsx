@@ -84,8 +84,27 @@ export function ChatPane({ lab, toast, onBack, onOpenAbout }: { lab: Lab; toast:
 
   const [stage, setStage] = useState<StageKind>(() => {
     if (typeof window === "undefined") return "rfq";
-    return (localStorage.getItem(`sr_stage_${room.id}`) as StageKind) ?? "rfq";
+    try {
+      const saved = localStorage.getItem(`sr_stage_${room.id}`);
+      if (saved && STAGES.some((x) => x.id === saved)) return saved as StageKind;
+    } catch {}
+    return "rfq";
   });
+
+  // Re-sync stage when room changes
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(`sr_stage_${room.id}`);
+      if (saved && STAGES.some((x) => x.id === saved)) {
+        setStage(saved as StageKind);
+      } else {
+        setStage("rfq");
+      }
+    } catch {
+      setStage("rfq");
+    }
+  }, [room.id]);
+
   const currentStage = STAGES.find((x) => x.id === stage) ?? STAGES[0];
   const handleStageChange = (next: StageKind) => {
     setStage(next);
@@ -137,7 +156,7 @@ export function ChatPane({ lab, toast, onBack, onOpenAbout }: { lab: Lab; toast:
     }).map((m) => m.id);
   }, [q, msgs, s.files]);
   useEffect(() => { setHit(hits.length ? hits.length - 1 : 0); }, [hits.length]);
-  useEffect(() => { if (hits[hit]) goTo(hits[hit]);   }, [hit, hits.length]);
+  useEffect(() => { if (hits[hit]) goTo(hits[hit]); }, [hit, hits, goTo]);
 
   // Older history loads when the top is reached, except while a programmatic jump settles
   // (a prepend mid-jump would shift the target). The header button is the manual fallback.
@@ -343,6 +362,32 @@ function Composer({ lab, initial, saveDraft, toast }: { lab: Lab; initial: strin
   const replyFile = reply?.fileId ? s.files.find((f) => f.id === reply.fileId) : undefined;
   const others = Array.from(new Set(room.memberIds.map((id) => user(id).orgId))).filter((o) => o !== user(meId).orgId).map((o) => org(o).short);
 
+  const slashMatch = text.match(/(?:^|\s)\/([a-zA-Z0-9_\u4e00-\u9fa5]*)$/);
+  const slashFilter = slashMatch ? slashMatch[1].toLowerCase() : "";
+  const filteredQuickReplies = useMemo(() => {
+    if (!slashFilter) return QUICK_REPLIES;
+    return QUICK_REPLIES.filter(
+      (qr) =>
+        qr.shortcut.toLowerCase().includes(slashFilter) ||
+        qr.title.toLowerCase().includes(slashFilter) ||
+        qr.text.toLowerCase().includes(slashFilter)
+    );
+  }, [slashFilter]);
+
+  const handleSelectQuickReply = (qr: QuickReply) => {
+    setText((prev) => {
+      const match = prev.match(/(?:^|\s)\/([a-zA-Z0-9_\u4e00-\u9fa5]*)$/);
+      if (match && match.index !== undefined) {
+        const prefix = prev.slice(0, match.index + (prev[match.index] === " " ? 1 : 0));
+        return prefix ? `${prefix.trimEnd()}\n${qr.text}` : qr.text;
+      }
+      return prev.trim() ? `${prev.trimEnd()}\n${qr.text}` : qr.text;
+    });
+    setShowQuickReplies(false);
+    ta.current?.focus();
+    toast?.(`已填入【${qr.title}】`);
+  };
+
   const grow = () => { const el = ta.current; if (!el) return; el.style.height = "auto"; el.style.height = `${Math.min(el.scrollHeight, 132)}px`; };
   useEffect(grow, [text]);
   useEffect(() => { if (s.replyTo) ta.current?.focus(); }, [s.replyTo]);
@@ -442,23 +487,22 @@ function Composer({ lab, initial, saveDraft, toast }: { lab: Lab; initial: strin
             <button type="button" onClick={() => setShowQuickReplies(false)} aria-label="关闭快捷回复" style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b" }}><X size={14} /></button>
           </div>
           <div className={css.quickRepliesList}>
-            {QUICK_REPLIES.map((qr) => (
-              <button
-                key={qr.shortcut}
-                type="button"
-                className={css.quickReplyItem}
-                onClick={() => {
-                  setText((prev) => (prev.trim() === "/" ? qr.text : prev ? `${prev}\n${qr.text}` : qr.text));
-                  setShowQuickReplies(false);
-                  ta.current?.focus();
-                  toast?.(`已填入【${qr.title}】`);
-                }}
-              >
-                <b>{qr.shortcut}</b>
-                <span>{qr.title}</span>
-                <small>{qr.text}</small>
-              </button>
-            ))}
+            {filteredQuickReplies.length === 0 ? (
+              <div style={{ padding: "8px 10px", fontSize: 12, color: "#94a3b8" }}>无匹配的快捷回复模板</div>
+            ) : (
+              filteredQuickReplies.map((qr) => (
+                <button
+                  key={qr.shortcut}
+                  type="button"
+                  className={css.quickReplyItem}
+                  onClick={() => handleSelectQuickReply(qr)}
+                >
+                  <b>{qr.shortcut}</b>
+                  <span>{qr.title}</span>
+                  <small>{qr.text}</small>
+                </button>
+              ))
+            )}
           </div>
         </div>
       )}
@@ -477,8 +521,11 @@ function Composer({ lab, initial, saveDraft, toast }: { lab: Lab; initial: strin
           onChange={(e) => {
             const val = e.target.value;
             setText(val);
-            if (val === "/" || val.endsWith(" /")) {
+            const hasSlash = /(?:^|\s)\/([a-zA-Z0-9_\u4e00-\u9fa5]*)$/.test(val);
+            if (hasSlash) {
               setShowQuickReplies(true);
+            } else if (!hasSlash && showQuickReplies && !val.includes("/")) {
+              setShowQuickReplies(false);
             }
           }}
           onFocus={() => {
@@ -489,6 +536,11 @@ function Composer({ lab, initial, saveDraft, toast }: { lab: Lab; initial: strin
           }}
           onCompositionStart={() => setComposing(true)} onCompositionEnd={() => setComposing(false)}
           onKeyDown={(e) => {
+            if (e.key === "Escape" && showQuickReplies) {
+              e.preventDefault();
+              setShowQuickReplies(false);
+              return;
+            }
             if (composing || e.nativeEvent.isComposing) return;
             // Shift+Enter always creates a newline
             if (e.shiftKey) return;

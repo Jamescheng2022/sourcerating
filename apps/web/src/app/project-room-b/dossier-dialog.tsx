@@ -22,7 +22,8 @@ interface Props {
 }
 
 export function EnterpriseDossierDialog({ open, onClose, orgShort }: Props) {
-  const isSupplier = orgShort.startsWith("QS") || orgShort.includes("B");
+  // Correctly differentiate Supplier (QS...) vs Buyer (QB...)
+  const isSupplier = orgShort.startsWith("QS") || (!orgShort.startsWith("QB") && orgShort.toLowerCase().includes("supp"));
 
   const orgName = isSupplier
     ? "东莞市超精密模具智造股份有限公司 (QS1)"
@@ -46,9 +47,9 @@ export function EnterpriseDossierDialog({ open, onClose, orgShort }: Props) {
                 {orgShort.slice(0, 2)}
               </div>
               <div className={css.titleText}>
-                <Dialog.Title className={css.appName}>
-                  {orgName}
-                  <span className={css.versionBadge} style={{ background: "#ecfdf5", color: "#047857", borderColor: "#a7f3d0" }}>
+                <Dialog.Title className={css.appName} style={{ flexWrap: "wrap", rowGap: 4 }}>
+                  <span>{orgName}</span>
+                  <span className={css.versionBadge} style={{ background: "#ecfdf5", color: "#047857", borderColor: "#a7f3d0", whiteSpace: "nowrap" }}>
                     <ShieldCheck size={11} style={{ display: "inline", verticalAlign: "middle", marginRight: 2 }} />
                     已通过企业资质实名存证
                   </span>
@@ -113,7 +114,7 @@ export function EnterpriseDossierDialog({ open, onClose, orgShort }: Props) {
                   <Cpu size={15} />
                   <span>核心制造装备与质检能力</span>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 12.5, color: "#334155" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 8, fontSize: 12.5, color: "#334155" }}>
                   <div style={{ background: "#f8fafc", padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0" }}>
                     <b>CNC 精密加工：</b>
                     <p style={{ margin: "2px 0 0", color: "#64748b" }}>德国 DMG 5 轴加工中心 12 台</p>
