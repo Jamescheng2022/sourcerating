@@ -49,9 +49,9 @@ export function EnterpriseDossierDialog({ open, onClose, orgShort }: Props) {
               <div className={css.titleText}>
                 <Dialog.Title className={css.appName} style={{ flexWrap: "wrap", rowGap: 4 }}>
                   <span>{orgName}</span>
-                  <span className={css.versionBadge} style={{ background: "#ecfdf5", color: "#047857", borderColor: "#a7f3d0", whiteSpace: "nowrap" }}>
+                  <span className={css.versionBadge} style={{ background: "#f0fdf4", color: "#15803d", borderColor: "#bbf7d0", whiteSpace: "nowrap" }}>
                     <ShieldCheck size={11} style={{ display: "inline", verticalAlign: "middle", marginRight: 2 }} />
-                    已通过企业资质实名存证
+                    企业档案存证标准范式 (示范机构)
                   </span>
                 </Dialog.Title>
                 <span className={css.appSub}>{orgType}</span>
@@ -134,6 +134,10 @@ export function EnterpriseDossierDialog({ open, onClose, orgShort }: Props) {
                 </div>
               </div>
             )}
+
+            <div style={{ fontSize: 11.5, color: "#64748b", background: "#f8fafc", padding: "8px 12px", borderRadius: 8, border: "1px dashed #cbd5e1", lineHeight: 1.4 }}>
+              💡 提示：当前为 Staging 演示环境企业协作档案示范卡。正式商用环境将通过企业统一社会信用代码与国家企业信用信息公示系统（GSXT）及 CA 机构实现全自动实名核验与证书直连。
+            </div>
           </div>
 
           <div style={{ padding: "12px 20px", background: "#f8fafc", borderTop: "1px solid #e2e8f0", display: "flex", justifyContent: "flex-end" }}>

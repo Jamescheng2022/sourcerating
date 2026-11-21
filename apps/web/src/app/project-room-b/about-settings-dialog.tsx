@@ -271,7 +271,7 @@ export function AboutSettingsDialog({ real, open, onClose, tab: controlledTab, o
                         <span className={css.statusPill}>已上线 · 解决痛点</span>
                       </div>
                       <p className={css.updateDesc}>
-                        彻底解决 iPhone Safari 长按消息导致页面大面积蓝色文本选中拖拽柄的系统级缺陷。对触控端全面屏蔽段落级 selection，采用 450ms 微震触感精准唤起专属快捷操作卡片（回复、引用、隐藏、翻译等）。
+                        彻底解决 iPhone Safari 长按消息导致页面大面积蓝色文本选中拖拽柄的系统级缺陷。对移动触控端全局屏蔽段落级原生 callout，长按精准呼出快捷操作菜单（回复、引用、隐藏、翻译等），同时杜绝滑动误触与点击穿透。
                       </p>
                       <div className={css.howToTest}>
                         👉 试用方式：在 iPhone 或移动设备上长按任意消息气泡，即可看到精准弹出菜单，绝无蓝色跨段拖拽选区。
