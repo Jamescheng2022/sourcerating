@@ -1,0 +1,369 @@
+{
+  "scope": "Original cloud, one Codex writer. Lead ACK/static review only; Lead runtime not run.",
+  "rows": [
+    {
+      "id": "SR-01",
+      "thisRunStatus": "BLOCKED",
+      "lastVerifiedStatus": "BLOCKED",
+      "expected": "Invite-only retained. Cancel has no mutation; full email-bound invitation must reach authorized isolation gateway.",
+      "thisRunEvidence": null,
+      "previousEvidence": {
+        "sourceSHA": "c7d00a767b46e4a2d4041f27d93cd66f782ee43d",
+        "paths": [
+          "evidence/cloud-20261024-user-journeys/final/journeys.json",
+          "evidence/cloud-20261024-user-journeys/final/trace-receipt.json"
+        ]
+      },
+      "publicAcceptance": "BLOCKED",
+      "leadRuntimeRetest": "NOT_RUN",
+      "actual": "Existing invitation/complete-attachment gateway gate remains blocked; no call made in this targeted run."
+    },
+    {
+      "id": "SR-02",
+      "thisRunStatus": "PASS",
+      "lastVerifiedStatus": "PASS",
+      "expected": "Chinese composition preserves text. Lost ACK/offline reload retains original ID; one event, re-login readback; late ACK never appears in another room.",
+      "thisRunEvidence": {
+        "repository": "sourcerating",
+        "directory": "evidence/cloud-20261024-lead-p2/sr-fixed",
+        "matrix": "journeys.json",
+        "traceReceipt": "trace-receipt.json",
+        "screenshots": [
+          "SR-02-desktop.png",
+          "SR-02-mobile.png"
+        ]
+      },
+      "previousEvidence": {
+        "sourceSHA": "c7d00a767b46e4a2d4041f27d93cd66f782ee43d",
+        "paths": [
+          "evidence/cloud-20261024-user-journeys/final/journeys.json",
+          "evidence/cloud-20261024-user-journeys/final/trace-receipt.json"
+        ]
+      },
+      "publicAcceptance": "BLOCKED",
+      "leadRuntimeRetest": "NOT_RUN",
+      "sourceSHA": "7988ba05d3d209fc019161534f76c1b898d93dbc",
+      "target": "http://127.0.0.1:3000",
+      "steps": [
+        "Mobile supplier sends Chinese IME text safely",
+        "Commit message and lose ACK",
+        "Refresh then Retry exact client_msg_id",
+        "Check exactly one persisted event; refresh and re-login"
+      ],
+      "dependencies": "actual local Auth/Postgres/RLS; provider keys removed; Edge requests prohibited",
+      "actual": "All original selected assertions passed again under explicit child environment allowlists. committed/lost ACK, reload same ID, exactly one row, sign-out/login readback; true browser offline then reload and double Retry; delayed ACK while buyer switched to internal room did not leak shared content."
+    },
+    {
+      "id": "SR-03",
+      "thisRunStatus": "NOT_RUN",
+      "lastVerifiedStatus": "PASS",
+      "expected": "Double-click inquiry persists once, exact replay stays one record; buyer reads identical content and supplier reload restores it.",
+      "thisRunEvidence": null,
+      "previousEvidence": {
+        "sourceSHA": "c7d00a767b46e4a2d4041f27d93cd66f782ee43d",
+        "paths": [
+          "evidence/cloud-20261024-user-journeys/final/journeys.json",
+          "evidence/cloud-20261024-user-journeys/final/trace-receipt.json"
+        ]
+      },
+      "publicAcceptance": "BLOCKED",
+      "leadRuntimeRetest": "NOT_RUN",
+      "actual": "Not rerun in this bounded P2 retest; previous result is retained separately, not counted as new PASS."
+    },
+    {
+      "id": "SR-04",
+      "thisRunStatus": "PASS",
+      "lastVerifiedStatus": "PASS",
+      "expected": "Cross-room reads/writes denied. Actor cannot be forged. Analyze only visible saved event; no canonical/staging/task writes.",
+      "thisRunEvidence": {
+        "repository": "sourcerating",
+        "directory": "evidence/cloud-20261024-lead-p2/sr-fixed",
+        "matrix": "journeys.json",
+        "traceReceipt": "trace-receipt.json",
+        "screenshots": [
+          "SR-04-desktop.png",
+          "SR-04-mobile.png"
+        ]
+      },
+      "previousEvidence": {
+        "sourceSHA": "c7d00a767b46e4a2d4041f27d93cd66f782ee43d",
+        "paths": [
+          "evidence/cloud-20261024-user-journeys/final/journeys.json",
+          "evidence/cloud-20261024-user-journeys/final/trace-receipt.json"
+        ]
+      },
+      "publicAcceptance": "BLOCKED",
+      "leadRuntimeRetest": "NOT_RUN",
+      "sourceSHA": "7988ba05d3d209fc019161534f76c1b898d93dbc",
+      "target": "http://127.0.0.1:3000",
+      "steps": [
+        "Supplier queries buyer internal room/events",
+        "Attempt cross-room append and forged actor org",
+        "Compare before/after row count and server identity"
+      ],
+      "dependencies": "actual local Auth/Postgres/RLS; provider keys removed; Edge requests prohibited",
+      "actual": "All original selected assertions passed again under explicit child environment allowlists. PASS: actual RLS deny, forged actor 42501, analyze 400/404/403 and authorized greeting 200; provider=rules, all configured-provider flags false, deepAnalysis=null; full canonical/staging/needs_you rows unchanged."
+    },
+    {
+      "id": "SR-05",
+      "thisRunStatus": "BLOCKED",
+      "lastVerifiedStatus": "BLOCKED",
+      "expected": "Downloaded evidence contains real saved messages/inquiries, and complete archive must contain validated attachment bytes.",
+      "thisRunEvidence": null,
+      "previousEvidence": {
+        "sourceSHA": "c7d00a767b46e4a2d4041f27d93cd66f782ee43d",
+        "paths": [
+          "evidence/cloud-20261024-user-journeys/final/journeys.json",
+          "evidence/cloud-20261024-user-journeys/final/trace-receipt.json"
+        ]
+      },
+      "publicAcceptance": "BLOCKED",
+      "leadRuntimeRetest": "NOT_RUN",
+      "actual": "Existing invitation/complete-attachment gateway gate remains blocked; no call made in this targeted run."
+    },
+    {
+      "id": "SR-06",
+      "thisRunStatus": "PASS",
+      "lastVerifiedStatus": "PASS",
+      "expected": "Expired/consumed recovery cannot hijack project identity. Real local Auth password change invalidates old password; new login works without replacing main project session.",
+      "thisRunEvidence": {
+        "repository": "sourcerating",
+        "directory": "evidence/cloud-20261024-lead-p2/sr-fixed",
+        "matrix": "journeys.json",
+        "traceReceipt": "trace-receipt.json",
+        "screenshots": [
+          "SR-06-desktop.png",
+          "SR-06-mobile.png"
+        ]
+      },
+      "previousEvidence": {
+        "sourceSHA": "c7d00a767b46e4a2d4041f27d93cd66f782ee43d",
+        "paths": [
+          "evidence/cloud-20261024-user-journeys/recovery/journeys.json",
+          "evidence/cloud-20261024-user-journeys/recovery/trace-receipt.json"
+        ]
+      },
+      "publicAcceptance": "BLOCKED",
+      "leadRuntimeRetest": "NOT_RUN",
+      "sourceSHA": "7988ba05d3d209fc019161534f76c1b898d93dbc",
+      "target": "http://127.0.0.1:3000",
+      "steps": [
+        "Signed-in buyer opens expired/missing recovery",
+        "Check no change form and unchanged main session",
+        "Provision synthetic local recovery account; generate Auth grant without sending email",
+        "Recover account in browser; old password rejected, new password works",
+        "Main project identity unchanged; consumed-link replay rejected"
+      ],
+      "dependencies": "actual local Auth/Postgres/RLS; provider keys removed; Edge requests prohibited",
+      "actual": "All original selected assertions passed again under explicit child environment allowlists. synthetic local Auth account provisioned without public signup; generated recovery grant sent no mail; actual UI password reset and replay rejection; old password fails, new succeeds; buyer storage/identity unchanged."
+    },
+    {
+      "id": "LUSH-01",
+      "thisRunStatus": "NOT_RUN",
+      "lastVerifiedStatus": "PASS",
+      "expected": "OIDC callback preserves identity; Cancel causes no account switch, sign-out denies protected read; login returns same account.",
+      "thisRunEvidence": null,
+      "previousEvidence": {
+        "sourceSHA": "67ca2d78279232ab73d3417d09c9b45b77109c37",
+        "paths": [
+          "evidence/cloud-20261024-user-journeys/retest/journeys.json",
+          "evidence/cloud-20261024-user-journeys/retest/trace-receipt.json"
+        ]
+      },
+      "publicAcceptance": "BLOCKED",
+      "leadRuntimeRetest": "NOT_RUN",
+      "actual": "Not rerun in this bounded P2 retest; previous result is retained separately, not counted as new PASS."
+    },
+    {
+      "id": "LUSH-02",
+      "thisRunStatus": "NOT_RUN",
+      "lastVerifiedStatus": "PASS",
+      "expected": "Cancel does not persist fork. Tokyo/Bali half-day operations preserve source/unknown labels. No fabricated real weather or validated route.",
+      "thisRunEvidence": null,
+      "previousEvidence": {
+        "sourceSHA": "67ca2d78279232ab73d3417d09c9b45b77109c37",
+        "paths": [
+          "evidence/cloud-20261024-user-journeys/retest/journeys.json",
+          "evidence/cloud-20261024-user-journeys/retest/trace-receipt.json"
+        ]
+      },
+      "publicAcceptance": "BLOCKED",
+      "leadRuntimeRetest": "NOT_RUN",
+      "actual": "Not rerun in this bounded P2 retest; previous result is retained separately, not counted as new PASS."
+    },
+    {
+      "id": "LUSH-03",
+      "thisRunStatus": "NOT_RUN",
+      "lastVerifiedStatus": "PASS",
+      "expected": "Saved trip survives reload, previous-trip restore, logout/login and fresh browser context.",
+      "thisRunEvidence": null,
+      "previousEvidence": {
+        "sourceSHA": "67ca2d78279232ab73d3417d09c9b45b77109c37",
+        "paths": [
+          "evidence/cloud-20261024-user-journeys/retest/journeys.json",
+          "evidence/cloud-20261024-user-journeys/retest/trace-receipt.json"
+        ]
+      },
+      "publicAcceptance": "BLOCKED",
+      "leadRuntimeRetest": "NOT_RUN",
+      "actual": "Not rerun in this bounded P2 retest; previous result is retained separately, not counted as new PASS."
+    },
+    {
+      "id": "LUSH-04",
+      "thisRunStatus": "PASS",
+      "lastVerifiedStatus": "PASS",
+      "expected": "Export contains actual complete account document. Second account cannot read/write/restore first-account backup and remains unchanged.",
+      "thisRunEvidence": {
+        "repository": "lushupai-v2",
+        "directory": "evidence/cloud-20261024-lead-p2/lush-focused",
+        "matrix": "journeys.json",
+        "traceReceipt": "trace-receipt.json",
+        "screenshots": [
+          "LUSH-04.png"
+        ]
+      },
+      "previousEvidence": {
+        "sourceSHA": "67ca2d78279232ab73d3417d09c9b45b77109c37",
+        "paths": [
+          "evidence/cloud-20261024-user-journeys/retest/journeys.json",
+          "evidence/cloud-20261024-user-journeys/retest/trace-receipt.json"
+        ]
+      },
+      "publicAcceptance": "BLOCKED",
+      "leadRuntimeRetest": "NOT_RUN",
+      "sourceSHA": "afc62ec38d5c76c0594ec67618db9dd8b559be42",
+      "target": "https://127.0.0.1:44025",
+      "steps": [
+        "Download actual account JSON and compare complete nodes/source metadata",
+        "Sign in as Bob",
+        "Cross-account read/write and Alice backup restore are denied; compare Bob state"
+      ],
+      "dependencies": "actual production handler + PostgreSQL; synthetic signed OIDC; no provider/mail",
+      "actual": "All original selected assertions passed again under explicit child environment allowlists. Assertions on browser interactions, API state and side effects passed"
+    },
+    {
+      "id": "LUSH-05",
+      "thisRunStatus": "PASS",
+      "lastVerifiedStatus": "PASS",
+      "expected": "Lost ACK/double-click retries one key without duplicate revision. Offline queue survives reload. Real 10-second timeout leaves DB unchanged then explicit retry saves once.",
+      "thisRunEvidence": {
+        "repository": "lushupai-v2",
+        "directory": "evidence/cloud-20261024-lead-p2/lush-focused",
+        "matrix": "journeys.json",
+        "traceReceipt": "trace-receipt.json",
+        "screenshots": [
+          "LUSH-05.png"
+        ]
+      },
+      "previousEvidence": {
+        "sourceSHA": "67ca2d78279232ab73d3417d09c9b45b77109c37",
+        "paths": [
+          "evidence/cloud-20261024-user-journeys/retest/journeys.json",
+          "evidence/cloud-20261024-user-journeys/retest/trace-receipt.json",
+          "evidence/cloud-20261024-user-journeys/timeout-clean/journeys.json"
+        ]
+      },
+      "publicAcceptance": "BLOCKED",
+      "leadRuntimeRetest": "NOT_RUN",
+      "sourceSHA": "afc62ec38d5c76c0594ec67618db9dd8b559be42",
+      "target": "https://127.0.0.1:44025",
+      "steps": [
+        "Commit a save then lose ACK",
+        "Refresh; cancel discard",
+        "Double-click Retry; check one DB revision",
+        "Go offline, mutate, reconnect and reload; retry preserved queue",
+        "Actual application 10-second timeout; unchanged DB then explicit retry"
+      ],
+      "dependencies": "actual production handler + PostgreSQL; synthetic signed OIDC; no provider/mail",
+      "actual": "All original selected assertions passed again under explicit child environment allowlists. actual PG revision increments once after lost ACK/retry; external requests=0; application timeout >=9.5s leaves revision unchanged then explicit retry commits exactly once."
+    },
+    {
+      "id": "LUSH-06",
+      "thisRunStatus": "PASS",
+      "lastVerifiedStatus": "PASS",
+      "expected": "Fresh OIDC recovery revokes old app sessions and earlier pending login; another account and saved trip remain valid.",
+      "thisRunEvidence": {
+        "repository": "lushupai-v2",
+        "directory": "evidence/cloud-20261024-lead-p2/lush-focused",
+        "matrix": "journeys.json",
+        "traceReceipt": "trace-receipt.json",
+        "screenshots": [
+          "LUSH-06.png"
+        ]
+      },
+      "previousEvidence": {
+        "sourceSHA": "67ca2d78279232ab73d3417d09c9b45b77109c37",
+        "paths": [
+          "evidence/cloud-20261024-user-journeys/retest/journeys.json",
+          "evidence/cloud-20261024-user-journeys/retest/trace-receipt.json"
+        ]
+      },
+      "publicAcceptance": "BLOCKED",
+      "leadRuntimeRetest": "NOT_RUN",
+      "sourceSHA": "afc62ec38d5c76c0594ec67618db9dd8b559be42",
+      "target": "https://127.0.0.1:44025",
+      "steps": [
+        "Keep Alice old device and pending login; Bob remains signed in",
+        "Open recovery UI; fresh Alice OIDC sign-in",
+        "Old session and pending login denied; Bob and saved trip survive"
+      ],
+      "dependencies": "actual production handler + PostgreSQL; synthetic signed OIDC; no provider/mail",
+      "actual": "All original selected assertions passed again under explicit child environment allowlists. PASS: absent browser email SDK settings no longer hide usable server OIDC recovery; actual DB revocation makes old session and pending callback unauthorized; Bob still reads 200 and saved trip nodes unchanged."
+    }
+  ],
+  "thisRunCounts": {
+    "BLOCKED": 2,
+    "PASS": 6,
+    "NOT_RUN": 4
+  },
+  "latestCombinedCounts": {
+    "BLOCKED": 2,
+    "PASS": 10
+  },
+  "regression": {
+    "id": "SR-02-reload",
+    "baseline": {
+      "id": "SR-02-reload",
+      "sourceSHA": "bb840a8f2cc76f0fe2d682862097f268c6c5a164",
+      "target": "http://127.0.0.1:3000",
+      "tenant": "[S2-TEST] fixed local project 52000000-0000-4000-8000-0000000000d1",
+      "dependencies": "actual local Auth/Postgres/RLS; provider keys removed; Edge requests prohibited",
+      "steps": [
+        "Explicit fixed synthetic room",
+        "Commit and abort ACK; Retry becomes visible",
+        "Refresh same room; original retry identity must survive"
+      ],
+      "status": "FAIL",
+      "actual": "locator.waitFor: Timeout 5000ms exceeded.\n",
+      "screenshots": [
+        "SR-02-reload-desktop.png",
+        "SR-02-reload-mobile.png"
+      ],
+      "trace": "trace-0.zip"
+    },
+    "fix": {
+      "id": "SR-02-reload",
+      "sourceSHA": "7988ba05d3d209fc019161534f76c1b898d93dbc",
+      "target": "http://127.0.0.1:3000",
+      "tenant": "[S2-TEST] fixed local project 52000000-0000-4000-8000-0000000000d1",
+      "dependencies": "actual local Auth/Postgres/RLS; provider keys removed; Edge requests prohibited",
+      "steps": [
+        "Explicit fixed synthetic room",
+        "Commit and abort ACK; Retry becomes visible",
+        "Refresh same room; original retry identity must survive"
+      ],
+      "status": "PASS",
+      "actual": "Assertions on real UI, persisted RPC data and side effects passed",
+      "screenshots": [
+        "SR-02-reload-desktop.png",
+        "SR-02-reload-mobile.png"
+      ],
+      "trace": "trace-0.zip"
+    },
+    "expectedBaselineFailure": true,
+    "sameRunnerProof": "runner-comparison.json",
+    "note": "Same case and runner bytes; baseline loses the Retry control after refresh although its committed message is present. Fix preserves the immutable retry ID."
+  },
+  "modelEvidence": false,
+  "externalGatesUpgraded": false
+}

@@ -1,0 +1,21 @@
+[
+  {
+    "id": "SR-02-reload",
+    "sourceSHA": "c7d00a767b46e4a2d4041f27d93cd66f782ee43d",
+    "target": "http://127.0.0.1:3000",
+    "tenant": "[S2-TEST] fixed local project 52000000-0000-4000-8000-0000000000d1",
+    "dependencies": "actual local Auth/Postgres/RLS; provider keys removed; Edge requests prohibited",
+    "steps": [
+      "Explicit fixed synthetic room",
+      "Commit and abort ACK; Retry becomes visible",
+      "Refresh same room; original retry identity must survive"
+    ],
+    "status": "PASS",
+    "actual": "Assertions on real UI, persisted RPC data and side effects passed",
+    "screenshots": [
+      "SR-02-reload-desktop.png",
+      "SR-02-reload-mobile.png"
+    ],
+    "trace": "trace-0.zip"
+  }
+]

@@ -1,0 +1,9 @@
+PASS Buyer signs in with seeded email/password through UI
+PASS L-4 seeded test account requests recovery through sign-in link at 390px
+PASS L-4 local Mailpit captures Auth recovery with exact allowed redirect
+PASS L-4 captured reset link changes password and signs out; old password denied
+PASS L-4 absent account reset uses same neutral response
+PASS L-4 missing/expired recovery has a fresh-link path without change form
+PASS L-4 server enforces 10-character minimum for password updates
+PASS B8 browser acceptance stays local with no page errors
+{"checks":8,"passed":8,"remoteRequests":0}

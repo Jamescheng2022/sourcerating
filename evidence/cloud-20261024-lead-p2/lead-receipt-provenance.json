@@ -1,0 +1,10 @@
+{
+  "sourceCommit": "70917a635a1ddb19438519272efd7b0c8fc557d9",
+  "sourcePath": "to-chatgpt/20261024-1700-claude-lead-cloud-selftest-review-receipt.md",
+  "savedSHA256": "28eef16f17771e37b003f0c9b927bd75dbcef665c71e69cce59216032574fe80",
+  "leadAck": true,
+  "leadFeatureVerdict": "STATIC REVIEW_PASS",
+  "leadOriginalTestVerdict": "REVIEW_CHANGES P2",
+  "leadRuntime": "NOT_RUN",
+  "newChangesAwaitLeadReview": true
+}

@@ -1,0 +1,10 @@
+{
+  "highConfidenceCredentialMatches": {
+    "private_key": 0,
+    "github_token": 0,
+    "jwt": 0
+  },
+  "files": 17,
+  "scriptsExecuted": false,
+  "scope": "Archive selected rules only; not a guarantee against unknown sensitive data. Scenario metadata declares synthetic cases. No archive script or config loaded."
+}

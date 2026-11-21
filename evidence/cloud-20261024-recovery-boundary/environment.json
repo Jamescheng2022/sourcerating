@@ -1,0 +1,32 @@
+{
+  "checked_at_utc": "2026-10-24 00:49:20 UTC",
+  "environment_id": "ccarenv_b64_Y2NhcmVudl85MDlhZmM5Nzk5ZDg4MTkxYjM4MjkyZDhkN2Y0MDkzMA",
+  "source_config_id": "e5a3129b-cb2c-41e3-825a-f0bf281a1a29~cecfg_6adaeab0e5f0819b97d9ae373485ac81",
+  "published_version_id": "e5a3129b-cb2c-41e3-825a-f0bf281a1a29~cecfgver_6adaee215c48819bbfb3e6250b23fe47",
+  "connection": "connected",
+  "phase": "running",
+  "observations_current": true,
+  "spec_revision": "2",
+  "observed_spec_revision": "2",
+  "recovery_operation": "One supported wait_for_environment call on the original environment returned ready; subsequent exec_command succeeded.",
+  "actual_cwd": "/workspace",
+  "network": {
+    "mode": "restricted",
+    "state": "unknown",
+    "custom_allowed_hosts": [
+      "fonts.googleapis.com",
+      "fonts.gstatic.com"
+    ],
+    "kong_in_effective_hosts": false
+  },
+  "denied_gateway_retries": 0,
+  "configuration_writes": 0,
+  "denied_github_deployment_record_reads": 0,
+  "transfer_capabilities": {
+    "library_prepare_download": false,
+    "sediment_download": "Only genuine Sediment uploads, at most 32 MiB; File Service IDs are not accepted.",
+    "workspace_read": "Files accessible in this same cloud environment can be read by path.",
+    "lushupai_packages_imported": 0
+  },
+  "model_receipt": "Codex based on GPT-6 is exposed; exact variant/effort unavailable. No confirmed Astra Max switch and no new executor."
+}

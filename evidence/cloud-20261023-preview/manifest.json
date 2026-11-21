@@ -1,0 +1,15 @@
+{
+  "implementation_commit": "2d685a5213a0fa91331c5b32afa413ac7c5b6dc1",
+  "branch": "codex/cloud-launch-20261023",
+  "test_scope": "local synthetic stack and isolated config tests; not hosted acceptance",
+  "source_sha256": {
+    "apps/web/.env.example": "62a72c62245c904fbc8bb15f81067d76d6104dfa88cd864c3ff13c2da1ffdd1e",
+    "apps/web/README.md": "f9ac28a200412c2fe4af9452e7e739852f182c5f4f83db67236d103e46b014e5",
+    "apps/web/next.config.ts": "05db6a06c6a9806f7a59a1e439568f2a7e0c44dc5526d613a2ef53240f2baa0b",
+    "apps/web/package.json": "2782ad9eb70ac53d500a29766db010782d8aa4ebc1b0257c56e441509c4e6e7c",
+    "apps/web/scripts/public-supabase-settings.test.mjs": "0c09296d27e63eb4f42da87f56e6473a977c13d1012a1913ae92c3d0de2beeb5",
+    "apps/web/src/lib/public-supabase-settings.mjs": "9971bdcd3241424d16ebc55496fc1d3866ca04abf81ccbfad61d9d189da60ac1",
+    "apps/web/src/lib/supabase-config.ts": "824f5ddc20f4ab91df019a973835b60ddd8c6f0e0cccbee79253bbbfb73287ee",
+    "docs/PREVIEW_CONFIGURATION.md": "79f59b46f5ad99886c9e8b8259c0ef41dc63155ecabadb82daa79e6c09dfe10f"
+  }
+}

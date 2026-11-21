@@ -1,0 +1,24 @@
+{
+  "head": "bb840a8f2cc76f0fe2d682862097f268c6c5a164",
+  "cwd": "/workspace/sourcerating",
+  "space": {
+    "total": 33770192896,
+    "used": 28658515968,
+    "free": 3376914432
+  },
+  "containers": [
+    "86a2f93fddd05f437a2db0331f9f0ed2dd38bc6afd8699e4043333152c2e233d supabase_edge_runtime_sourcerating-l1-stage2",
+    "ab93b39f05f0c3710b452e3ce5b2154ff86df4d3a6ca3c9efd3dacfde1a2bb60 supabase_storage_sourcerating-l1-stage2",
+    "fc535a76cbab5f03b820acfc4088e25399804bc177f9bb25f5157ccb2053548e supabase_rest_sourcerating-l1-stage2",
+    "e8d73d2804e8a47af290626a8d4fe65a42298b03d2b5c0b397f4cbae98432c00 supabase_realtime_sourcerating-l1-stage2",
+    "33e515442604f3b710acdc932630f266110fc1a882c6a321d219214988b2fba0 supabase_inbucket_sourcerating-l1-stage2",
+    "c2b0582a80e43bf237e7b06c9edbed0ab4ff763d7fd55803a5bd81e6cce46e32 supabase_auth_sourcerating-l1-stage2",
+    "11c1847f4b15d571e1dc961e9bc7cc9160305271ac19c8fd4fde9354e93df51f supabase_kong_sourcerating-l1-stage2",
+    "06f6b4551f16142a68d47920d0d5ef211ca5a92b288774f6f57ae73ec8d5223c supabase_db_sourcerating-l1-stage2"
+  ],
+  "volumes": [
+    "supabase_db_sourcerating-l1-stage2",
+    "supabase_edge_runtime_sourcerating-l1-stage2",
+    "supabase_storage_sourcerating-l1-stage2"
+  ]
+}

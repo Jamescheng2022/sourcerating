@@ -1,0 +1,20 @@
+{
+  "requestedModel": "Astra",
+  "requestedEffort": "max",
+  "verifiedSystemIdentity": "Codex based on GPT-6",
+  "actualServingModelAndEffortTelemetry": null,
+  "modelSwitchClaimed": false,
+  "agentsCreated": 0,
+  "originalCheckout": "/workspace/sourcerating",
+  "branch": "codex/cloud-launch-20261023",
+  "applicationCommit": "c7d00a767b46e4a2d4041f27d93cd66f782ee43d",
+  "reproductionRunnerSHA256": {
+    "apps/web/scripts/s2-web-e2e.cjs": "ba132356a1e191cc33774e8d6f5f18c573291bbd6b0d361255bcd68ee3848510",
+    "apps/web/scripts/s2-user-journeys.cjs": "ca415f68679e9735130f70cc13eca0fa21cbf3c3e6706baee0ac17c6aa4bb46f",
+    "apps/web/scripts/pending-message.test.cjs": "f5432c9ef584af64952274402fad3c99ad436a4593b40fad429bd43962bda80e",
+    "apps/web/scripts/scrub-journey-traces.py": "cd0312b62394f4e799eeb973e69b1d35550e17a1c7659db4423f34612eec9031"
+  },
+  "browsers": "installed Chromium via existing Playwright; synthetic desktop/mobile contexts",
+  "scope": "Isolated cloud only; no customer account/data, real mail, external model, hosted migration or provider setting mutation.",
+  "currentOuterEnvironmentRelaySecretPresent": false
+}

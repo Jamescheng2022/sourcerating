@@ -1,0 +1,648 @@
+"use client";
+
+/**
+ * Real-backend adapter for Project Room B. It exposes the same shape as the lab's
+ * demo hook so the chat components are shared, but every value comes from Supabase
+ * under the signed-in user's RLS. Nothing here is fixture data.
+ */
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { uploadRoomAttachment } from "@/lib/room-files";
+import { getHiddenEventIds, hideEventId } from "./preferences";
+import type { PreviewMode } from "../project-room-lab/use-lab";
+import type { AiTurn, Msg, Org, PanelTab, Proposal, Room, RoomFile, User } from "../project-room-lab/demo/types";
+
+export interface RealRoom extends Room { parentId: string | null; purpose: string | null; projectId: string; lastSeq: number; myRole: string; rawKind: string; roomMembers: { userId: string; orgId: string; displayName: string | null; role: string }[] }
+export interface RealFile extends RoomFile { sha256: string; uploaderOrgId: string; uploaderUserId: string; createdAt: string; verification: string; sourceEventId: string | null }
+export interface Confirmation { id: string; roomId: string; fileVersionId: string | null; sha: string | null; orgId: string; userId: string; decision: "confirmed" | "changes_requested"; comment: string | null; at: string }
+export interface Membership { orgId: string; role: string; displayName: string | null }
+export interface SplitSuggestion { id: string; roomId: string; name: string; purpose: string; kind: "external" | "internal"; memberNames: string[]; fileNames: string[]; reason: string; sources: string[]; dismissed?: boolean }
+export interface AiSection { title: string; items: { text: string; sources: string[] }[] }
+export interface Colleague { userId: string; orgId: string; name: string }
+
+interface EventRow {
+  id: string; room_id: string; seq: number; client_msg_id: string | null; actor_user_id: string; actor_organization_id: string;
+  actor_display_name: string | null; event_type: string; payload: Record<string, unknown>; created_at: string;
+}
+interface State {
+  phase: "boot" | "signedOut" | "ready";
+  me: { id: string; email: string } | null;
+  memberships: Membership[];
+  colleagues: Colleague[];
+  orgs: Org[];
+  users: Record<string, User>;
+  orgId: string; roomId: string; view: "list" | "chat";
+  rooms: RealRoom[];
+  messages: Record<string, Msg[]>;
+  older: Record<string, number>;
+  ended: Record<string, boolean>;
+  files: RealFile[];
+  proposals: Proposal[];
+  confirmations: Confirmation[];
+  splits: SplitSuggestion[];
+  aiSections: Record<string, AiSection[]>;
+  replyTo: string | null; translated: string[];
+  panel: { open: boolean; tab: PanelTab };
+  aiTurns: AiTurn[];
+  preview: { fileId: string; mode: PreviewMode } | null;
+  jump: { id: string; nonce: number } | null;
+  failNext: boolean; typing: null;
+  draftInsert: { text: string; nonce: number } | null;
+  error: string | null;
+}
+
+const PALETTE = ["#0f6b5c", "#2f5fb3", "#a04a2a", "#6b4ea0", "#8a6a00", "#1f7a8c", "#a03a5c", "#4f6b1f"];
+const hash = (t: string) => Array.from(t).reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+const shortOf = (name: string) => {
+  const w = name.trim().split(/\s+/).filter(Boolean);
+  if (/[㐀-鿿]/.test(name)) return name.trim().slice(0, 2);
+  return (w.length > 1 ? w.slice(0, 3).map((x) => x[0]).join("") : name.slice(0, 3)).toUpperCase();
+};
+const kindOfFile = (mime: string, name: string): RoomFile["kind"] =>
+  mime.startsWith("image/") ? "image" : mime.includes("pdf") ? "pdf" : /sheet|excel|csv/.test(mime) || /\.(xlsx?|csv)$/i.test(name) ? "xlsx" : "other";
+const internal = (kind: string) => kind === "internal" || kind === "buyer_internal";
+const str = (v: unknown) => (typeof v === "string" ? v : undefined);
+const PAGE = 50;
+const ORG_KEY = "sr_b_acting_org";
+const activeRoomFor = (state: State) =>
+  state.rooms.find((r) => r.id === state.roomId && r.unread[state.orgId] !== undefined)
+  ?? state.rooms.find((r) => r.unread[state.orgId] !== undefined);
+const isViewingRoom = (state: State, roomId: string) =>
+  typeof document !== "undefined" && document.visibilityState === "visible"
+  && (state.view === "chat" || window.innerWidth >= 700) && activeRoomFor(state)?.id === roomId;
+
+
+function toMsg(e: EventRow, files: RealFile[]): Msg | null {
+  const p = e.payload ?? {};
+  const base = { id: e.id, userId: e.actor_user_id, at: e.created_at, status: "sent" as const, replyTo: str(p.reply_to) };
+  const ver = `${str(p.logical_name) ?? "File"} v${p.version_no ?? "?"}`;
+  switch (e.event_type) {
+    case "message.posted": return { ...base, text: str(p.text) ?? "" };
+    case "file.attached": {
+      const f = files.find((x) => x.sourceEventId === e.id || x.id === p.file_version_id);
+      return { ...base, text: str(p.caption), fileId: f?.id ?? str(p.file_version_id) };
+    }
+    case "room.summary_shared": return { ...base, text: `[${str(p.from_room_name) ?? "Internal Discussion"} · Summary]\n${str(p.text) ?? ""}` };
+    case "file.review_requested": return { ...base, text: `Request team review for ${ver}${p.note ? `\n${p.note}` : ""}` };
+    case "confirmation.recorded":
+      return { ...base, text: `${p.decision === "confirmed" ? "✓ Confirmed" : "✎ Changes Requested"} ${p.file_version_id ? `${ver} · ${String(p.sha256 ?? "").slice(0, 10)}` : "item"}${p.comment ? `\n${p.comment}` : ""}` };
+    default: return null;
+  }
+}
+
+export function useReal() {
+  const [s, set] = useState<State>({
+    phase: "boot", me: null, memberships: [], colleagues: [], orgs: [], users: {}, orgId: "", roomId: "", view: "list", rooms: [],
+    messages: {}, older: {}, ended: {}, files: [], proposals: [], confirmations: [], splits: [], aiSections: {}, replyTo: null, translated: [],
+    panel: { open: false, tab: "overview" }, aiTurns: [], preview: null, jump: null, failNext: false, typing: null, draftInsert: null, error: null,
+  });
+  const ref = useRef(s);
+  useEffect(() => { ref.current = s; });
+  const refreshVersion = useRef(0);
+  const roomVersions = useRef(new Map<string, number>());
+  const confirmationVersions = useRef(new Map<string, number>());
+  const nextVersion = (versions: Map<string, number>, id: string) => {
+    const version = (versions.get(id) ?? 0) + 1;
+    versions.set(id, version);
+    return version;
+  };
+  const seqs = useRef(new Map<string, number>());
+  const minSeq = useRef<Record<string, number>>({});
+  const pending = useRef(new Map<string, { roomId: string; text: string; file?: File; replyTo?: string }>());
+  const actionsRef = useRef<{ loadOlder: (targetRoomId?: string) => number } | null>(null);
+  const fail = (e: unknown) => set((p) => ({ ...p, error: e instanceof Error ? e.message : String((e as { message?: string })?.message ?? e) }));
+
+  const user = useCallback((id: string): User => s.users[id] ?? { id, name: "Member", orgId: "", title: "" }, [s.users]);
+  const org = useCallback((id: string): Org => s.orgs.find((o) => o.id === id) ?? { id, name: "—", short: "?", place: "", color: "#8a8f95" }, [s.orgs]);
+
+  /** Organisations, rooms and members visible to this user. */
+  const refresh = useCallback(async (userId?: string) => {
+    const uid = userId ?? ref.current.me?.id;
+    if (!uid) return;
+    const version = ++refreshVersion.current;
+    const [mem, orgs, rooms, members] = await Promise.all([
+      supabase.from("organization_memberships").select("organization_id,user_id,role,display_name").is("removed_at", null),
+      supabase.from("organizations").select("id,name"),
+      supabase.from("rooms").select("id,name,kind,project_id,owner_organization_id,parent_room_id,purpose,last_seq,projects(name)").is("archived_at", null).order("created_at"),
+      supabase.from("room_members").select("room_id,user_id,acting_organization_id,room_role,member_display_name,last_read_seq").is("removed_at", null),
+    ]);
+    if (version !== refreshVersion.current) return;
+    const err = mem.error ?? orgs.error ?? rooms.error ?? members.error;
+    if (err) return fail(err);
+    const orgList: Org[] = (orgs.data ?? []).map((o) => ({ id: o.id, name: o.name, short: shortOf(o.name), place: "", color: PALETTE[hash(o.id) % PALETTE.length] }));
+    const users: Record<string, User> = { ...ref.current.users };
+    for (const m of mem.data ?? []) users[m.user_id] = { id: m.user_id, name: m.display_name ?? users[m.user_id]?.name ?? "Member", orgId: m.organization_id, title: m.role };
+    for (const m of members.data ?? []) users[m.user_id] = { id: m.user_id, name: m.member_display_name ?? users[m.user_id]?.name ?? "Member", orgId: m.acting_organization_id, title: m.room_role };
+    const memberships = (mem.data ?? []).filter((m) => m.user_id === uid).map((m) => ({ orgId: m.organization_id, role: m.role, displayName: m.display_name }));
+    const colleagues = (mem.data ?? []).filter((m) => m.user_id !== uid).map((m) => ({ userId: m.user_id, orgId: m.organization_id, name: m.display_name ?? "Member" }));
+    const saved = typeof localStorage !== "undefined" ? localStorage.getItem(ORG_KEY) : null;
+    const orgId = memberships.find((m) => m.orgId === ref.current.orgId)?.orgId ?? memberships.find((m) => m.orgId === saved)?.orgId ?? memberships[0]?.orgId ?? "";
+    const list: RealRoom[] = (rooms.data ?? []).map((r) => {
+      const ms = (members.data ?? []).filter((m) => m.room_id === r.id);
+      const unread: Record<string, number> = {};
+      for (const m of ms.filter((x) => x.user_id === uid)) unread[m.acting_organization_id] = Math.max(0, Number(r.last_seq) - Number(m.last_read_seq));
+      const project = Array.isArray(r.projects) ? r.projects[0] : r.projects;
+      return {
+        id: r.id, name: r.name, kind: internal(r.kind) ? "internal" : "external", rawKind: r.kind, project: (project as { name?: string } | null)?.name ?? "Project",
+        projectId: r.project_id, ownerOrgId: r.owner_organization_id, memberIds: Array.from(new Set(ms.map((m) => m.user_id))), unread,
+        roomMembers: ms.map((m) => ({ userId: m.user_id, orgId: m.acting_organization_id, displayName: m.member_display_name, role: m.room_role })),
+        parentId: r.parent_room_id, purpose: r.purpose, lastSeq: Number(r.last_seq),
+        myRole: ms.find((m) => m.user_id === uid && m.acting_organization_id === orgId)?.room_role ?? "member",
+      };
+    });
+    const projected = { ...ref.current, rooms: list, orgId };
+    const active = activeRoomFor(projected);
+    if (active && isViewingRoom(projected, active.id)) {
+      active.unread[orgId] = 0;
+      const seen = Math.max(0, ...(ref.current.messages[active.id] ?? []).map((m) => seqs.current.get(m.id) ?? 0));
+      if (seen > 0) void supabase.rpc("sr_mark_room_read", { p_room_id: active.id, p_seq: Math.min(seen, active.lastSeq) });
+    }
+    set((p) => version !== refreshVersion.current ? p : ({ ...p, phase: "ready", memberships, colleagues, orgs: orgList, users, rooms: list, orgId }));
+  }, []);
+
+  const loadRoom = useCallback(async (roomId: string) => {
+    const version = nextVersion(roomVersions.current, roomId);
+    const confirmationVersion = nextVersion(confirmationVersions.current, roomId);
+    const [ev, fv, cf, pr, ny] = await Promise.all([
+      supabase.from("room_events").select("*").eq("room_id", roomId).order("seq", { ascending: false }).limit(PAGE),
+      supabase.from("room_file_versions").select("*").eq("room_id", roomId).order("created_at"),
+      supabase.from("room_confirmations").select("*").eq("room_id", roomId).order("created_at"),
+      supabase.from("staging_proposals").select("id,room_id,source_event_id,proposal_type,payload,status").eq("room_id", roomId).order("created_at"),
+      supabase.from("needs_you").select("proposal_id,target_organization_id,status").eq("room_id", roomId),
+    ]);
+    if (version !== roomVersions.current.get(roomId)) return;
+    const err = ev.error ?? fv.error ?? cf.error;
+    if (err) return fail(err);
+    const files: RealFile[] = (fv.data ?? []).map((f) => ({
+      id: f.id, roomId, name: f.logical_name, kind: kindOfFile(f.mime_type, f.logical_name), size: Number(f.size_bytes), version: f.version_no,
+      lineage: f.logical_name, supersedes: f.supersedes_version_id ?? undefined, sha256: f.sha256, uploaderOrgId: f.uploader_organization_id,
+      uploaderUserId: f.uploader_user_id, createdAt: f.created_at, verification: f.verification_status ?? "pending", sourceEventId: f.source_event_id,
+    }));
+    const rows = ((ev.data ?? []) as EventRow[]).slice().reverse();
+    rows.forEach((e) => seqs.current.set(e.id, e.seq));
+    if (rows.length > 0) {
+      minSeq.current[roomId] = rows[0].seq;
+    }
+    const currentUserId = ref.current.me?.id ?? "";
+    const hidden = getHiddenEventIds(ref.current.orgId, currentUserId);
+    const msgs = rows.map((e) => toMsg(e, files)).filter((m): m is Msg => !!m && !hidden.has(m.id));
+    const confirmations: Confirmation[] = (cf.data ?? []).map((c) => ({
+      id: c.id, roomId, fileVersionId: c.file_version_id, sha: c.file_sha256, orgId: c.organization_id, userId: c.user_id, decision: c.decision, comment: c.comment, at: c.created_at,
+    }));
+    const nyMap = new Map<string, string>();
+    for (const n of ((ny?.data ?? []) as { proposal_id?: string; target_organization_id?: string; status?: string }[])) {
+      if (n.proposal_id && n.target_organization_id && (!n.status || n.status === "open")) {
+        nyMap.set(n.proposal_id, n.target_organization_id);
+      }
+    }
+    const proposals: Proposal[] = (pr.data ?? []).map((x) => {
+      const pl = (x.payload ?? {}) as Record<string, unknown>;
+      return {
+        id: x.id, roomId, kind: x.proposal_type === "decision" ? "decision" : x.proposal_type === "requirement" ? "requirement" : "needs_you",
+        title: str(pl.summary) ?? str(pl.title) ?? x.proposal_type, detail: str(pl.detail) ?? str(pl.evidence_quote) ?? "", sources: [x.source_event_id],
+        forOrgId: nyMap.get(x.id) ?? null, status: x.status === "accepted" ? "confirmed" : x.status === "pending" ? "pending" : "rejected",
+      };
+    });
+    const users = { ...ref.current.users };
+    for (const e of rows) if (!users[e.actor_user_id]) users[e.actor_user_id] = { id: e.actor_user_id, name: e.actor_display_name ?? "Member", orgId: e.actor_organization_id, title: "" };
+    set((p) => version !== roomVersions.current.get(roomId) ? p : ({
+      ...p, users,
+      messages: { ...p.messages, [roomId]: [...msgs, ...(p.messages[roomId] ?? []).filter((m) => m.status !== "sent")] },
+      older: { ...p.older, [roomId]: 0 }, ended: { ...p.ended, [roomId]: rows.length < PAGE || rows[0]?.seq === 1 },
+      files: [...p.files.filter((f) => f.roomId !== roomId), ...files],
+      confirmations: confirmationVersion === confirmationVersions.current.get(roomId) ? [...p.confirmations.filter((c) => c.roomId !== roomId), ...confirmations] : p.confirmations,
+      proposals: [...p.proposals.filter((x) => x.roomId !== roomId), ...proposals],
+    }));
+    const last = rows.at(-1)?.seq;
+    if (last) {
+      await supabase.rpc("sr_mark_room_read", { p_room_id: roomId, p_seq: last });
+      set((p) => ({ ...p, rooms: p.rooms.map((r) => (r.id === roomId ? { ...r, unread: { ...r.unread, [p.orgId]: 0 } } : r)) }));
+    }
+    if (msgs.length === 0 && rows.length === PAGE && rows[0] && rows[0].seq > 1) {
+      setTimeout(() => {
+        const curActive = activeRoomFor(ref.current)?.id;
+        if (curActive === roomId) {
+          actionsRef.current?.loadOlder(roomId);
+        }
+      }, 50);
+    }
+  }, []);
+
+  // Session bootstrap.
+  useEffect(() => {
+    let live = true;
+    const apply = (u: { id: string; email?: string } | null | undefined) => {
+      if (!live) return;
+      if (!u) { refreshVersion.current++; for (const [id, v] of roomVersions.current) roomVersions.current.set(id, v + 1); for (const [id, v] of confirmationVersions.current) confirmationVersions.current.set(id, v + 1); set((p) => ({ ...p, phase: "signedOut", me: null, rooms: [], messages: {}, memberships: [] })); return; }
+      if (ref.current.me?.id === u.id) return;
+      set((p) => ({ ...p, me: { id: u.id, email: u.email ?? "" } }));
+      void refresh(u.id);
+    };
+    void supabase.auth.getSession().then(({ data }) => apply(data.session?.user));
+    const { data } = supabase.auth.onAuthStateChange((_e, session) => setTimeout(() => apply(session?.user), 0));
+    return () => { live = false; data.subscription.unsubscribe(); };
+  }, [refresh]);
+
+  // Realtime: RLS decides which inserts reach this client. A slow poll covers new rooms and missed frames.
+  useEffect(() => {
+    if (s.phase !== "ready" || !s.me) return;
+    const onEvent = (e: EventRow) => {
+      const cur = ref.current;
+      if (seqs.current.has(e.id)) return;
+      seqs.current.set(e.id, e.seq);
+      if (!cur.rooms.some((room) => room.id === e.room_id)) void refresh();
+      if (e.event_type === "file.attached" || e.event_type === "confirmation.recorded") {
+        if (cur.messages[e.room_id]) void loadRoom(e.room_id);
+      } else if (cur.messages[e.room_id]) {
+        const m = toMsg(e, cur.files);
+        const currentUserId = cur.me?.id ?? "";
+        const hidden = getHiddenEventIds(cur.orgId, currentUserId);
+        if (m && !hidden.has(m.id)) set((p) => {
+          const list = p.messages[e.room_id] ?? [];
+          if (list.some((x) => x.id === e.id)) return p;
+          const users = p.users[e.actor_user_id] ? p.users : { ...p.users, [e.actor_user_id]: { id: e.actor_user_id, name: e.actor_display_name ?? "Member", orgId: e.actor_organization_id, title: "" } };
+          const mine = e.client_msg_id ? list.findIndex((x) => x.id === e.client_msg_id) : -1;
+          const merged = mine >= 0 ? list.map((x, i) => (i === mine ? m : x)) : [...list, m];
+          merged.sort((a, b) => {
+            const sa = seqs.current.get(a.id);
+            const sb = seqs.current.get(b.id);
+            const va = sa !== undefined ? sa : Number.MAX_SAFE_INTEGER;
+            const vb = sb !== undefined ? sb : Number.MAX_SAFE_INTEGER;
+            return va - vb;
+          });
+          // Gap detection: check if incoming seq skipped ahead of highest known seq
+          const topKnown = Math.max(0, ...list.map((x) => seqs.current.get(x.id) ?? 0));
+          if (topKnown > 0 && e.seq > topKnown + 1) {
+            void (async () => {
+              const { data: missing } = await supabase
+                .from("room_events")
+                .select("*")
+                .eq("room_id", e.room_id)
+                .gt("seq", topKnown)
+                .lt("seq", e.seq)
+                .order("seq");
+              if (missing && missing.length > 0) {
+                ((missing as unknown) as EventRow[]).forEach(onEvent);
+              }
+            })();
+          }
+          return { ...p, users, messages: { ...p.messages, [e.room_id]: merged } };
+        });
+      }
+      const viewing = isViewingRoom(cur, e.room_id);
+      if (viewing) void supabase.rpc("sr_mark_room_read", { p_room_id: e.room_id, p_seq: e.seq });
+      set((p) => ({
+        ...p, rooms: p.rooms.map((r) => r.id !== e.room_id ? r : {
+          ...r, lastSeq: Math.max(r.lastSeq, e.seq),
+          unread: viewing || e.actor_user_id === p.me?.id ? { ...r.unread, [p.orgId]: viewing ? 0 : r.unread[p.orgId] ?? 0 } : { ...r.unread, [p.orgId]: (r.unread[p.orgId] ?? 0) + 1 },
+        }),
+      }));
+    };
+    const ch = supabase.channel(`sr_b:${s.me.id}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "room_events" }, (payload) => onEvent(payload.new as EventRow))
+      .subscribe();
+    let polling = false;
+    const poll = setInterval(async () => {
+      if (polling) return;
+      polling = true;
+      try {
+      await refresh();
+      const cur = ref.current;
+      const r = activeRoomFor(cur);
+      if (r && cur.messages[r.id]) {
+        const version = nextVersion(confirmationVersions.current, r.id);
+        const { data, error } = await supabase.from("room_confirmations").select("*").eq("room_id", r.id).order("created_at");
+        if (!error && version === confirmationVersions.current.get(r.id)) {
+          const confirmations: Confirmation[] = (data ?? []).map((c) => ({
+            id: c.id, roomId: r.id, fileVersionId: c.file_version_id, sha: c.file_sha256,
+            orgId: c.organization_id, userId: c.user_id, decision: c.decision, comment: c.comment, at: c.created_at,
+          }));
+          set((p) => version !== confirmationVersions.current.get(r.id) ? p : ({
+            ...p, confirmations: [...p.confirmations.filter((c) => c.roomId !== r.id), ...confirmations],
+          }));
+        }
+      }
+      // Verification verdicts arrive without an event; pick them up while any file here is still pending.
+      if (r && cur.files.some((f) => f.roomId === r.id && f.verification === "pending")) void loadRoom(r.id);
+      const top = Math.max(0, ...(r ? cur.messages[r.id] ?? [] : []).map((m) => seqs.current.get(m.id) ?? 0));
+      if (r && cur.messages[r.id] && r.lastSeq > top) {
+        const { data } = await supabase.from("room_events").select("*").eq("room_id", r.id).gt("seq", top).order("seq").limit(200);
+        ((data ?? []) as EventRow[]).forEach(onEvent);
+      }
+      } finally { polling = false; }
+    }, 5000);
+    const recover = () => {
+      if (document.visibilityState !== "visible") return;
+      void refresh();
+      const cur = ref.current;
+      const active = activeRoomFor(cur);
+      if (active && cur.messages[active.id]) void loadRoom(active.id);
+    };
+    window.addEventListener("online", recover);
+    document.addEventListener("visibilitychange", recover);
+    return () => { clearInterval(poll); window.removeEventListener("online", recover); document.removeEventListener("visibilitychange", recover); void supabase.removeChannel(ch); };
+  }, [s.phase, s.me, refresh, loadRoom]);
+
+  const myRooms = useMemo(() => s.rooms.filter((r) => r.unread[s.orgId] !== undefined), [s.rooms, s.orgId]);
+  const room = (myRooms.find((r) => r.id === s.roomId) ?? myRooms[0]) as RealRoom | undefined;
+  const msgs = room ? s.messages[room.id] ?? [] : [];
+  const meId = s.me?.id ?? "";
+
+  useEffect(() => {
+    if (room) {
+      if (!ref.current.messages[room.id]) {
+        void loadRoom(room.id);
+      } else if ((ref.current.messages[room.id]?.length ?? 0) === 0 && !ref.current.ended[room.id]) {
+        void actionsRef.current?.loadOlder(room.id);
+      }
+    }
+  }, [room, loadRoom]);
+
+  const patch = (roomId: string, id: string, m: Partial<Msg>) =>
+    set((p) => ({ ...p, messages: { ...p.messages, [roomId]: (p.messages[roomId] ?? []).map((x) => (x.id === id ? { ...x, ...m } : x)) } }));
+
+  const deliver = async (clientId: string) => {
+    const job = pending.current.get(clientId);
+    if (!job) return;
+    const orgId = ref.current.orgId;
+    try {
+      let eventId: string;
+      if (job.file) {
+        const res = await uploadRoomAttachment({ roomId: job.roomId, actingOrganizationId: orgId, file: job.file, clientMessageId: clientId, caption: job.text });
+        eventId = res.event.id as string;
+        seqs.current.set(eventId, res.event.seq as number);
+        // Server-side re-hash and type check; a file can only be opened once this says "verified".
+        if (res.verification?.status !== "verified") await api("gateway", { action: "verify", fileVersionId: res.file.id }).catch(() => null);
+        await loadRoom(job.roomId);
+      } else {
+        const { data, error } = await supabase.rpc("sr_post_room_message", {
+          p_room_id: job.roomId, p_client_msg_id: clientId, p_actor_organization_id: orgId,
+          p_payload: job.replyTo ? { text: job.text, reply_to: job.replyTo } : { text: job.text },
+        });
+        if (error) throw error;
+        const e = data as EventRow;
+        eventId = e.id; seqs.current.set(e.id, e.seq);
+        void supabase.rpc("sr_mark_room_read", { p_room_id: job.roomId, p_seq: e.seq });
+      }
+      pending.current.delete(clientId);
+      set((p) => {
+        const list = p.messages[job.roomId] ?? [];
+        const dup = list.some((x) => x.id === eventId);
+        return { ...p, messages: { ...p.messages, [job.roomId]: dup ? list.filter((x) => x.id !== clientId) : list.map((x) => (x.id === clientId ? { ...x, id: eventId, status: "sent" } : x)) } };
+      });
+    } catch (e) {
+      patch(job.roomId, clientId, { status: "failed" });
+      fail(e);
+    }
+  };
+
+  const api = async (path: string, body: Record<string, unknown>) => {
+    const { data } = await supabase.auth.getSession();
+    const res = await fetch(`/api/project-room-b/${path}`, { method: "POST", headers: { Authorization: `Bearer ${data.session?.access_token ?? ""}`, "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    return (await res.json().catch(() => ({ ok: false, error: `HTTP ${res.status}` }))) as Record<string, unknown>;
+  };
+
+  const rpc = async (fn: string, args: Record<string, unknown>) => {
+    const { data, error } = await supabase.rpc(fn, args);
+    if (error) { fail(error); throw error; }
+    return data as Record<string, unknown>;
+  };
+
+  const actions = {
+    clearError: () => set((p) => ({ ...p, error: null })),
+    switchOrg: (orgId: string) => { localStorage.setItem(ORG_KEY, orgId); set((p) => ({ ...p, orgId, roomId: "", replyTo: null, panel: { ...p.panel, open: false } })); void refresh(); },
+    openRoom: (roomId: string) => {
+      set((p) => ({ ...p, roomId, view: "chat", replyTo: null, rooms: p.rooms.map((r) => (r.id === roomId ? { ...r, unread: { ...r.unread, [p.orgId]: 0 } } : r)) }));
+      const r = ref.current.rooms.find((x) => x.id === roomId);
+      if (r && ref.current.messages[roomId]) void supabase.rpc("sr_mark_room_read", { p_room_id: roomId, p_seq: r.lastSeq });
+    },
+    backToList: () => set((p) => ({ ...p, view: "list" })),
+    setReply: (id: string | null) => set((p) => ({ ...p, replyTo: id })),
+    toggleTranslate: async (id: string) => {
+      if (!room) return;
+      const roomId = room.id;
+      if (ref.current.translated.includes(id)) return set((p) => ({ ...p, translated: p.translated.filter((x) => x !== id) }));
+      const m = (ref.current.messages[roomId] ?? []).find((x) => x.id === id);
+      if (m && !m.tr) {
+        patch(roomId, id, { tr: "…" });
+        set((p) => ({ ...p, translated: [...p.translated, id] }));
+        const r = await api("assist", { roomId, mode: "translate", eventId: id, language: navigator.language });
+        patch(roomId, id, { tr: r.ok ? String((r.result as { translation?: string })?.translation ?? "") : `Translation unavailable: ${r.error}` });
+      } else set((p) => ({ ...p, translated: [...p.translated, id] }));
+    },
+    setFailNext: () => {},
+    simulateIncoming: () => {},
+    openPanel: (tab: PanelTab) => set((p) => ({ ...p, panel: { open: true, tab } })),
+    closePanel: () => set((p) => ({ ...p, panel: { ...p.panel, open: false } })),
+    openFile: (fileId: string, mode: PreviewMode = "view") => set((p) => ({ ...p, preview: { fileId, mode }, panel: { open: true, tab: "files" } })),
+    closeFile: () => set((p) => ({ ...p, preview: null })),
+    jumpTo: (id: string) => set((p) => ({ ...p, view: "chat", jump: { id, nonce: Date.now() } })),
+    insertDraft: (text: string) => set((p) => ({ ...p, draftInsert: { text, nonce: Date.now() } })),
+
+    send: async (text: string, picked?: File, logicalName?: string) => {
+      if (!room) return;
+      const id = crypto.randomUUID();
+      const file = picked && logicalName && logicalName !== picked.name ? new File([picked], logicalName, { type: picked.type }) : picked;
+      pending.current.set(id, { roomId: room.id, text, file, replyTo: ref.current.replyTo ?? undefined });
+      set((p) => ({
+        ...p, replyTo: null,
+        messages: { ...p.messages, [room.id]: [...(p.messages[room.id] ?? []), { id, userId: meId, at: new Date().toISOString(), text: text || (file ? `Uploading ${file.name}…` : undefined), replyTo: p.replyTo ?? undefined, status: "sending" }] },
+      }));
+      await deliver(id);
+    },
+    retry: (id: string) => { if (room) { patch(room.id, id, { status: "sending" }); void deliver(id); } },
+    remove: (id: string) => {
+      pending.current.delete(id);
+      if (room) {
+        hideEventId(ref.current.orgId, meId, id);
+        set((p) => ({ ...p, messages: { ...p.messages, [room.id]: (p.messages[room.id] ?? []).filter((m) => m.id !== id) } }));
+      }
+    },
+
+    loadOlder: (targetRoomId?: string) => {
+      const curActive = activeRoomFor(ref.current)?.id;
+      const roomId = targetRoomId ?? curActive;
+      if (!roomId || (targetRoomId && curActive !== targetRoomId)) return 0;
+      if (ref.current.ended[roomId]) return 0;
+      const currentLowest = minSeq.current[roomId];
+      const first = currentLowest !== undefined
+        ? currentLowest
+        : Math.min(...(ref.current.messages[roomId] ?? []).map((m) => seqs.current.get(m.id) ?? Infinity));
+      if (!Number.isFinite(first) || first <= 1) {
+        set((p) => ({ ...p, ended: { ...p.ended, [roomId]: true } }));
+        return 0;
+      }
+      set((p) => ({ ...p, ended: { ...p.ended, [roomId]: true } })); // re-opened below unless history is exhausted
+      void supabase.from("room_events").select("*").eq("room_id", roomId).lt("seq", first).order("seq", { ascending: false }).limit(PAGE).then(({ data, error }) => {
+        if (error) {
+          set((p) => ({ ...p, ended: { ...p.ended, [roomId]: false } }));
+          return fail(error);
+        }
+        const rows = ((data ?? []) as EventRow[]).slice().reverse();
+        rows.forEach((e) => seqs.current.set(e.id, e.seq));
+        if (rows.length > 0) {
+          minSeq.current[roomId] = rows[0].seq;
+        }
+        const currentUserId = ref.current.me?.id ?? "";
+        const hidden = getHiddenEventIds(ref.current.orgId, currentUserId);
+        const batch = rows.map((e) => toMsg(e, ref.current.files)).filter((m): m is Msg => !!m && !hidden.has(m.id));
+        const isEnded = rows.length < PAGE || (rows[0] && rows[0].seq === 1);
+        set((p) => ({
+          ...p, ended: { ...p.ended, [roomId]: isEnded }, older: { ...p.older, [roomId]: (p.older[roomId] ?? 0) + batch.length },
+          messages: { ...p.messages, [roomId]: [...batch, ...(p.messages[roomId] ?? [])] },
+        }));
+        if (batch.length === 0 && !isEnded) {
+          setTimeout(() => {
+            const curActive = activeRoomFor(ref.current)?.id;
+            if (curActive === roomId) {
+              actionsRef.current?.loadOlder(roomId);
+            }
+          }, 50);
+        }
+      });
+      return PAGE;
+    },
+
+    ask: async (subject: AiTurn["subject"], question: string, mode: "summary" | "explain" | "split" = subject.type === "message" ? "explain" : "summary") => {
+      if (!room) return;
+      const id = crypto.randomUUID(), roomId = room.id;
+      set((p) => ({ ...p, panel: { open: true, tab: "ai" }, aiTurns: [...p.aiTurns, { id, roomId, subject, question }] }));
+      const fileMsg = subject.type === "file" ? ref.current.files.find((f) => f.id === subject.id)?.sourceEventId : null;
+      const r = await api("assist", { roomId, mode, language: navigator.language, ...(mode === "explain" ? { eventId: fileMsg ?? subject.id } : {}) }).catch((e) => ({ ok: false, error: String(e) }) as Record<string, unknown>);
+      const res = (r.result ?? {}) as Record<string, unknown>;
+      type Item = { text: string; sources?: string[]; owner?: string };
+      const list = (k: string) => (Array.isArray(res[k]) ? (res[k] as Item[]) : []);
+      let answer = { answer: `AI temporarily unavailable: ${r.error ?? "Unknown error"}`, sources: [] as string[] };
+      if (r.ok && mode === "explain") answer = { answer: String(res.answer ?? ""), sources: (res.sources as string[]) ?? [] };
+      if (r.ok && mode === "summary") {
+        const sections: AiSection[] = ([["Decided", "decided"], ["Open Questions", "open_questions"], ["Action Items", "todos"], ["Contradictions", "contradictions"], ["Version Notes", "version_notes"]] as const)
+          .map(([title, k]) => ({ title, items: list(k).map((x) => ({ text: x.owner ? `${x.text} (${x.owner})` : x.text, sources: x.sources ?? [] })) }))
+          .filter((x) => x.items.length);
+        const clarify = (Array.isArray(res.clarify) ? (res.clarify as string[]) : []).map((text) => ({ text, sources: [] }));
+        if (clarify.length) sections.push({ title: "Suggested Follow-ups", items: clarify });
+        answer = { answer: String(res.summary ?? ""), sources: [] };
+        set((p) => ({ ...p, aiSections: { ...p.aiSections, [id]: sections } }));
+      }
+      if (r.ok && mode === "split") {
+        const sug = (Array.isArray(res.suggestions) ? (res.suggestions as Record<string, unknown>[]) : []).map((x): SplitSuggestion => ({
+          id: crypto.randomUUID(), roomId, name: String(x.name ?? ""), purpose: String(x.purpose ?? ""), kind: x.kind === "internal" ? "internal" : "external",
+          memberNames: (x.member_names as string[]) ?? [], fileNames: (x.file_names as string[]) ?? [], reason: String(x.reason ?? ""), sources: (x.sources as string[]) ?? [],
+        })).filter((x) => x.name);
+        answer = { answer: sug.length ? `Suggested splitting into ${sug.length} sub-rooms. You decide whether to create.` : "No independent split directions identified at this time.", sources: [] };
+        set((p) => ({ ...p, splits: [...p.splits.filter((x) => x.roomId !== roomId || x.dismissed), ...sug] }));
+      }
+      set((p) => ({ ...p, aiTurns: p.aiTurns.map((t) => (t.id === id ? { ...t, answer } : t)) }));
+    },
+    dismissSplit: (id: string) => set((p) => ({ ...p, splits: p.splits.filter((x) => x.id !== id) })),
+    review: async (id: string, status: "confirmed" | "rejected" | "pending") => {
+      if (!room || status === "pending") return;
+      try {
+        await rpc("review_staging_proposal", { p_proposal_id: id, p_action: status === "confirmed" ? "accept" : "dismiss", p_actor_organization_id: ref.current.orgId, p_payload_override: null });
+      } catch (err) {
+        fail(err);
+      }
+      void loadRoom(room.id);
+    },
+    createRoom: () => {},
+
+    // ── real-only ──
+    signIn: async (email: string, password: string) => { const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password }); if (error) throw error; },
+    signUp: async (email: string, password: string) => {
+      const { data, error } = await supabase.auth.signUp({ email: email.trim(), password, options: { emailRedirectTo: `${location.origin}${location.pathname}` } });
+      if (error) throw error;
+      return !!data.session;
+    },
+    signOut: async () => { await supabase.auth.signOut(); },
+    createOrganization: async (name: string, displayName: string) => { await rpc("sr_create_organization", { p_name: name, p_display_name: displayName }); await refresh(); },
+    createProject: async (name: string, role: string) => {
+      const r = await rpc("sr_create_project", { p_organization_id: ref.current.orgId, p_name: name, p_project_role: role });
+      await refresh(); actions.openRoom(r.main_room_id as string);
+    },
+    createSubRoom: async (name: string, purpose: string, kind: "internal" | "external", memberIds: string[]) => {
+      if (!room) return;
+      const parent = room.parentId ?? room.id;
+      const r = await rpc("sr_create_sub_room", { p_parent_room_id: parent, p_actor_organization_id: ref.current.orgId, p_name: name, p_purpose: purpose || null, p_kind: kind, p_member_user_ids: memberIds });
+      await refresh(); actions.openRoom(r.room_id as string);
+    },
+    invite: async (email: string, kind: "organization" | "org_member", orgName: string) => {
+      if (!room) return "";
+      const r = await rpc("sr_create_invite", { p_room_id: room.id, p_actor_organization_id: ref.current.orgId, p_email: email, p_kind: kind, p_organization_name: orgName || null });
+      return `${location.origin}${location.pathname}?invite=${r.token as string}`;
+    },
+    previewInvite: async (token: string) => { const { data, error } = await supabase.rpc("sr_preview_invite", { p_token: token }); if (error) throw error; return data as Record<string, string>; },
+    acceptInvite: async (token: string, orgId: string | null, newOrgName: string, displayName: string) => {
+      const r = await rpc("sr_accept_invite", { p_token: token, p_organization_id: orgId, p_new_organization_name: orgId ? null : newOrgName, p_display_name: displayName || null });
+      localStorage.setItem(ORG_KEY, r.acting_organization_id as string);
+      set((p) => ({ ...p, orgId: r.acting_organization_id as string }));
+      await refresh(); actions.openRoom(r.room_id as string);
+    },
+    addMember: async (userId: string, orgId: string) => { if (room) { await rpc("sr_add_room_member", { p_room_id: room.id, p_actor_organization_id: ref.current.orgId, p_user_id: userId, p_member_organization_id: orgId }); await refresh(); } },
+    removeMember: async (userId: string) => { if (room) { await rpc("sr_remove_room_member", { p_room_id: room.id, p_actor_organization_id: ref.current.orgId, p_user_id: userId }); await refresh(); } },
+    removeFromOrganization: async (userId: string) => { await rpc("sr_remove_org_member", { p_organization_id: ref.current.orgId, p_user_id: userId }); await refresh(); },
+    shareToParent: async (text: string, audienceDigest: string) => {
+      if (!room) return;
+      if (!audienceDigest || typeof audienceDigest !== "string" || !audienceDigest.trim()) {
+        throw new Error("audience_digest_required");
+      }
+      const clientMsgId = crypto.randomUUID();
+      await rpc("sr_share_to_parent_confirmed", {
+        p_room_id: room.id,
+        p_actor_organization_id: ref.current.orgId,
+        p_client_msg_id: clientMsgId,
+        p_text: text,
+        p_source_event_ids: [],
+        p_audience_digest: audienceDigest.trim(),
+      });
+    },
+    getRoomAudience: async (roomId: string) => {
+      return await rpc("sr_room_audience", { p_room_id: roomId });
+    },
+    redactMessage: async (eventId: string, reasonCode: string, reasonNote?: string) => {
+      if (!room) return;
+      await rpc("sr_redact_message", {
+        p_room_id: room.id,
+        p_message_event_id: eventId,
+        p_actor_organization_id: ref.current.orgId,
+        p_client_msg_id: crypto.randomUUID(),
+        p_reason_code: reasonCode,
+        p_reason_note: reasonNote ?? null,
+      });
+      await loadRoom(room.id);
+    },
+    requestReview: async (fileId: string, note: string, clientMessageId: string) => { await rpc("sr_request_file_review", { p_file_version_id: fileId, p_actor_organization_id: ref.current.orgId, p_client_msg_id: clientMessageId, p_note: note || null }); },
+    confirmFile: async (f: RealFile, decision: "confirmed" | "changes_requested", comment: string) => {
+      const row = await rpc("sr_record_confirmation", { p_room_id: f.roomId, p_actor_organization_id: ref.current.orgId, p_client_msg_id: crypto.randomUUID(), p_decision: decision, p_file_version_id: f.id, p_file_sha256: f.sha256, p_comment: comment || null });
+      nextVersion(confirmationVersions.current, f.roomId);
+      const confirmation: Confirmation = {
+        id: String(row.id), roomId: f.roomId, fileVersionId: f.id, sha: f.sha256,
+        orgId: String(row.organization_id), userId: String(row.user_id), decision,
+        comment: typeof row.comment === "string" ? row.comment : null, at: String(row.created_at),
+      };
+      set((p) => ({ ...p, confirmations: [...p.confirmations.filter((c) => c.id !== confirmation.id), confirmation].sort((a, b) => a.at.localeCompare(b.at)) }));
+      await loadRoom(f.roomId);
+    },
+    fileUrl: async (fileId: string) => {
+      let r = await api("gateway", { action: "sign", fileVersionId: fileId });
+      if (!r.ok && r.verificationStatus === "pending") { await api("gateway", { action: "verify", fileVersionId: fileId }); r = await api("gateway", { action: "sign", fileVersionId: fileId }); }
+      if (!r.ok || !r.signedUrl) throw new Error(String(r.error ?? "Failed to open file"));
+      return r.signedUrl as string;
+    },
+    restoreVersion: async (f: RealFile) => {
+      const blob = await (await fetch(await actions.fileUrl(f.id))).blob();
+      await actions.send(`Restored from v${f.version}`, new File([blob], f.name, { type: blob.type || "application/pdf" }), f.name);
+    },
+    exportEvidence: async () => {
+      if (!room) return;
+      const data = await rpc("sr_export_room_evidence", { p_room_id: room.id });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+      a.download = `evidence-${room.name}-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    },
+  };
+  actionsRef.current = actions;
+
+  return { s, set, meId, user, org, myRooms, room, msgs, actions, real: true as boolean };
+}
+
+export type Real = ReturnType<typeof useReal>;

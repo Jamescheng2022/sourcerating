@@ -1,0 +1,23 @@
+const {chromium,expect}=require('@playwright/test'); const fs=require('fs');
+const secrets=JSON.parse(fs.readFileSync(process.env.SR_TEST_CREDENTIALS,'utf8'));
+const url=process.env.PILOT_URL;
+if (!url || !process.env.SR_TEST_CREDENTIALS) throw Error('PILOT_URL and SR_TEST_CREDENTIALS are required; synthetic pilot only.');
+const output=process.env.SR_QA_OUTPUT || '/tmp/sourcerating-workspace-qa';
+fs.mkdirSync(output,{recursive:true});
+(async()=>{const browser=await chromium.launch({headless:true});
+async function login(role){const p=await browser.newPage({viewport:{width:1440,height:1000}});await p.goto(url+'/project-room');await p.getByLabel('Email',{exact:true}).fill('s2-'+role+'@s2-test.invalid');await p.getByLabel('Password',{exact:true}).fill(secrets[role]);await p.getByRole('button',{name:'Sign in',exact:true}).click();await expect(p.getByRole('heading',{name:'Live AI Project Room',exact:true})).toBeVisible({timeout:30000});return p;}
+const buyer=await login('buyer'),supplier=await login('supplier');
+await expect(buyer.getByText(/^Canonical · v/)).not.toHaveCount(0,{timeout:30000});
+const before=await buyer.getByText(/^Canonical · v/).count();
+const text='[S2-TEST] UI approval '+Date.now()+': revise quoted price to USD 29 per unit for 500 pieces; delivery in 40 days. Please approve the new commercial terms.';
+await supplier.getByRole('textbox',{name:'Room message'}).fill(text);await supplier.getByRole('button',{name:'发送 ↑',exact:true}).click();
+await expect(buyer.getByText(text,{exact:true})).toHaveCount(1,{timeout:30000});console.log('PASS supplier message reaches buyer group view');
+const card=buyer.getByTestId(/^needs-you-/).filter({hasText:/USD 29|\$29|29 USD/}).first();
+await expect(card).toBeVisible({timeout:100000});console.log('PASS background DeepSeek proposal appears in live Needs You');
+const stableCard=buyer.getByTestId(await card.getAttribute('data-testid'));await stableCard.getByRole('button',{name:/Review · 审核/}).click();await stableCard.getByRole('button',{name:/Accept · 采纳/}).click();
+await expect(buyer.getByText(/^Canonical · v/)).toHaveCount(before+1,{timeout:30000});await expect(card).toHaveCount(0);console.log('PASS browser human approval updates confirmed milestones');
+await buyer.reload();await expect(buyer.getByText(/^Canonical · v/)).toHaveCount(before+1,{timeout:30000});console.log('PASS accepted decision persists after browser reload');
+await buyer.screenshot({path:output + '/workspace-approved-desktop.jpg',type:'jpeg',quality:80});
+await buyer.setViewportSize({width:390,height:844});await buyer.getByRole('button',{name:'AI 总结与里程碑',exact:true}).click();await expect(buyer.getByRole('dialog',{name:'AI 总结与里程碑'})).toBeVisible();await buyer.screenshot({path:output + '/workspace-ai-mobile.jpg',type:'jpeg',quality:80});
+fs.writeFileSync(output + '/workspace-review-acceptance.json',JSON.stringify({passed:4,canonicalBefore:before,canonicalAfter:before+1},null,2));await browser.close();
+})().catch(e=>{console.error(e.message);fs.writeFileSync(output + '/workspace-review-acceptance.json',JSON.stringify({error:e.message},null,2));process.exit(1)});

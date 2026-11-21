@@ -1,0 +1,65 @@
+{
+  "scope": "Only the test tools used or modified in this cloud handoff, not a system-wide audit",
+  "sites": [
+    {
+      "site": "apps/web/scripts/s2-web-e2e.cjs: CLI status",
+      "child": "Supabase CLI to existing local Docker socket",
+      "allowed": [
+        "PATH",
+        "DOCKER_HOST"
+      ],
+      "proof": "Explicit local unix socket selector; status result kept in memory, no credential values printed."
+    },
+    {
+      "site": "apps/web/scripts/s2-web-e2e.cjs: startServer",
+      "child": "Next canary server",
+      "allowed": [
+        "PATH",
+        "NEXT_PUBLIC_SUPABASE_URL",
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+        "NEXT_TELEMETRY_DISABLED"
+      ],
+      "proof": "Actual canary-env-guard startup log; explicit loopback public Auth configuration."
+    },
+    {
+      "site": "apps/web/scripts/s2-web-e2e.cjs: legacy startServer modes",
+      "child": "Next legacy local tests",
+      "allowed": [
+        "same four keys",
+        "SR_INVITE_RELAY_SECRET",
+        "SR_INVITE_RELAY_PROJECT_REF"
+      ],
+      "proof": "Explicit existing named relay fields only; these legacy modes were NOT_RUN this turn."
+    },
+    {
+      "site": "apps/web/scripts/s2-web-e2e.cjs: chromium.launch",
+      "child": "Chromium",
+      "allowed": [
+        "PATH"
+      ],
+      "proof": "Explicit browser env; real browser retest succeeded."
+    },
+    {
+      "site": "apps/web/scripts/s2-web-e2e.cjs: fixtures",
+      "child": "Python synthetic file generator",
+      "allowed": [
+        "PATH"
+      ],
+      "proof": "Explicit env; generator was NOT_RUN in this focused canary."
+    },
+    {
+      "site": "apps/web/scripts/s2-user-journeys.cjs: git rev-parse",
+      "child": "Git",
+      "allowed": [
+        "PATH"
+      ],
+      "proof": "Explicit env; same-runner baseline/current identity recorded."
+    },
+    {
+      "site": "apps/web/scripts/scrub-journey-traces.py",
+      "child": null,
+      "allowed": [],
+      "proof": "No child process creation."
+    }
+  ]
+}

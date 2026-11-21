@@ -1,0 +1,8 @@
+PASS Buyer signs in with seeded email/password through UI
+SR-01 BLOCKED
+SR-02 PASS
+SR-03 PASS
+SR-04 PASS
+SR-05 BLOCKED
+SR-06 PASS
+{"checks":1,"passed":1,"remoteRequests":0}

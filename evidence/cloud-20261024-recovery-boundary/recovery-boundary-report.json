@@ -1,0 +1,51 @@
+{
+  "mode": "recovery-boundary",
+  "results": [
+    {
+      "label": "Buyer signs in with seeded email/password through UI",
+      "pass": true
+    },
+    {
+      "label": "An expired recovery link cannot offer to change the existing project account password",
+      "pass": true
+    },
+    {
+      "label": "A normal project login and a missing recovery link never expose a password-change form",
+      "pass": true
+    },
+    {
+      "label": "Real local recovery email opens the named recovery account without replacing the project login",
+      "pass": true
+    },
+    {
+      "label": "A validated recovery survives reload in its tab without using the unrelated project session",
+      "pass": true
+    },
+    {
+      "label": "Switching the project account in another tab cannot retarget the open recovery form",
+      "pass": true
+    },
+    {
+      "label": "Reusing an actual consumed link invalidates an older recovery session without falling back to the project account",
+      "pass": true
+    },
+    {
+      "label": "An isolated failed password update reports failure and leaves the actual old password valid",
+      "pass": true
+    },
+    {
+      "label": "Real password update remains successful when isolated logout fails; only the named recovery account changes",
+      "pass": true
+    },
+    {
+      "label": "Completed recovery clears its tab credentials while the unrelated project login still restores",
+      "pass": true
+    },
+    {
+      "label": "Recovery boundary acceptance has no external browser requests or uncaught page errors",
+      "pass": true
+    }
+  ],
+  "remoteRequests": [],
+  "pageErrors": []
+}

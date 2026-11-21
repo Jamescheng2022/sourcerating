@@ -1,0 +1,89 @@
+{
+  "status": "PROPOSED_ONLY_NOT_APPLIED",
+  "authorization": "User explicitly approved kong-only on 2026-10-23 11:01 UTC; no other permissions granted.",
+  "checked_at": "2026-10-23 11:04:03 UTC",
+  "environment_name": "lushupai-v2",
+  "environment_id": "ccarenv_b64_Y2NhcmVudl85MDlhZmM5Nzk5ZDg4MTkxYjM4MjkyZDhkN2Y0MDkzMA",
+  "source_config_id": "e5a3129b-cb2c-41e3-825a-f0bf281a1a29~cecfg_6adaeab0e5f0819b97d9ae373485ac81",
+  "base_version_id": "e5a3129b-cb2c-41e3-825a-f0bf281a1a29~cecfgver_6adaee215c48819bbfb3e6250b23fe47",
+  "runtime_revision": "2",
+  "observed_spec_revision": "2",
+  "observations_current": true,
+  "policy_state": "unknown",
+  "network_mode": "restricted",
+  "presets": [
+    "package_managers"
+  ],
+  "before": {
+    "allowed_domains": [
+      "fonts.googleapis.com",
+      "fonts.gstatic.com"
+    ]
+  },
+  "after": {
+    "allowed_domains": [
+      "fonts.googleapis.com",
+      "fonts.gstatic.com",
+      "kong"
+    ]
+  },
+  "only_added_hosts": [
+    "kong"
+  ],
+  "removed_hosts": [],
+  "existing_draft": {
+    "id": "e5a3129b-cb2c-41e3-825a-f0bf281a1a29~cecfgdraft_6adaf828aaa0819b85dab2efc29f0707",
+    "revision": 3,
+    "base_version_id": "e5a3129b-cb2c-41e3-825a-f0bf281a1a29~cecfgver_6adaee215c48819bbfb3e6250b23fe47",
+    "already_contains_kong": true,
+    "repositories": [
+      {
+        "repository_id": "Jamescheng2022/lushupai-v2",
+        "ref": "535fa8b6f9012d7fed8b4c1c2c58f6fd2e27319a",
+        "mount_path": "lushupai-v2",
+        "depth": null
+      },
+      {
+        "repository_id": "Jamescheng2022/sourcerating",
+        "ref": "2b7d52f497e4c23f0f17762c700c51b43d4a01d7",
+        "mount_path": "sourcerating",
+        "depth": null
+      }
+    ],
+    "other_edits_preserved": [
+      "install_script",
+      "start_skill",
+      "repository refs"
+    ],
+    "untouched": true
+  },
+  "tool_limitations": [
+    "No publish/apply operation available",
+    "No separate draft creation/selection available",
+    "No complete published scripts/repository settings read operation available; cannot reconstruct them from mixed draft"
+  ],
+  "gateway_retry_performed": false,
+  "prohibited_actions_not_taken": [
+    "Publish mixed revision 3",
+    "Overwrite or discard unpublished draft edits",
+    "Change repositories/scripts/secrets/presets",
+    "Broaden internet access",
+    "Retry known rejected gateway or GitHub deployment-record reads"
+  ],
+  "final_readback": {
+    "checked_at": "2026-10-23 11:07:09 UTC",
+    "runtime_revision": "2",
+    "observed_revision": "2",
+    "observations_current": true,
+    "network_state": "unknown",
+    "allowed_hosts": [
+      "fonts.googleapis.com",
+      "fonts.gstatic.com"
+    ],
+    "draft_revision": 3,
+    "draft_entire_contents_equal_to_initial_read": true,
+    "canonical_draft_snapshot_sha256": "8c06a0fe575c308ddfe2fb8a6a4d88557d4c44d791cff9e392c6ecc548d97edb",
+    "applied": false,
+    "known_denied_operation_retried": false
+  }
+}

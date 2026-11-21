@@ -1,0 +1,23 @@
+
+> web@0.1.0 test:config
+> node --test scripts/public-supabase-settings.test.mjs
+
+✔ missing/partial configuration fails with actionable variable names, without values (1.71839ms)
+✔ only explicit public key shapes are accepted; no service-role, secret or whitespace (2.426909ms)
+✔ ambiguous aliases fail rather than selecting an unintended backend key (0.333312ms)
+✔ invalid URL and embedded credentials are rejected without reflecting inputs (0.418731ms)
+✔ existing production exclusion remains; hosted builds reject loopback, local builds retain it (0.464871ms)
+✔ actual Next build with missing public settings fails before compile/page-data collection (536.176883ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 633.903776
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

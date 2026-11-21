@@ -1,0 +1,112 @@
+{
+  "sourceCommit": "be53a086cc4e4ebce75401cc350f446cac30884a",
+  "bytes": 46539,
+  "sha256": "b45a4952d05ebc73fa6ac1a260a2d74b4221347eff2a684e0d5336faf6050d6a",
+  "crc": "all members verified",
+  "pathCheck": "safe, unique, no links",
+  "archiveScriptsExecuted": false,
+  "members": [
+    {
+      "path": "MASTER_PLAN_CN.md",
+      "bytes": 17912,
+      "crc32": "e5e98aee",
+      "sha256": "897cd7a02c5fe5491028330d2c55fdaaf28ddc86a157ea550193cb23b1858e18"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1045,
+      "crc32": "9c9c3ad8",
+      "sha256": "aedc1d10a8c5870c243a1083f53a5ce65b1f3ec5230db3410875db98c9f73538"
+    },
+    {
+      "path": "agent_briefs/01_construction_pm.md",
+      "bytes": 1045,
+      "crc32": "a3e3435d",
+      "sha256": "9b03944c3fc0c53525932ad6a0160e4ba2aa4e7c16dffc897574c9daa386c31d"
+    },
+    {
+      "path": "agent_briefs/02_security_redteam.md",
+      "bytes": 769,
+      "crc32": "93343329",
+      "sha256": "b0ca20e41d7d294c17065c84477ba82be1d4d87f4ca0355a0e08123850779130"
+    },
+    {
+      "path": "agent_briefs/03_everyday_chat_ux.md",
+      "bytes": 852,
+      "crc32": "b7b29e6a",
+      "sha256": "e9838a3a282263d15714dc7bf52f6a5449266a0af9662098b4b44046cf41f873"
+    },
+    {
+      "path": "agent_briefs/04_retail_trade_ops.md",
+      "bytes": 760,
+      "crc32": "944858ce",
+      "sha256": "03b5b7c3abdc8e6e37931ac9484ac412f3271e1a5c85aeea8bc42ac7437a4d10"
+    },
+    {
+      "path": "agent_briefs/05_final_auditor.md",
+      "bytes": 648,
+      "crc32": "8dc7b5cf",
+      "sha256": "7f4e1bc0c00854e708b2ccb77508d932cb01f054a8ab3fe8afc84d6564d4ac74"
+    },
+    {
+      "path": "build_suite.py",
+      "bytes": 22165,
+      "crc32": "e7988556",
+      "sha256": "329bb3810cbedf3a944aecbaaac62d62cdfd9e5867f63f553b78f210d7ec26b5"
+    },
+    {
+      "path": "qa_branch_README.md",
+      "bytes": 3559,
+      "crc32": "50063005",
+      "sha256": "32e6a4f581bdebcace2d5b43be4d1b463e6e6e5e9d2704263cd534720044f8a9"
+    },
+    {
+      "path": "results/READOUT_2026-10-14.md",
+      "bytes": 7415,
+      "crc32": "615e59b3",
+      "sha256": "3b966561296a4f86f26b2525e5519d3781f7d18d55e62d5329b098971ca79e78"
+    },
+    {
+      "path": "results/fixture_run_latest.json",
+      "bytes": 602,
+      "crc32": "8b5bd1c8",
+      "sha256": "d15f40c29ceb167f56a42e170ae60c0ab8778433036869685cae9df6097b249e"
+    },
+    {
+      "path": "results/fixture_validation.json",
+      "bytes": 393,
+      "crc32": "5da6020c",
+      "sha256": "a7c6f96807b16815786a8f01f31e2e38c9df0e1dcab2be1968e9ece0d059a046"
+    },
+    {
+      "path": "results/github_ci_static_gate.json",
+      "bytes": 948,
+      "crc32": "3bae5734",
+      "sha256": "49d4ed4ee5d35274528b341c4ee8ef2cb5b7ff02519e308aaade7e59de547c8d"
+    },
+    {
+      "path": "runner/eval.mjs",
+      "bytes": 5853,
+      "crc32": "cf190065",
+      "sha256": "842fefd530472299ae3fae5be9392cb4eaedb180f75f5a16e996a9262a671691"
+    },
+    {
+      "path": "runner/static_gate_check.mjs",
+      "bytes": 2575,
+      "crc32": "f46187a6",
+      "sha256": "d71ed8a6ed2f4870702d7c80ec33c50219dd8e5e9a4cd83ed25e8bf452e79ea0"
+    },
+    {
+      "path": "scenario_packs/cases.json",
+      "bytes": 53658,
+      "crc32": "6193a001",
+      "sha256": "2b582ac9f77efedbafe0d44bd186e63ff02ba32698f0bcef4fb26e96ac3f3f8f"
+    },
+    {
+      "path": "sources/VERIFIED_MARKET_AND_FRAMEWORK_LINKS.md",
+      "bytes": 2623,
+      "crc32": "8803fc72",
+      "sha256": "c19849de1eed0523bb43a434a5e0e343c82a25feea2c93f43214371dc06cab20"
+    }
+  ]
+}

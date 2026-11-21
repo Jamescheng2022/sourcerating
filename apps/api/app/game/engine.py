@@ -1,5 +1,5 @@
 import json
-from .schema import GameState, GameResponse
+from .schema import GameState, GameResponse, GameStats
 
 # Placeholder for AI Agent Orchestrator
 async def process_next_turn(user_id: str, input_text: str, state: GameState) -> GameResponse:
@@ -15,7 +15,7 @@ async def process_next_turn(user_id: str, input_text: str, state: GameState) -> 
     
     # Historian: Calculate new stats
     # (In real implementation, this would be an LLM call with Agent 1 prompt)
-    new_stats = state.stats.dict()
+    new_stats = state.stats.model_dump()
     if "借钱" in input_text or "borrow" in input_text.lower():
         new_stats["cash"] += 5000
         new_stats["reputation"] -= 10
@@ -27,14 +27,14 @@ async def process_next_turn(user_id: str, input_text: str, state: GameState) -> 
     # Auditor: Design 3 toxic options
     # (In real implementation, this would be an LLM call with Agent 3 prompt)
     options = [
-        {"id": "A", "text": "秘密抵押：用名声换取更多现金�?, "risk": "极高"},
-        {"id": "B", "text": "宗族筹款：牺牲效率保护家族荣�?, "risk": "中等"},
+        {"id": "A", "text": "秘密抵押：用名声换取更多现金", "risk": "极高"},
+        {"id": "B", "text": "宗族筹款：牺牲效率保护家族荣誉", "risk": "中等"},
         {"id": "C", "text": "孤注一掷：投机橡胶期货", "risk": "生死局"}
     ]
     
-    new_state = state.copy()
+    new_state = state.model_copy(deep=True)
     new_state.turn += 1
-    new_state.stats = new_stats
+    new_state.stats = GameStats(**new_stats)
     
     return GameResponse(
         story_text=story,

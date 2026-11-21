@@ -1,0 +1,14 @@
+# Desired hosted preview policy; H1 must apply and verify it through the approved new-project route.
+# No hosted addresses or credentials belong here.
+[auth]
+enable_signup = false
+enable_anonymous_sign_ins = false
+minimum_password_length = 10
+site_url = "env(SR_SITE_URL)"
+additional_redirect_urls = ["env(SR_AUTH_REDIRECT_URL)"]
+
+[auth.email]
+# Email/password provider enabled; public signup disabled above.
+enable_signup = true
+enable_confirmations = true
+double_confirm_changes = true

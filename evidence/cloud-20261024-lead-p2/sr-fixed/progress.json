@@ -1,0 +1,9 @@
+{
+  "pending": null,
+  "results": [
+    {
+      "label": "Buyer signs in with seeded email/password through UI",
+      "pass": true
+    }
+  ]
+}

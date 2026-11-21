@@ -1,0 +1,23 @@
+{
+  "baselineSHA": "bb840a8f2cc76f0fe2d682862097f268c6c5a164",
+  "currentSHA": "7988ba05d3d209fc019161534f76c1b898d93dbc",
+  "sameRunnerFiles": {
+    "s2-web-e2e.cjs": "a7b13bfa7d9962f58e7779119c955abb47b93394a0a4e5acd3002f752470ce35",
+    "s2-user-journeys.cjs": "b6e8d2808ec1c4e4a156b97fbfe432cd2dba41199765d6f13b7fb0d225a7a7a3",
+    "local-child-env.cjs": "83e0dd4ca6358bdad4e49224759b95a8fc9fa88e372db74d960b8e1b662ba949",
+    "canary-env-guard.cjs": "615abd8f62d6ee19dd829eb171527e68aef6abcfa57f5f17e276f9eab1db5a42"
+  },
+  "retainedBuilds": {
+    "baseline": {
+      "directory": "/workspace/sourcerating-baseline-canary",
+      "buildId": "gZxzKZaPTxzd6OQPiZtlZ",
+      "appSourceTree": "f8ee549809a739c88b52fe1bb5a5df4ce8f9edbe"
+    },
+    "fix": {
+      "directory": "/workspace/sourcerating",
+      "buildId": "zvs7nvf9WBnWdWQveSrbR",
+      "appSourceTree": "ff28da724652dd99344d0a3c1bae5b443f3a2c5b"
+    }
+  },
+  "runtimeDotenvFilesAbsent": true
+}

@@ -1,0 +1,13 @@
+✔ proposal changes exactly one branch binding; current deployed-source policy still rejects cloud branch (7.541507ms)
+✔ candidate retains exact project, single branch, Preview-only and hosted/local separation (6.093855ms)
+✔ candidate keeps actual Host equal to VERCEL_URL and same Origin; forwarded headers do not authorize aliases (3.085761ms)
+✔ candidate signs unchanged fixed project/path; original Edge verifier accepts only the untampered envelope (36.571724ms)
+✔ oversize/invalid invite actions stay rejected and global signup remains disabled (1.602435ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 751.243615

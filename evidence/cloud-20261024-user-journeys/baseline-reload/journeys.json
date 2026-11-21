@@ -1,0 +1,21 @@
+[
+  {
+    "id": "SR-02-reload",
+    "sourceSHA": "bb840a8f2cc76f0fe2d682862097f268c6c5a164",
+    "target": "http://127.0.0.1:3000",
+    "tenant": "[S2-TEST] fixed local project 52000000-0000-4000-8000-0000000000d1",
+    "dependencies": "actual local Auth/Postgres/RLS; provider keys removed; Edge requests prohibited",
+    "steps": [
+      "Explicit fixed synthetic room",
+      "Commit and abort ACK; Retry becomes visible",
+      "Refresh same room; original retry identity must survive"
+    ],
+    "status": "FAIL",
+    "actual": "locator.waitFor: Timeout 5000ms exceeded.\n",
+    "screenshots": [
+      "SR-02-reload-desktop.png",
+      "SR-02-reload-mobile.png"
+    ],
+    "trace": "trace-0.zip"
+  }
+]

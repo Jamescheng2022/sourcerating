@@ -1,0 +1,23 @@
+PASS Buyer signs in with seeded email/password through UI
+PASS Two submitters in the SAME supplier organization sign in through UI
+PASS First UI form persists inquiry with authenticated submitter and exact room
+PASS Second UI form persists a distinct inquiry
+PASS Buyer collection and existing Needs You both show the two saved inquiries
+PASS First submitter UI shows own inquiry and never the same-org colleague inquiry
+PASS Second submitter UI shows own inquiry and never first submitter inquiry
+PASS first submitter direct API cannot read another populated inquiry
+PASS second submitter direct API cannot read another populated inquiry
+PASS Submitters cannot read buyer-only inquiry Needs You rows
+PASS Anon cannot read inquiry collection
+PASS anon cannot submit an inquiry (42501)
+PASS supplier internal room cannot submit an inquiry (42501)
+PASS Authenticated non-member cannot read or submit inquiry
+PASS Direct INSERT cannot spoof the buyer as submitter
+PASS Direct UPDATE/DELETE of real inquiries are denied even to owner submitter
+PASS Concurrent retry of the original request creates no duplicate inquiry or buyer task
+PASS Reusing request ID with changed content is rejected without changing saved data
+PASS Server-side empty/oversized content validation rejects direct RPC bypass
+PASS Inquiries persist across refresh and production server restart
+PASS Inquiry form is reachable at mobile width
+PASS Inquiry flow has zero outbound browser requests or uncaught page errors
+{"checks":22,"passed":22,"remoteRequests":0}

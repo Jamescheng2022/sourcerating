@@ -1,0 +1,17 @@
+.env*
+*private.json
+account-input.json
+accounts-api-*.json
+*.dump
+*.sqlite3*
+*.log
+*.pid
+*.lock
+public-url.txt
+channels.json
+upstream-*/
+analysis-tools/
+qa-output/
+backups/
+rea-zulip-evidence*
+__pycache__/

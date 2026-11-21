@@ -1,0 +1,191 @@
+{
+  "base": "http://localhost:3100",
+  "results": [
+    {
+      "name": "desktop: list + chat visible, panel closed by default, no overflow",
+      "passed": true
+    },
+    {
+      "name": "01 switch organisation (internal rooms follow the org)",
+      "passed": true
+    },
+    {
+      "name": "02 switch room",
+      "passed": true
+    },
+    {
+      "name": "03 search rooms",
+      "passed": true
+    },
+    {
+      "name": "04 open chat",
+      "passed": true
+    },
+    {
+      "name": "05 send a demo message (optimistic → sent, composer keeps focus)",
+      "passed": true
+    },
+    {
+      "name": "06 reply to a message (quote is kept and jumps back)",
+      "passed": true
+    },
+    {
+      "name": "07 message context menu (right-click)",
+      "passed": true
+    },
+    {
+      "name": "08 Ask AI on a message: private panel, sources, nothing posted to the room",
+      "passed": true
+    },
+    {
+      "name": "09 translate a message inline (private)",
+      "passed": true
+    },
+    {
+      "name": "10 pick an attachment and send it",
+      "passed": true
+    },
+    {
+      "name": "11 file preview → compare versions → related messages → back to source",
+      "passed": true
+    },
+    {
+      "name": "12 toggle panel: files ↔ overview",
+      "passed": true
+    },
+    {
+      "name": "13 participants grouped by organisation",
+      "passed": true
+    },
+    {
+      "name": "14 AI-extracted items awaiting confirmation",
+      "passed": true
+    },
+    {
+      "name": "15 item → source message (evidence traceability)",
+      "passed": true
+    },
+    {
+      "name": "16 confirm and reject (demo, local only)",
+      "passed": true
+    },
+    {
+      "name": "send failure → visible state → resend",
+      "passed": true
+    },
+    {
+      "name": "message search with result stepping",
+      "passed": true
+    },
+    {
+      "name": "history paging keeps reading position; new-message pill when scrolled up",
+      "passed": true
+    },
+    {
+      "name": "2,000 generated messages stay virtualised",
+      "passed": true
+    },
+    {
+      "name": "copy message link + deep link opens and highlights the message",
+      "passed": true
+    },
+    {
+      "name": "new room (demo, local only)",
+      "passed": true
+    },
+    {
+      "name": "1280: scrolling to the top auto-loads history and keeps the reading position",
+      "passed": true
+    },
+    {
+      "name": "1280: three columns fit with the panel open",
+      "passed": true
+    },
+    {
+      "name": "768: list and chat stay side by side; panel is a drawer that does not squeeze chat",
+      "passed": true
+    },
+    {
+      "name": "768: file preview usable",
+      "passed": true
+    },
+    {
+      "name": "390: starts on the room list, full screen, no overflow",
+      "passed": true
+    },
+    {
+      "name": "390: open chat full screen; composer inside the viewport",
+      "passed": true
+    },
+    {
+      "name": "390: composer follows a shrinking viewport (keyboard stand-in)",
+      "passed": true
+    },
+    {
+      "name": "390: touch message menu → Ask AI lands in a bottom sheet",
+      "passed": true
+    },
+    {
+      "name": "390: 17 bottom sheet tabs, then close; chat header stays reachable above it",
+      "passed": true
+    },
+    {
+      "name": "390: source chip closes the sheet and reveals the message",
+      "passed": true
+    },
+    {
+      "name": "390: file preview full screen, compare stacks vertically",
+      "passed": true
+    },
+    {
+      "name": "390: 18 back returns to the room list (button and browser back)",
+      "passed": true
+    },
+    {
+      "name": "320: starts on the room list, full screen, no overflow",
+      "passed": true
+    },
+    {
+      "name": "320: open chat full screen; composer inside the viewport",
+      "passed": true
+    },
+    {
+      "name": "320: composer follows a shrinking viewport (keyboard stand-in)",
+      "passed": true
+    },
+    {
+      "name": "320: touch message menu → Ask AI lands in a bottom sheet",
+      "passed": true
+    },
+    {
+      "name": "320: 17 bottom sheet tabs, then close; chat header stays reachable above it",
+      "passed": true
+    },
+    {
+      "name": "320: source chip closes the sheet and reveals the message",
+      "passed": true
+    },
+    {
+      "name": "320: file preview full screen, compare stacks vertically",
+      "passed": true
+    },
+    {
+      "name": "320: 18 back returns to the room list (button and browser back)",
+      "passed": true
+    },
+    {
+      "name": "no unhandled browser exceptions",
+      "passed": true
+    }
+  ],
+  "metrics": {
+    "loadMs": 484,
+    "renderedItems": 12,
+    "domNodes": 624,
+    "scrollFrames": {
+      "frames": 113,
+      "framesOver50ms": 0
+    }
+  },
+  "errors": []
+}

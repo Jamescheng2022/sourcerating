@@ -1,0 +1,26 @@
+{
+  "createdAt": "2026-10-24T07:24:32.174016+00:00",
+  "repository": "sourcerating",
+  "branch": "codex/cloud-launch-20261023",
+  "baselineCommit": "49e8135c5d11b7e58d8575ec87a191c93e484f8f",
+  "applicationSourceChanged": false,
+  "isolatedTests": 5,
+  "patchApplied": false,
+  "networkRequests": 0,
+  "hostedPreviewVerified": false,
+  "signupEnabled": false,
+  "files": {
+    "evidence/cloud-20261024-relay-branch-proposal/README.md": "80ff6486d7ecc77d5a0e36625ed1774529e5a84f621bc705b8be0fe1542cf31f",
+    "evidence/cloud-20261024-relay-branch-proposal/initial-input-hashes.json": "3cb63470d79961a0bd5440d91a9117b27c669198e9dce3518a60e1cf90854f4c",
+    "evidence/cloud-20261024-relay-branch-proposal/initial-isolated-tests.txt": "eed8763984777931591643448f6442da342f901a2174cd5e1bb5e3ec5e062a4d",
+    "evidence/cloud-20261024-relay-branch-proposal/initial-run.json": "d31d0cbf487618be90d18f52bfc008e9fa89abbc7d6508143782d7dc28ea36e1",
+    "evidence/cloud-20261024-relay-branch-proposal/input-hashes.json": "8f09bc2345db98fd1998c524307d672fc7abee882c45ea79848ed8b92e29905d",
+    "evidence/cloud-20261024-relay-branch-proposal/isolated-tests.txt": "f0f3ee1da2429bd0b861a013640dd8e8e63c6085e3e3c605ea85397636d2e26b",
+    "evidence/cloud-20261024-relay-branch-proposal/patch-check.txt": "cdcdb06ad9cccea213dbf9334e95178794938bd97ccd8126a6f973f985411a38",
+    "evidence/cloud-20261024-relay-branch-proposal/run.json": "053ddc630f0c7bcf57f45fdcb7e8ddb274a2817511b07700640ad8859f9ea105",
+    "docs/proposals/INVITE_RELAY_BRANCH_20261024.md": "ec2d5ffb1a75fe2f84a5fb42a517ec181e8aefa63f75f165a5ba82c72c33be62",
+    "docs/proposals/invite-relay-cloud-branch.patch": "a854001595ea56d7391cc4372a485556f85bc2a01a4c0c1aff91b0d54576d7ce",
+    "docs/DELIVERY_GATES_20261024.md": "37038dfa2fce4261df4c1a7485df4e40caaca74a55db6ebfd9ce2989bb5f586d",
+    "supabase/scripts/relay-branch-proposal.test.mjs": "3557280770d69d02e2b23f86e5b37cd3f1c9f4b4c20745b6dd6ecc6045596a72"
+  }
+}

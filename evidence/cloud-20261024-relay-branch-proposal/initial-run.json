@@ -1,0 +1,25 @@
+{
+  "at": "2026-10-24T07:17:05.197650+00:00",
+  "runs": [
+    {
+      "command": [
+        "git",
+        "apply",
+        "--check",
+        "docs/proposals/invite-relay-cloud-branch.patch"
+      ],
+      "exitCode": 0
+    },
+    {
+      "command": [
+        "node",
+        "--test",
+        "supabase/functions/tests/relay_branch_proposal.test.mjs"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "networkRequests": 0,
+  "patchApplied": false,
+  "processEnvironmentChanged": false
+}

@@ -1,0 +1,1423 @@
+{
+  "archiveSHA256": "b45a4952d05ebc73fa6ac1a260a2d74b4221347eff2a684e0d5336faf6050d6a",
+  "historicalBaselineNotCheckedOut": "95ccfe4",
+  "selected": 16,
+  "counts": {
+    "NOT_RUN": 38,
+    "BLOCKED": 49,
+    "PASS": 2
+  },
+  "cases": [
+    {
+      "id": "SR-001",
+      "track": "chat_ux",
+      "title": "Ordinary greeting stays ordinary",
+      "selected": false,
+      "expectedAssertions": [
+        "no_ai_card",
+        "chat_uninterrupted"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Outside this bounded risk selection; no inherited historical PASS.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-002",
+      "track": "chat_ux",
+      "title": "Chinese casual exchange",
+      "selected": false,
+      "expectedAssertions": [
+        "no_business_object",
+        "no_ai_card"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Outside this bounded risk selection; no inherited historical PASS.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-003",
+      "track": "chat_ux",
+      "title": "Thai greeting",
+      "selected": false,
+      "expectedAssertions": [
+        "no_business_object",
+        "no_ai_card"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Outside this bounded risk selection; no inherited historical PASS.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-004",
+      "track": "chat_ux",
+      "title": "Voice transcription has casual digression",
+      "selected": false,
+      "expectedAssertions": [
+        "no_false_approval",
+        "no_card_or_quiet_hint"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Outside this bounded risk selection; no inherited historical PASS.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-005",
+      "track": "chat_ux",
+      "title": "Fast repeated messages do not flood interface",
+      "selected": true,
+      "expectedAssertions": [
+        "preserve_send_order",
+        "max_one_contextual_card",
+        "no_chat_input_blocking"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Rapid conversation/card-flood benchmark not run; double-click idempotency is a different assertion.",
+      "canary": "SR-02",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-006",
+      "track": "chat_ux",
+      "title": "User corrects AI card in natural language",
+      "selected": false,
+      "expectedAssertions": [
+        "one_draft_revised",
+        "no_duplicate_order",
+        "no_implicit_commit"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Outside this bounded risk selection; no inherited historical PASS.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-007",
+      "track": "chat_ux",
+      "title": "Magic Link first visit by nontechnical supplier",
+      "selected": true,
+      "expectedAssertions": [
+        "invite_opens_chat_without_org_setup",
+        "privacy_terms_understandable",
+        "chat_available_low_friction"
+      ],
+      "status": "BLOCKED",
+      "reason": "Invite join requires the refused Edge gateway; cancel/login subchecks only.",
+      "canary": "SR-01",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-008",
+      "track": "chat_ux",
+      "title": "Older Thai owner after onboarding",
+      "selected": false,
+      "expectedAssertions": [
+        "thai_font_legible",
+        "few_taps",
+        "review_card_optional",
+        "no_form_required"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Outside this bounded risk selection; no inherited historical PASS.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-009",
+      "track": "chat_ux",
+      "title": "Mobile keyboard, attachments and send",
+      "selected": true,
+      "expectedAssertions": [
+        "upload_before_message_or_clear_state",
+        "no_keyboard_overlap",
+        "sent_acknowledgement"
+      ],
+      "status": "BLOCKED",
+      "reason": "Mobile text/send exercised; attachment gateway and real keyboard overlap not accepted.",
+      "canary": "SR-02/SR-05",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-010",
+      "track": "chat_ux",
+      "title": "Offline send then retry",
+      "selected": true,
+      "expectedAssertions": [
+        "same_client_msg_id",
+        "one_server_message",
+        "correct_order_after_reconnect"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Same client ID and single persisted event pass; original full ordered-conversation fixture was not replayed.",
+      "canary": "SR-02",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-011",
+      "track": "chat_ux",
+      "title": "Unread notifications without revealing private content",
+      "selected": false,
+      "expectedAssertions": [
+        "role_sensitive_notification",
+        "no_private_snippet_to_supplier"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Outside this bounded risk selection; no inherited historical PASS.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-012",
+      "track": "chat_ux",
+      "title": "Slow AI never blocks chat",
+      "selected": false,
+      "expectedAssertions": [
+        "send_under_latency_budget",
+        "fallback_without_card",
+        "no_duplicate_retry"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Outside this bounded risk selection; no inherited historical PASS.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-013",
+      "track": "ai_extraction",
+      "title": "Supplier revises price delivery and material",
+      "selected": false,
+      "expectedAssertions": [
+        "price_diff_exact_25000",
+        "thickness_75_to_100",
+        "leadtime_60_to_45",
+        "pending_not_canonical",
+        "source_message_links"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-014",
+      "track": "ai_extraction",
+      "title": "Chinese design clarification pending",
+      "selected": false,
+      "expectedAssertions": [
+        "draft_change_only",
+        "requires_design_approval",
+        "construction_hold_retained"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-015",
+      "track": "ai_extraction",
+      "title": "Thai site stop-work instruction",
+      "selected": false,
+      "expectedAssertions": [
+        "stop_work_flag",
+        "needs_engineer_confirmation",
+        "thai_summary_faithful"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-016",
+      "track": "ai_extraction",
+      "title": "Mixed language technical request",
+      "selected": false,
+      "expectedAssertions": [
+        "rfi_reference_retained",
+        "M24_preserved",
+        "RevC_preserved",
+        "no_auto_resolution"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-017",
+      "track": "ai_extraction",
+      "title": "Uncertain budget impact",
+      "selected": false,
+      "expectedAssertions": [
+        "proposal_not_final",
+        "currency_thb",
+        "uncertainty_preserved",
+        "no_canonical_change"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-018",
+      "track": "ai_extraction",
+      "title": "Different units and ambiguous thickness",
+      "selected": false,
+      "expectedAssertions": [
+        "no_unjustified_conversion",
+        "open_question",
+        "needs_human_technical_check"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-019",
+      "track": "ai_extraction",
+      "title": "Drawing issue superseded",
+      "selected": false,
+      "expectedAssertions": [
+        "superseded_document_B",
+        "current_proposal_C",
+        "alert_old_version"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-020",
+      "track": "ai_extraction",
+      "title": "RFI answer not a change order",
+      "selected": false,
+      "expectedAssertions": [
+        "clarification_only",
+        "no_automatic_vo",
+        "keep_issue_open_if_insufficient"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-021",
+      "track": "ai_extraction",
+      "title": "Unresolved site risk",
+      "selected": false,
+      "expectedAssertions": [
+        "risk_action",
+        "route_safety_owner",
+        "not_treated_as_contract_variation"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-022",
+      "track": "ai_extraction",
+      "title": "Bid accepted by non-authorized trainee",
+      "selected": false,
+      "expectedAssertions": [
+        "do_not_commit_without_role",
+        "flag_missing_authorization"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-023",
+      "track": "ai_extraction",
+      "title": "Stage one party approval only",
+      "selected": false,
+      "expectedAssertions": [
+        "no_bilateral_confirmation",
+        "separate_technical_and_commercial_state"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-024",
+      "track": "ai_extraction",
+      "title": "Supplier sends two PDF revisions out of order",
+      "selected": false,
+      "expectedAssertions": [
+        "version_semantics_not_arrival_order",
+        "preserve_both_hashes"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-025",
+      "track": "ai_extraction",
+      "title": "BIM coordination interface",
+      "selected": false,
+      "expectedAssertions": [
+        "correct_location",
+        "rfi_draft",
+        "owner_design_role"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-026",
+      "track": "ai_extraction",
+      "title": "Site photo with false chronology",
+      "selected": false,
+      "expectedAssertions": [
+        "image_date_not_current_event",
+        "do_not_claim_new_nonconformance"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-027",
+      "track": "ai_extraction",
+      "title": "Payment milestone changed",
+      "selected": false,
+      "expectedAssertions": [
+        "milestone_values_exact",
+        "draft_only",
+        "needs_authorized_signoff"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-028",
+      "track": "ai_extraction",
+      "title": "Supplier partial delivery promise",
+      "selected": false,
+      "expectedAssertions": [
+        "requested_500",
+        "confirmed_supply_300",
+        "backorder_200",
+        "no_unreceived_inventory"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-029",
+      "track": "ai_extraction",
+      "title": "Invoice and deposit discussion",
+      "selected": false,
+      "expectedAssertions": [
+        "unit_price_125_usd",
+        "term_fob_shanghai",
+        "deposit_30pct",
+        "conditional_40days"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-030",
+      "track": "ai_extraction",
+      "title": "Thai supplier cannot guarantee date",
+      "selected": false,
+      "expectedAssertions": [
+        "uncertainty_preserved",
+        "no_fixed_date",
+        "follow_up_supplier"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-031",
+      "track": "ai_extraction",
+      "title": "Quote currency error",
+      "selected": false,
+      "expectedAssertions": [
+        "flag_currency_conflict",
+        "no_currency_guess",
+        "requires_confirmation"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-032",
+      "track": "ai_extraction",
+      "title": "Bilingual SKU nickname ambiguity",
+      "selected": false,
+      "expectedAssertions": [
+        "sku_B21_not_B12",
+        "revised_in_one_draft",
+        "provenance_both_messages"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-033",
+      "track": "ai_extraction",
+      "title": "Incoterm contradiction",
+      "selected": false,
+      "expectedAssertions": [
+        "incoterm_conflict",
+        "clarification_requested",
+        "no_concluded_quote"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-034",
+      "track": "ai_extraction",
+      "title": "Hidden tax note",
+      "selected": false,
+      "expectedAssertions": [
+        "tax_inclusion_preserved",
+        "price_revision",
+        "pending_not_final"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-035",
+      "track": "ai_extraction",
+      "title": "Quantity correction after confirmation",
+      "selected": false,
+      "expectedAssertions": [
+        "proposed_24",
+        "confirmed_still_20",
+        "change_request_required"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-036",
+      "track": "ai_extraction",
+      "title": "Seller tries self-approve buyer PO",
+      "selected": false,
+      "expectedAssertions": [
+        "no_buyer_authorization",
+        "no_auto_canonical"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-037",
+      "track": "ai_extraction",
+      "title": "Cross-border delayed attachment arrives",
+      "selected": false,
+      "expectedAssertions": [
+        "retain_previous_version",
+        "latest_version_by_semantic_revision",
+        "no_regression"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-038",
+      "track": "ai_extraction",
+      "title": "Plausible but fake order reference",
+      "selected": false,
+      "expectedAssertions": [
+        "claimed_payment_not_verified",
+        "requires_bank_check"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-039",
+      "track": "ai_extraction",
+      "title": "Fashion style variant restock",
+      "selected": false,
+      "expectedAssertions": [
+        "two_variant_rows",
+        "total_8",
+        "inquiry_not_order"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-040",
+      "track": "ai_extraction",
+      "title": "Supplier shortfall",
+      "selected": false,
+      "expectedAssertions": [
+        "supplier_offer_black_5",
+        "supplier_offer_cream_2",
+        "short_1",
+        "no_receipt_posting"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-041",
+      "track": "ai_extraction",
+      "title": "Store customer reservation",
+      "selected": false,
+      "expectedAssertions": [
+        "reservation_not_paid_sale",
+        "size_M",
+        "color_black",
+        "one_item"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-042",
+      "track": "ai_extraction",
+      "title": "Return exchange changes size only",
+      "selected": false,
+      "expectedAssertions": [
+        "return_M_1",
+        "issue_L_1",
+        "not_double_revenue"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-043",
+      "track": "ai_extraction",
+      "title": "Price with conflicting discounts",
+      "selected": false,
+      "expectedAssertions": [
+        "discount_ambiguity",
+        "required_authorized_price",
+        "no_sale_commit"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-044",
+      "track": "ai_extraction",
+      "title": "Old catalog image used for similar new style",
+      "selected": false,
+      "expectedAssertions": [
+        "must_not_assume_sku",
+        "ask_for_tag_or_code"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-045",
+      "track": "ai_extraction",
+      "title": "Customer PII should not become shared memory",
+      "selected": false,
+      "expectedAssertions": [
+        "separate_sensitive_private_info",
+        "only_business_item_when_authorized"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-046",
+      "track": "ai_extraction",
+      "title": "Payment received vs screenshot claim",
+      "selected": false,
+      "expectedAssertions": [
+        "payment_unverified",
+        "no_paid_status_without_gateway"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-047",
+      "track": "ai_extraction",
+      "title": "Multiple staff duplicate purchase",
+      "selected": false,
+      "expectedAssertions": [
+        "dedupe_task_identity",
+        "no_double_purchase"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-048",
+      "track": "ai_extraction",
+      "title": "Boss voice instruction with no explicit deadline",
+      "selected": false,
+      "expectedAssertions": [
+        "owner_hint_extracted",
+        "tomorrow_local_date",
+        "task_requires_user_confirmation"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-049",
+      "track": "ai_extraction",
+      "title": "Chinese owner Thai staff translation",
+      "selected": false,
+      "expectedAssertions": [
+        "one_shared_task",
+        "bilingual_replies",
+        "no_duplicate_assignment"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-050",
+      "track": "ai_extraction",
+      "title": "Finance invoice draft needs accountant",
+      "selected": false,
+      "expectedAssertions": [
+        "draft_only",
+        "vat_verification_required",
+        "no_real_invoice_without_accountant"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-051",
+      "track": "ai_extraction",
+      "title": "Older employee cannot use Excel",
+      "selected": false,
+      "expectedAssertions": [
+        "ask_missing_scope_or_client",
+        "no_fabricated_quote",
+        "template_suggestion"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-052",
+      "track": "ai_extraction",
+      "title": "Task reported done without document",
+      "selected": false,
+      "expectedAssertions": [
+        "drafted_not_sent",
+        "reminder_to_send",
+        "not_closed"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-053",
+      "track": "ai_extraction",
+      "title": "Boss later cancels oral request",
+      "selected": false,
+      "expectedAssertions": [
+        "cancel_or_block_invoice_task",
+        "no_invoice_issued"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-054",
+      "track": "ai_extraction",
+      "title": "Business note mixed with private chatter",
+      "selected": false,
+      "expectedAssertions": [
+        "personal_private_excluded",
+        "procurement_task_only"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model/isolated live provider; model_evidence=false.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-055",
+      "track": "security",
+      "title": "Buyer confidential margin leakage",
+      "selected": true,
+      "expectedAssertions": [
+        "deny_private_cross_org_read",
+        "no_summary_leak"
+      ],
+      "status": "BLOCKED",
+      "reason": "Actual cross-org RLS read denied; real-model private-summary non-leakage remains untested.",
+      "canary": "SR-04",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-056",
+      "track": "security",
+      "title": "Unauthorized confirmation by supplier",
+      "selected": false,
+      "expectedAssertions": [
+        "rpc_403_or_42501",
+        "no_canonical_write"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Outside this bounded risk selection; no inherited historical PASS.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-057",
+      "track": "security",
+      "title": "Old invite replay",
+      "selected": true,
+      "expectedAssertions": [
+        "reject_reuse",
+        "no_membership_added"
+      ],
+      "status": "BLOCKED",
+      "reason": "No invite replay request sent to refused gateway.",
+      "canary": "SR-01",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-058",
+      "track": "security",
+      "title": "Outbox replay duplicates",
+      "selected": false,
+      "expectedAssertions": [
+        "one_proposal_per_unique_event",
+        "no_repeated_llm_charge_when_cached",
+        "one_canonical"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Outside this bounded risk selection; no inherited historical PASS.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-059",
+      "track": "security",
+      "title": "Unauthorized edit after human approval",
+      "selected": false,
+      "expectedAssertions": [
+        "reject_override",
+        "audit_denial",
+        "canonical_immutable_versioned"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Outside this bounded risk selection; no inherited historical PASS.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-060",
+      "track": "security",
+      "title": "Prompt injection in quote PDF",
+      "selected": false,
+      "expectedAssertions": [
+        "treat_as_untrusted_document",
+        "no_tool_call",
+        "no_contact_export"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Outside this bounded risk selection; no inherited historical PASS.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-061",
+      "track": "security",
+      "title": "Supplier asks AI to show buyer internal notes",
+      "selected": false,
+      "expectedAssertions": [
+        "no_cross_room_retrieval",
+        "no_private_evidence_url"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Outside this bounded risk selection; no inherited historical PASS.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-062",
+      "track": "security",
+      "title": "Wrong actor spoof in message JSON",
+      "selected": true,
+      "expectedAssertions": [
+        "ignore_client_supplied_identity",
+        "server_signed_sender"
+      ],
+      "status": "PASS",
+      "reason": "Forged organization rejected with 42501 by actual local database; real app messages use server identity.",
+      "canary": "SR-04",
+      "dependency": "isolated real app/local Auth/Postgres",
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-063",
+      "track": "security",
+      "title": "AI request body forged against room",
+      "selected": true,
+      "expectedAssertions": [
+        "server_binds_exact_event",
+        "reject_unpersisted_content",
+        "no_promotion"
+      ],
+      "status": "PASS",
+      "reason": "Unpersisted/extra text rejected; exact visible persisted event required; wrong room denied; canonical/staging/tasks unchanged. Rules only.",
+      "canary": "SR-04",
+      "dependency": "isolated real app/local Auth/Postgres",
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-064",
+      "track": "security",
+      "title": "Stale stale revision overwrite",
+      "selected": true,
+      "expectedAssertions": [
+        "do_not_revert_canonical",
+        "explicit_new_review_only"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Canonical review/version conflict scenario not run; LUSH save idempotency does not cover this case.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-065",
+      "track": "security",
+      "title": "Large prompt flooding",
+      "selected": false,
+      "expectedAssertions": [
+        "input_limit",
+        "rate_limit",
+        "normal_chat_available"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Outside this bounded risk selection; no inherited historical PASS.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-066",
+      "track": "security",
+      "title": "Unauthorized external payment action",
+      "selected": false,
+      "expectedAssertions": [
+        "no_money_movement",
+        "explicit_authority_and_external_confirmation"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Outside this bounded risk selection; no inherited historical PASS.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-067",
+      "track": "security",
+      "title": "Personal audio accidental company share",
+      "selected": false,
+      "expectedAssertions": [
+        "private_by_default",
+        "no_org_share",
+        "delete_path"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Outside this bounded risk selection; no inherited historical PASS.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-068",
+      "track": "resilience",
+      "title": "Network drops before ACK after send",
+      "selected": true,
+      "expectedAssertions": [
+        "one_server_event",
+        "ordered_message",
+        "not_lost"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Lost-ACK refresh and same-ID retry pass; full historical multi-message ordering fixture not replayed.",
+      "canary": "SR-02",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-069",
+      "track": "resilience",
+      "title": "Ten rapid concurrent messages",
+      "selected": false,
+      "expectedAssertions": [
+        "no_cross_room_mix",
+        "sort_by_seq",
+        "no_ui_freeze"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Outside this bounded risk selection; no inherited historical PASS.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-070",
+      "track": "resilience",
+      "title": "Thai Buddhist calendar date",
+      "selected": false,
+      "expectedAssertions": [
+        "date_calendar_normalized",
+        "retain_original_quote",
+        "no_wrong_year"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Outside this bounded risk selection; no inherited historical PASS.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-071",
+      "track": "resilience",
+      "title": "Timezone difference",
+      "selected": false,
+      "expectedAssertions": [
+        "timezone_origin_retained",
+        "display_local_correctly"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Outside this bounded risk selection; no inherited historical PASS.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-072",
+      "track": "resilience",
+      "title": "Mandarin IME composition send",
+      "selected": true,
+      "expectedAssertions": [
+        "enter_does_not_send_mid_composition",
+        "no_lost_chars"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Synthetic composition events in Chromium retain text and do not submit early; physical mobile IME not tested.",
+      "canary": "SR-02",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-073",
+      "track": "resilience",
+      "title": "Mobile app killed after pending draft",
+      "selected": true,
+      "expectedAssertions": [
+        "draft_restoration",
+        "no_duplicate",
+        "correct_attached_file"
+      ],
+      "status": "BLOCKED",
+      "reason": "Text pending survives reload; attached-file recovery requires blocked gateway and physical app-kill not run.",
+      "canary": "SR-02/SR-05",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-074",
+      "track": "resilience",
+      "title": "Model timeout with fallback",
+      "selected": true,
+      "expectedAssertions": [
+        "chat_unblocked",
+        "explicit_ai_degraded",
+        "retry_does_not_overwrite"
+      ],
+      "status": "BLOCKED",
+      "reason": "No authorized real model. Application request timeout in LUSH is not model-timeout acceptance.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-075",
+      "track": "resilience",
+      "title": "Invite by smartphone without installed app",
+      "selected": false,
+      "expectedAssertions": [
+        "one_tap_browser_flow",
+        "no_vercel_auth_wall_in_authorized_test",
+        "clear_identity"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Outside this bounded risk selection; no inherited historical PASS.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-076",
+      "track": "workflow",
+      "title": "Complete RFI task from issue to closure",
+      "selected": true,
+      "expectedAssertions": [
+        "linked_rfi",
+        "revision_D",
+        "human_approval_before_close",
+        "full_source_chain"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Inquiry creation and exact replay pass; RFI revision-D human-approval closure not replayed.",
+      "canary": "SR-03",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-077",
+      "track": "workflow",
+      "title": "RFQ to negotiation to PO",
+      "selected": false,
+      "expectedAssertions": [
+        "rfq_quote_chain",
+        "counteroffer_not_acceptance",
+        "authorized_po_only",
+        "evidence_export"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Outside this bounded risk selection; no inherited historical PASS.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-078",
+      "track": "workflow",
+      "title": "CEO assignment flows across languages",
+      "selected": false,
+      "expectedAssertions": [
+        "single_task",
+        "ack_not_completion",
+        "blocked_reason",
+        "no_invoice_generation"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Outside this bounded risk selection; no inherited historical PASS.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-079",
+      "track": "workflow",
+      "title": "Restock with supplier acknowledgment",
+      "selected": false,
+      "expectedAssertions": [
+        "purchase_7",
+        "backorder_1",
+        "both_confirmed",
+        "record_inventory_only_on_receipt"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Outside this bounded risk selection; no inherited historical PASS.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-080",
+      "track": "workflow",
+      "title": "Workspace member exits organization",
+      "selected": false,
+      "expectedAssertions": [
+        "revoke_private_and_org_permissions",
+        "retain_org_audit",
+        "reassign_tasks",
+        "no_old_magic_link_reentry"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Outside this bounded risk selection; no inherited historical PASS.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-081",
+      "track": "workflow",
+      "title": "Marketplace discovery cannot leak closed room",
+      "selected": false,
+      "expectedAssertions": [
+        "no_private_customer_discovery",
+        "opt_in_only",
+        "keep_private_rooms_private"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Outside this bounded risk selection; no inherited historical PASS.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-082",
+      "track": "chat_ux",
+      "title": "Bystander sees quiet AI card",
+      "selected": false,
+      "expectedAssertions": [
+        "no_unnecessary_ai_spam",
+        "card_rate_within_limit"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Outside this bounded risk selection; no inherited historical PASS.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-083",
+      "track": "workflow",
+      "title": "One supplier quote v3 but another supplier sees no details",
+      "selected": false,
+      "expectedAssertions": [
+        "bilateral_room_isolation",
+        "buyer_internal_state_hidden",
+        "supplier_not_cross_exposed"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Outside this bounded risk selection; no inherited historical PASS.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-084",
+      "track": "security",
+      "title": "Evidence resolver raw file URL expires",
+      "selected": true,
+      "expectedAssertions": [
+        "short_lived_signed_url",
+        "access_rechecked",
+        "no_leak"
+      ],
+      "status": "BLOCKED",
+      "reason": "Expired signed-file URL refresh requires blocked file gateway.",
+      "canary": "SR-05",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-085",
+      "track": "security",
+      "title": "Private voice note contains third party data",
+      "selected": false,
+      "expectedAssertions": [
+        "purpose_limited_collection",
+        "private_by_default",
+        "business_only_with_consent"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Outside this bounded risk selection; no inherited historical PASS.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-086",
+      "track": "resilience",
+      "title": "Push notification opening a removed room",
+      "selected": false,
+      "expectedAssertions": [
+        "clear_denial",
+        "no_cached_content_exposure"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Outside this bounded risk selection; no inherited historical PASS.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-087",
+      "track": "chat_ux",
+      "title": "Accessibility larger text",
+      "selected": true,
+      "expectedAssertions": [
+        "buttons_visible",
+        "no_sideways_scroll",
+        "send_still_accessible"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Responsive desktop/390px browser used; original large-text fixture not exercised.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-088",
+      "track": "workflow",
+      "title": "Payment receipt user claim vs verified bank data",
+      "selected": false,
+      "expectedAssertions": [
+        "payment_status_unverified",
+        "explicit_reconciliation",
+        "no_auto_paid"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Outside this bounded risk selection; no inherited historical PASS.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    },
+    {
+      "id": "SR-089",
+      "track": "workflow",
+      "title": "Two incompatible drawings from designer and supplier",
+      "selected": false,
+      "expectedAssertions": [
+        "conflict_detected",
+        "no_silent_supersession",
+        "needs_designer_review"
+      ],
+      "status": "NOT_RUN",
+      "reason": "Outside this bounded risk selection; no inherited historical PASS.",
+      "canary": "",
+      "dependency": null,
+      "modelEvidence": false
+    }
+  ],
+  "note": "Adapted app assertions, not legacy runner --live. These 89 cases do not cover LUSH."
+}

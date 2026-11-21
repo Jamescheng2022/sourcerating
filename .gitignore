@@ -20,3 +20,22 @@ jointech-precast/
 # misc temp
 -p/
 
+# Local secrets and protected test credentials
+secrets/
+*.env.local
+
+# Local native build outputs (including generated public backend configuration)
+/pilot-artifacts/
+
+# Local link metadata; provider credentials never live here.
+/.vercel/
+
+# Local synthetic browser traces can contain short-lived authentication material.
+/.data/
+
+# Temporary local database test runtime
+/.localdb/
+.vercel
+
+# E2E test temporary PDF uploads
+qa/windows-b/artifacts/live-preview/qa-joint-spec-*.pdf

@@ -1,0 +1,31 @@
+{
+  "mode": "export",
+  "results": [
+    {
+      "label": "Buyer signs in with seeded email/password through UI",
+      "pass": true
+    },
+    {
+      "label": "Room evidence export is a server-persisted snapshot with no credential URLs",
+      "pass": true
+    },
+    {
+      "label": "Supplier cannot export buyer internal room; anonymous export is denied",
+      "pass": true
+    },
+    {
+      "label": "Removed member cannot export with a still valid session",
+      "pass": true
+    },
+    {
+      "label": "Room evidence index downloads as parseable JSON through the real UI",
+      "pass": true
+    },
+    {
+      "label": "Evidence export is reachable at 390px without horizontal overflow",
+      "pass": true
+    }
+  ],
+  "remoteRequests": [],
+  "pageErrors": []
+}

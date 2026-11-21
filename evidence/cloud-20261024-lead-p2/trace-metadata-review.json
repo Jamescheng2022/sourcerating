@@ -1,0 +1,175 @@
+{
+  "scope": "Parsed API path/status/action metadata, not full manual inspection of every trace body or frame. Node-side API probes are outside browser traces.",
+  "archives": [
+    {
+      "file": "sr-baseline/trace-0.zip",
+      "sha256": "8b7cb0ccf3a8075081ada080a9ac4c21a0e267bc93ad75e8e4a1eb459d55fabf",
+      "failedActionMetadata": [],
+      "groupedApiRequests": [
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/auth/v1/token",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "method": "GET",
+          "host": "127.0.0.1",
+          "path": "/auth/v1/user",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/project-room/analyze",
+          "status": 200,
+          "count": 1
+        }
+      ],
+      "selectedForMetadataReview": false
+    },
+    {
+      "file": "sr-baseline/trace-1.zip",
+      "sha256": "e612bf47d42101100a4fb66b95bcfcdfe810e828fed85273b2c15dcfcc4610f2",
+      "failedActionMetadata": [
+        {
+          "method": "waitForSelector",
+          "selector": "internal:role=button[name=\"Retry \u00b7 \u91cd\u8bd5\"s]"
+        }
+      ],
+      "groupedApiRequests": [
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/auth/v1/token",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "method": "GET",
+          "host": "127.0.0.1",
+          "path": "/auth/v1/user",
+          "status": 200,
+          "count": 2
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/rest/v1/rpc/append_room_event",
+          "status": -1,
+          "count": 1
+        }
+      ],
+      "selectedForMetadataReview": true
+    },
+    {
+      "file": "sr-fixed/trace-0.zip",
+      "sha256": "095d78fcbeac2e9f3fe8eb950d74a9e8f5bc2f408252546636e77c540b010ce3",
+      "failedActionMetadata": [],
+      "groupedApiRequests": [
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/auth/v1/token",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "method": "GET",
+          "host": "127.0.0.1",
+          "path": "/auth/v1/user",
+          "status": 200,
+          "count": 6
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/project-room/analyze",
+          "status": 200,
+          "count": 4
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/rest/v1/rpc/append_room_event",
+          "status": 200,
+          "count": 2
+        },
+        {
+          "method": "GET",
+          "host": "127.0.0.1",
+          "path": "/auth/v1/verify",
+          "status": 303,
+          "count": 2
+        },
+        {
+          "method": "PUT",
+          "host": "127.0.0.1",
+          "path": "/auth/v1/user",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/auth/v1/logout",
+          "status": 204,
+          "count": 1
+        }
+      ],
+      "selectedForMetadataReview": true
+    },
+    {
+      "file": "sr-fixed/trace-1.zip",
+      "sha256": "7c8ba0bea298bd87f9d8b8dfedc13ae33b04c15e60e1a6745cf8fe0e1f19753b",
+      "failedActionMetadata": [],
+      "groupedApiRequests": [
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/auth/v1/token",
+          "status": 200,
+          "count": 2
+        },
+        {
+          "method": "GET",
+          "host": "127.0.0.1",
+          "path": "/auth/v1/user",
+          "status": 200,
+          "count": 5
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/rest/v1/rpc/append_room_event",
+          "status": -1,
+          "count": 3
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/rest/v1/rpc/append_room_event",
+          "status": 200,
+          "count": 3
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/api/project-room/analyze",
+          "status": 200,
+          "count": 6
+        },
+        {
+          "method": "POST",
+          "host": "127.0.0.1",
+          "path": "/auth/v1/logout",
+          "status": -1,
+          "count": 1
+        }
+      ],
+      "selectedForMetadataReview": true
+    }
+  ]
+}

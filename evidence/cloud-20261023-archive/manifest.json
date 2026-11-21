@@ -1,0 +1,13 @@
+{
+  "implementation_commit": "1f7c998232b70ba66fe9ae79c2b1abba9b3052d2",
+  "branch": "codex/cloud-launch-20261023",
+  "source_sha256": {
+    "apps/web/scripts/s2-archive-review.cjs": "a2069abe7e12bbfa2643d614e39613d9b2be1d40c47d4416e26fb1b77da6cb5c",
+    "apps/web/scripts/s2-web-e2e.cjs": "9a353741d199bca0989c0fa00401eddcb417fcd253a383f8ccea2a5da291a8ea",
+    "apps/web/src/app/api/project-room/archive/route.ts": "ce07678c03efdd11b06ac11fda5df9f429a18f6981b2b6923ed9235efad5e3fe",
+    "apps/web/src/lib/room-archive.ts": "9602d9632111540db9b6b46ae02a9988bf245f87f7e04dfa3e6fcfea5c043a4a",
+    "docs/ROOM_ARCHIVE_AND_DELETION.md": "737f86687e9244a2658ec5acd6d814938b0de55ddef847261d938909d03c9071",
+    "supabase/functions/tests/room_archive_test.ts": "d98357e45ffdc9cbb371531e63e7b2086a3d60111809bb7d55bb1a7203574d88"
+  },
+  "validation": "All recorded commands exited 0 on implementation commit; subsequent commit contains evidence only."
+}

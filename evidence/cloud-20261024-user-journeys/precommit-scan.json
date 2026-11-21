@@ -1,0 +1,8 @@
+{
+  "checkedStagedFiles": 129,
+  "checkedFilesAndZipMembers": 2802,
+  "checkedUncompressedBytes": 109130229,
+  "highConfidenceCredentialHits": [],
+  "rawTracesStaged": false,
+  "scope": "Known fixture passwords, JWTs, private keys and GitHub token patterns; images are synthetic screenshots and not OCR secret-audited."
+}
