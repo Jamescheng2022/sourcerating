@@ -2,8 +2,8 @@
 
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
-  ArrowDown, ArrowLeft, ArrowUp, ChevronDown, ChevronUp, FlaskConical, Hash, ListChecks, LockKeyhole,
-  PanelRight, Paperclip, Search, Sparkles, Users, X,
+  ArrowDown, ArrowLeft, ArrowUp, Check, ChevronDown, ChevronUp, FlaskConical, Hash, ListChecks, LockKeyhole,
+  PanelRight, Paperclip, Search, Sparkles, Tag, Users, X, Zap,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
@@ -12,7 +12,57 @@ import { FileIcon, MessageItem, OrgMark } from "./message";
 import type { Lab } from "./use-lab";
 import { sendBuffer, type BufferedMessage } from "../project-room-b/send-buffer";
 import { getMobileEnterPref } from "../project-room-b/preferences";
+import { EnterpriseDossierDialog } from "../project-room-b/dossier-dialog";
 import css from "./lab.module.css";
+
+export type StageKind = "rfq" | "sampling" | "pilot" | "mass" | "after_sales";
+
+export const STAGES: { id: StageKind; name: string; short: string; color: string; bg: string; border: string }[] = [
+  { id: "rfq", name: "询价阶段 (RFQ)", short: "询价", color: "#b45309", bg: "#fef3c7", border: "#fde68a" },
+  { id: "sampling", name: "打样试制 (Sampling)", short: "打样", color: "#6d28d9", bg: "#ede9fe", border: "#ddd6fe" },
+  { id: "pilot", name: "小批试产 (Pilot Run)", short: "试产", color: "#1d4ed8", bg: "#dbeafe", border: "#bfdbfe" },
+  { id: "mass", name: "大批量产 (Mass Prod)", short: "量产", color: "#15803d", bg: "#dcfce7", border: "#bbf7d0" },
+  { id: "after_sales", name: "售后维保 (After-sales)", short: "售后", color: "#b91c1c", bg: "#fee2e2", border: "#fecaca" },
+];
+
+export interface QuickReply {
+  shortcut: string;
+  title: string;
+  text: string;
+}
+
+export const QUICK_REPLIES: QuickReply[] = [
+  {
+    shortcut: "/thanks",
+    title: "存证确认 · 感谢合作",
+    text: "非常感谢您的确认，该技术与商务约定已在双组织存证链中永久存档。",
+  },
+  {
+    shortcut: "/spec",
+    title: "规格核对 · 图纸与公差",
+    text: "请贵方工程团队核对最新图纸版本及公差标准，确认无误后请在系统内盖章确认。",
+  },
+  {
+    shortcut: "/leadtime",
+    title: "交期同步 · 生产排产",
+    text: "原材料已按技术标准备齐，本批次预计排产周期为 7-10 个工作日，届时同步检验报告。",
+  },
+  {
+    shortcut: "/moq",
+    title: "MOQ与阶梯报价",
+    text: "当前批次最小起订量 (MOQ) 为 500 件，阶梯报价与开模摊销表已更新至项目文件，请查阅。",
+  },
+  {
+    shortcut: "/shipment",
+    title: "装船发运 · 商检与报关",
+    text: "货物已完成出厂全检并符合装箱规范，正安排订舱报关与装船，提单发票将于发货后同步。",
+  },
+  {
+    shortcut: "/qc",
+    title: "首件检验 · FAI 报告",
+    text: "首件全尺寸检验报告 (FAI) 及材质证明书 (COA) 已上传至系统，请双方质检主管在线核签。",
+  },
+];
 
 const BASE = 100_000;
 
@@ -31,6 +81,20 @@ export function ChatPane({ lab, toast, onBack, onOpenAbout }: { lab: Lab; toast:
   const holdPaging = useRef(0);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const saveDraft = useCallback((id: string, text: string) => setDrafts((d) => (d[id] === text ? d : { ...d, [id]: text })), []);
+
+  const [stage, setStage] = useState<StageKind>(() => {
+    if (typeof window === "undefined") return "rfq";
+    return (localStorage.getItem(`sr_stage_${room.id}`) as StageKind) ?? "rfq";
+  });
+  const currentStage = STAGES.find((x) => x.id === stage) ?? STAGES[0];
+  const handleStageChange = (next: StageKind) => {
+    setStage(next);
+    try { localStorage.setItem(`sr_stage_${room.id}`, next); } catch {}
+    toast(`已将项目切换至【${STAGES.find((x) => x.id === next)?.name}】`);
+  };
+
+  const [dossierOpen, setDossierOpen] = useState(false);
+  const [dossierOrgShort, setDossierOrgShort] = useState("QS1");
 
   const orgs = useMemo(() => Array.from(new Set(room.memberIds.map((id) => user(id).orgId))).map(org), [room, user, org]);
   const pending = s.proposals.filter((p) => p.roomId === room.id && p.status === "pending").length;
@@ -103,7 +167,21 @@ export function ChatPane({ lab, toast, onBack, onOpenAbout }: { lab: Lab; toast:
             {room.kind === "internal" ? (
               <span className={css.internalInk}>Internal to {orgs[0].short} only</span>
             ) : (
-              orgs.map((o) => (<span key={o.id} className={css.orgChip}><OrgMark color={o.color} short={o.short} size={14} />{o.short}</span>))
+              orgs.map((o) => (
+                <span
+                  key={o.id}
+                  className={css.orgChip}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDossierOrgShort(o.short);
+                    setDossierOpen(true);
+                  }}
+                  title={`点击查看 ${o.short} 企业黄页资质档案`}
+                  style={{ cursor: "pointer" }}
+                >
+                  <OrgMark color={o.color} short={o.short} size={14} />{o.short}
+                </span>
+              ))
             )}
           </span>
         </button>
@@ -117,9 +195,43 @@ export function ChatPane({ lab, toast, onBack, onOpenAbout }: { lab: Lab; toast:
               aria-label="What's New & Settings"
             >
               <Sparkles size={13} />
-              <span>v1.1.0 引导</span>
+              <span>v1.2.0 体验</span>
             </button>
           )}
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger asChild>
+              <button
+                type="button"
+                className={css.stagePill}
+                style={{
+                  color: currentStage.color,
+                  background: currentStage.bg,
+                  borderColor: currentStage.border,
+                }}
+                title="点击切换当前项目采购制造阶段 (Phase 2 标签)"
+                aria-label={`当前采购阶段: ${currentStage.name}`}
+              >
+                <Tag size={12} />
+                <span>{currentStage.short}</span>
+              </button>
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content className={css.menu} align="end" sideOffset={6}>
+                <DropdownMenu.Label className={css.menuLabel}>切换采购与制造阶段标签 (Phase 2)</DropdownMenu.Label>
+                {STAGES.map((sItem) => (
+                  <DropdownMenu.Item
+                    key={sItem.id}
+                    className={css.menuItem}
+                    onSelect={() => handleStageChange(sItem.id)}
+                  >
+                    <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: sItem.color, marginRight: 6 }} />
+                    <span style={{ flex: 1 }}>{sItem.name}</span>
+                    {stage === sItem.id && <Check size={14} style={{ color: sItem.color }} />}
+                  </DropdownMenu.Item>
+                ))}
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
           <button type="button" className={css.iconBtn} onClick={() => setSearching((v) => !v)} aria-label="Search messages" aria-pressed={searching}><Search size={18} /></button>
           {pending > 0 && (
             <button type="button" className={css.pill} onClick={() => actions.openPanel("review")} aria-label={`${pending} items pending review`}>
@@ -214,6 +326,7 @@ export function ChatPane({ lab, toast, onBack, onOpenAbout }: { lab: Lab; toast:
         <div className={css.typing} aria-live="polite">{user(s.typing.userId).name} is typing<i /><i /><i /></div>
       )}
       <Composer key={room.id} lab={lab} initial={drafts[room.id] ?? ""} saveDraft={saveDraft} toast={toast} />
+      <EnterpriseDossierDialog open={dossierOpen} onClose={() => setDossierOpen(false)} orgShort={dossierOrgShort} />
     </section>
   );
 }
@@ -223,6 +336,7 @@ function Composer({ lab, initial, saveDraft, toast }: { lab: Lab; initial: strin
   const [text, setText] = useState(initial);
   const [file, setFile] = useState<File | null>(null);
   const [composing, setComposing] = useState(false);
+  const [showQuickReplies, setShowQuickReplies] = useState(false);
   const ta = useRef<HTMLTextAreaElement>(null);
   const pick = useRef<HTMLInputElement>(null);
   const reply = s.replyTo ? (s.messages[room.id] ?? []).find((m) => m.id === s.replyTo) : undefined;
@@ -321,9 +435,37 @@ function Composer({ lab, initial, saveDraft, toast }: { lab: Lab; initial: strin
           <button type="button" className={css.iconBtn} onClick={() => { setFile(null); if (pick.current) pick.current.value = ""; }} aria-label="Remove attachment"><X size={16} /></button>
         </div>
       )}
+      {showQuickReplies && (
+        <div className={css.quickRepliesBar}>
+          <div className={css.quickRepliesHead}>
+            <span><Zap size={13} /> 快捷回复与制造模板库（输入 / 亦可唤出）</span>
+            <button type="button" onClick={() => setShowQuickReplies(false)} aria-label="关闭快捷回复" style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b" }}><X size={14} /></button>
+          </div>
+          <div className={css.quickRepliesList}>
+            {QUICK_REPLIES.map((qr) => (
+              <button
+                key={qr.shortcut}
+                type="button"
+                className={css.quickReplyItem}
+                onClick={() => {
+                  setText((prev) => (prev.trim() === "/" ? qr.text : prev ? `${prev}\n${qr.text}` : qr.text));
+                  setShowQuickReplies(false);
+                  ta.current?.focus();
+                  toast?.(`已填入【${qr.title}】`);
+                }}
+              >
+                <b>{qr.shortcut}</b>
+                <span>{qr.title}</span>
+                <small>{qr.text}</small>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <div className={css.inputRow}>
         <input ref={pick} type="file" hidden onChange={(e) => setFile(e.target.files?.[0] ?? null)} aria-label="Select attachment" data-testid="file-input" />
-        <button type="button" className={css.iconBtn} onClick={() => pick.current?.click()} aria-label="Add attachment"><Paperclip size={20} /></button>
+        <button type="button" className={css.iconBtn} onClick={() => pick.current?.click()} aria-label="Add attachment" title="上传附件"><Paperclip size={20} /></button>
+        <button type="button" className={css.iconBtn} onClick={() => setShowQuickReplies((v) => !v)} aria-label="Quick Replies" title="快捷回复模板库 (Phase 2, 快捷键 /)"><Zap size={19} /></button>
         <textarea
           ref={ta} rows={1} value={text} aria-label="Type a message"
           enterKeyHint={
@@ -332,7 +474,13 @@ function Composer({ lab, initial, saveDraft, toast }: { lab: Lab; initial: strin
               : "send"
           }
           placeholder={room.kind === "internal" ? "Message internal team..." : others.length ? `Message ${others.join(", ")}...` : "Type a message..."}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => {
+            const val = e.target.value;
+            setText(val);
+            if (val === "/" || val.endsWith(" /")) {
+              setShowQuickReplies(true);
+            }
+          }}
           onFocus={() => {
             if (typeof window !== "undefined") {
               if (window.scrollY !== 0 || window.scrollX !== 0) window.scrollTo(0, 0);

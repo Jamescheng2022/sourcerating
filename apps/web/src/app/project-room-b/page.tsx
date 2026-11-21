@@ -88,7 +88,7 @@ export default function ProjectRoomB() {
   useEffect(() => {
     if (s.phase !== "ready") return;
     try {
-      const seen = localStorage.getItem("sr_seen_update_v1_1_0");
+      const seen = localStorage.getItem("sr_seen_update_v1_2_0");
       if (!seen) {
         setAboutTab("updates");
         setAboutOpen(true);
@@ -98,7 +98,7 @@ export default function ProjectRoomB() {
 
   const closeAbout = useCallback(() => {
     try {
-      localStorage.setItem("sr_seen_update_v1_1_0", "true");
+      localStorage.setItem("sr_seen_update_v1_2_0", "true");
     } catch {}
     setAboutOpen(false);
   }, []);

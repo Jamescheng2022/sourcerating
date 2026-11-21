@@ -6,7 +6,7 @@ import {
   AlertCircle, CheckCheck, Clock, CornerUpLeft, Copy, FileSpreadsheet, FileText, GitCompare, Image as ImageIcon, Languages,
   Link2, MessagesSquare, MoreHorizontal, Pause, Play, RotateCw, ScanSearch, Sparkles, Stamp, Trash2, Undo2,
 } from "lucide-react";
-import { memo, useEffect, useState, type ReactNode } from "react";
+import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 import { dayOf, formatSize, timeOf } from "./demo/adapter";
 import type { Msg, RoomFile } from "./demo/types";
 import type { Lab } from "./use-lab";
@@ -77,6 +77,41 @@ export const MessageItem = memo(function MessageItem({ lab, m, prev, highlight, 
   const evidence = s.proposals.filter((p) => p.status !== "rejected" && (p.sources.includes(m.id) || (file && p.fileId === file.id)));
   const failed = m.status === "failed";
 
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const touchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchStartPos = useRef<{ x: number; y: number } | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length !== 1) return;
+    const t = e.touches[0];
+    touchStartPos.current = { x: t.clientX, y: t.clientY };
+    if (touchTimer.current) clearTimeout(touchTimer.current);
+    touchTimer.current = setTimeout(() => {
+      touchTimer.current = null;
+      try { navigator.vibrate?.(15); } catch {}
+      setMobileMenuOpen(true);
+    }, 450);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchStartPos.current || !touchTimer.current) return;
+    const t = e.touches[0];
+    const dx = Math.abs(t.clientX - touchStartPos.current.x);
+    const dy = Math.abs(t.clientY - touchStartPos.current.y);
+    if (dx > 8 || dy > 8) {
+      clearTimeout(touchTimer.current);
+      touchTimer.current = null;
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (touchTimer.current) {
+      clearTimeout(touchTimer.current);
+      touchTimer.current = null;
+    }
+    touchStartPos.current = null;
+  };
+
   const acts: Action[] = [];
   if (failed) {
     acts.push({ key: "retry", label: "Retry", icon: <RotateCw size={15} />, run: () => actions.retry(m.id), primary: true });
@@ -116,7 +151,16 @@ export const MessageItem = memo(function MessageItem({ lab, m, prev, highlight, 
   }
 
   const bubble = (
-    <div className={css.bubble} data-mine={mine} data-failed={failed} data-file={!!file}>
+    <div
+      className={css.bubble}
+      data-mine={mine}
+      data-failed={failed}
+      data-file={!!file}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
+    >
       {quoted && (
         <button type="button" className={css.quote} onClick={() => actions.jumpTo(quoted.id)}>
           <b>{user(quoted.userId).name}</b>
@@ -194,16 +238,39 @@ export const MessageItem = memo(function MessageItem({ lab, m, prev, highlight, 
             </div>
           )}
           <div className={css.bubbleWrap}>
-            <ContextMenu.Root>
-              <ContextMenu.Trigger asChild>{bubble}</ContextMenu.Trigger>
-              <ContextMenu.Portal>
-                <ContextMenu.Content className={css.menu}>
+            <DropdownMenu.Root open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <ContextMenu.Root>
+                <ContextMenu.Trigger asChild>
+                  <DropdownMenu.Trigger asChild>
+                    {bubble}
+                  </DropdownMenu.Trigger>
+                </ContextMenu.Trigger>
+                <ContextMenu.Portal>
+                  <ContextMenu.Content className={css.menu}>
+                    {acts.map((a) => (
+                      <ContextMenu.Item key={a.key} className={css.menuItem} data-danger={a.danger} onSelect={a.run}>{a.icon}{a.label}</ContextMenu.Item>
+                    ))}
+                  </ContextMenu.Content>
+                </ContextMenu.Portal>
+              </ContextMenu.Root>
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content className={css.menu} align={mine ? "end" : "start"} sideOffset={6}>
                   {acts.map((a) => (
-                    <ContextMenu.Item key={a.key} className={css.menuItem} data-danger={a.danger} onSelect={a.run}>{a.icon}{a.label}</ContextMenu.Item>
+                    <DropdownMenu.Item
+                      key={a.key}
+                      className={css.menuItem}
+                      data-danger={a.danger}
+                      onSelect={() => {
+                        setMobileMenuOpen(false);
+                        a.run();
+                      }}
+                    >
+                      {a.icon}{a.label}
+                    </DropdownMenu.Item>
                   ))}
-                </ContextMenu.Content>
-              </ContextMenu.Portal>
-            </ContextMenu.Root>
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
             <div className={css.hoverBar} role="toolbar" aria-label="Message actions">
               {acts.filter((a) => a.primary).slice(0, 3).map((a) => (
                 <button key={a.key} type="button" title={a.label} aria-label={a.label} onClick={a.run}>{a.icon}</button>
